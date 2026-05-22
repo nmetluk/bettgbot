@@ -22,6 +22,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.expression import false
 
@@ -49,17 +50,15 @@ class Event(Base):
             "predictions_close_at",
             postgresql_where=text("NOT is_archived"),
         ),
-        # Naming convention `ck` достраивает префикс `ck_<table>_`, поэтому здесь
-        # передаём только суффикс — финальное имя соберётся как `ck_event_<suffix>`.
         CheckConstraint(
             "predictions_close_at <= starts_at",
-            name="close_before_start",
+            name="ck_event_close_before_start",
         ),
         CheckConstraint(
             "(result_outcome_id IS NULL AND is_archived = false) OR "
             "(result_outcome_id IS NOT NULL AND is_archived = true "
             "AND archived_at IS NOT NULL)",
-            name="result_archive_consistency",
+            name="ck_event_result_archive_consistency",
         ),
     )
 
@@ -72,8 +71,15 @@ class Event(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # SQL-имя — "metadata"; Python-имя — "metadata_", потому что `metadata`
-    # зарезервировано в `DeclarativeBase` (это MetaData).
-    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", nullable=True)
+    # зарезервировано в `DeclarativeBase` (это MetaData). NOT NULL DEFAULT '{}'
+    # убирает None-проверки в коде и делает JSONB-операторы (`->`, `||`, `?`)
+    # работающими без приведений.
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata",
+        JSONB,
+        server_default=text("'{}'::jsonb"),
+        nullable=False,
+    )
     starts_at: Mapped[datetime] = mapped_column(nullable=False)
     predictions_close_at: Mapped[datetime] = mapped_column(nullable=False)
     result_outcome_id: Mapped[int | None] = mapped_column(
