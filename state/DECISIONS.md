@@ -4,6 +4,9 @@
 
 | Дата | Решение | Контекст | Где подробнее |
 |---|---|---|---|
+| 2026-05-22 | Branch protection для `main` отложен | GitHub free не поддерживает protection на private-репозиториях. Альтернативы (public / Pro) отклонены. Митигация — дисциплина workflow: пушит только локальный Claude Code, ему явно запрещено `CLAUDE.md` пушить в `main` помимо PR | [`handoff/outbox/TASK-001-report.md`](../handoff/outbox/TASK-001-report.md), [`CLAUDE.md`](../CLAUDE.md) |
+| 2026-05-22 | Имя репозитория и пакета — `bettgbot` | Репо уже было создано владельцем под этим именем; для консистентности приведено в `pyproject.toml` и docs (`docs/02-tech-stack.md`, `docs/07-deployment.md`). Имя продукта в текстах остаётся «Betting Bot» | [`pyproject.toml`](../pyproject.toml) |
+| 2026-05-22 | Секреты для git/GitHub — в macOS Keychain, доступ через `gh auth git-credential` | PAT хранится в Keychain (internet-password, server `github.com`); `gh auth setup-git` прописал credential helper. Отдельный ADR не заводим — это факт о среде владельца, не архитектурное решение проекта | [`handoff/outbox/TASK-001-report.md`](../handoff/outbox/TASK-001-report.md) |
 | 2026-05-22 | Двухагентная схема: cowork-агент проектирует, локальный Claude Code исполняет через `handoff/` | Длинные сессии в cowork невозможны; нужно сохранять контекст между сессиями и иметь возможность пушить локально | [ADR-0003](../docs/adr/0003-handoff-protocol.md) |
 | 2026-05-22 | Стек: Python 3.12 + aiogram 3 + FastAPI + SQLAlchemy 2 + PostgreSQL 16 + Redis + Docker Compose | Несколько тысяч пользователей, редкие события, нужна транзакционность и расширяемость | [ADR-0001](../docs/adr/0001-tech-stack.md), [`docs/02-tech-stack.md`](../docs/02-tech-stack.md) |
 | 2026-05-22 | Monorepo: `bot`, `admin`, `shared`, миграции в одном репо | Общие модели и репозитории; одна команда деплоя | [ADR-0002](../docs/adr/0002-monorepo-layout.md) |

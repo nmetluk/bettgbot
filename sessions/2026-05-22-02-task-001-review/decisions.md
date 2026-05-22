@@ -1,0 +1,7 @@
+# Решения — task-001-review
+
+| # | Решение | Альтернативы | Обоснование | Где зафиксировано |
+|---|---|---|---|---|
+| 1 | Branch protection для `main` — отложен на неопределённый срок | (а) public репо + protection; (б) GitHub Pro $4/мес | На free-плане protection недоступен для private. Публиковать спецификации и таски сейчас не хотим; платить за Pro ради одной защиты — избыточно. Митигация: пушит только локальный Claude Code, которому это явно запрещено `CLAUDE.md` помимо PR через ветки | [`state/DECISIONS.md`](../../state/DECISIONS.md), [`CLAUDE.md`](../../CLAUDE.md) |
+| 2 | Имя репо и Python-пакета — `bettgbot` (вместо `betting-bot`) | Переименовать репо в `betting-bot` (была бы консистентность с предыдущими черновиками) | Репо уже создано и в нём root-commit; переименовывать ради читабельности имени — лишняя суета, GitHub-redirect был бы технически возможен, но не нужен. Имя продукта в текстах остаётся «Betting Bot» | [`pyproject.toml`](../../pyproject.toml), [`docs/02-tech-stack.md`](../../docs/02-tech-stack.md), [`docs/07-deployment.md`](../../docs/07-deployment.md), [`state/DECISIONS.md`](../../state/DECISIONS.md) |
+| 3 | Модель секретов локальной машины — без ADR | Полноценный ADR-0004 с описанием хранения/ротации PAT | Это факт о среде владельца, не архитектурное решение проекта. Не влияет на код, миграции или деплой. Достаточно фиксации строкой в `DECISIONS.md` | [`state/DECISIONS.md`](../../state/DECISIONS.md) |

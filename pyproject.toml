@@ -2,7 +2,7 @@
 # Здесь — только то, что зафиксировано на этапе проектирования.
 
 [project]
-name = "betting-bot"
+name = "bettgbot"
 version = "0.0.0"
 description = "Telegram-бот приёма прогнозов на события с минимальной веб-админкой"
 requires-python = ">=3.12"

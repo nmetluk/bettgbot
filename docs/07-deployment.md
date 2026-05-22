@@ -155,7 +155,7 @@ REMINDER_TICK_SECONDS=300
 
 ## Процедура деплоя
 
-1. `git pull` на VPS в директорию `/opt/betting-bot/`.
+1. `git pull` на VPS в директорию `/opt/bettgbot/`.
 2. `docker compose build`.
 3. `docker compose up -d`.
 4. Дождаться `healthy`.
