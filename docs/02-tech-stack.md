@@ -44,7 +44,7 @@
 
 ```toml
 [project]
-name = "betting-bot"
+name = "bettgbot"
 requires-python = ">=3.12"
 
 dependencies = [
@@ -87,7 +87,7 @@ dev = [
 
 - Python — фиксировано в `pyproject.toml` (`requires-python = ">=3.12"`).
 - Зависимости — фиксированы lock-файлом (`uv.lock` или `poetry.lock`).
-- Docker-образы — теги по semver (`betting-bot/bot:0.1.0`) + `latest` на main.
+- Docker-образы — теги по semver (`bettgbot/bot:0.1.0`) + `latest` на main.
 
 ## Связанное
 

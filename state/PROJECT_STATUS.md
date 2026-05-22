@@ -4,14 +4,14 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-22
-**Текущая фаза:** Проектирование (без кода).
-**Реализация:** не начата.
+**Текущая фаза:** Подготовка инструментария (TASK-002 в работе у cowork).
+**Реализация:** инициализация репо завершена; бизнес-код ещё не пишется.
 
 ## Где мы сейчас
 
-Завершён bootstrap проекта: структура папок, протоколы handoff и sessions, шаблоны задач/отчётов, инструкции для локального Claude Code. Утверждён технологический стек (см. [DECISIONS.md](DECISIONS.md), ADR-0001).
+Bootstrap проекта и инициализация репозитория завершены: структура папок, протоколы handoff и sessions, шаблоны задач/отчётов, инструкции для локального Claude Code, утверждён стек. Удалённый репо `nmetluk/bettgbot` (private) подключён, первый коммит `c3a31ae` запушен в `main`. `gh` + git credential helper настроены на машине владельца (PAT — в macOS Keychain).
 
-В работе — наполнение `docs/` спецификациями: обзор, архитектура, модель данных, сценарии бота, спецификация админки, контракт внешнего API, план деплоя, конвенции.
+Следующая задача — TASK-002: финализация `pyproject.toml`, установка `uv`, генерация lock-файла, pre-commit hooks (ruff + mypy), GitHub Actions CI-stub.
 
 ## Что готово
 
@@ -22,22 +22,23 @@
 - 2026-05-22 — спецификации в `docs/`: 00-overview, 01-architecture, 02-tech-stack, 03-data-model, 04-bot-flows, 05-admin-spec, 06-external-api, 07-deployment, 08-conventions
 - 2026-05-22 — ADR-0001 (tech stack), ADR-0002 (monorepo layout), ADR-0003 (handoff protocol)
 - 2026-05-22 — `.gitignore`, `.env.example`, `pyproject.toml`-заготовка
-- 2026-05-22 — `handoff/inbox/TASK-001-init-repo.md` — первая задача локальному агенту
+- 2026-05-22 — **TASK-001 закрыт:** git-репо инициализирован, root-commit `c3a31ae` в `nmetluk/bettgbot` (private); `gh` + git credential helper настроены; PR-template добавлен. Branch protection отложен (GitHub free не поддерживает для private — см. [DECISIONS.md](DECISIONS.md))
+- 2026-05-22 — сессия приёмки `2026-05-22-02-task-001-review`; имя репо унифицировано на `bettgbot` во всех документах
 
 ## Что в работе прямо сейчас
 
-— ничего, ожидание решения владельца отправить TASK-001 в исполнение.
+— ничего, ожидание команды на запуск TASK-002.
 
 ## Следующие шаги (короткий горизонт)
 
-1. Владелец даёт команду «выполняй» → локальный Claude Code берёт TASK-001 (инициализация репо + первый коммит + GitHub).
-2. После закрытия TASK-001 — TASK-002: scaffold `pyproject.toml` под uv/poetry, базовая структура `src/`, pre-commit hooks, CI-stub.
-3. Параллельно cowork-агент готовит TASK-003: миграции под модель данных из `docs/03-data-model.md`.
+1. Владелец даёт команду → локальный Claude Code берёт **TASK-002**: финализация `pyproject.toml`, установка `uv`, lock-файл, pre-commit (ruff + mypy), GitHub Actions CI-stub.
+2. После закрытия TASK-002 — TASK-003: `docker-compose.yml` под dev (postgres + redis), entrypoint-скрипты, healthchecks.
+3. После TASK-003 — TASK-004: конфиг-слой (`pydantic-settings`, `Settings`) + structlog setup.
 
 ## Блокеры / открытые вопросы
 
-- **Имя GitHub-репозитория** — кто организация/пользователь, public/private. Зафиксирует TASK-001, опираясь на ответ владельца в момент исполнения.
 - **Контракт внешнего API** — на этапе разработки используется mock-адаптер; реальный API ждёт согласования с владельцем внешней системы. См. [docs/06-external-api.md](../docs/06-external-api.md).
+- **Branch protection** — отложен по решению владельца (см. [DECISIONS.md](DECISIONS.md)); митигация — дисциплина workflow (только ветки + PR через handoff).
 
 ## Куда смотреть дальше
 
