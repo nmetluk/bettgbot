@@ -87,3 +87,6 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra -q"
+markers = [
+  "integration: tests requiring a real database (run in separate CI job)",
+]
