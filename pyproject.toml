@@ -59,6 +59,9 @@ select = [
 ]
 ignore = [
   "E501",             # длину строки следит format
+  "RUF001",           # ambiguous unicode (кириллица в строках) — у нас русский UI/тексты
+  "RUF002",           # ambiguous unicode в docstring — то же
+  "RUF003",           # ambiguous unicode в комментариях — то же
 ]
 
 [tool.ruff.lint.per-file-ignores]

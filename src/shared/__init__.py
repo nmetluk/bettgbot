@@ -1,3 +1,20 @@
 """Shared package: models, repositories, services, external clients, config."""
 
-__all__: list[str] = []
+from .config import (
+    AdminSettings,
+    ExternalRegistrySettings,
+    Settings,
+    get_settings,
+    settings,
+)
+from .logging import configure_logging, get_logger
+
+__all__ = [
+    "AdminSettings",
+    "ExternalRegistrySettings",
+    "Settings",
+    "configure_logging",
+    "get_logger",
+    "get_settings",
+    "settings",
+]

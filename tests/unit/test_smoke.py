@@ -4,4 +4,4 @@ from src import shared
 
 
 def test_smoke() -> None:
-    assert shared.__all__ == []
+    assert "settings" in shared.__all__
