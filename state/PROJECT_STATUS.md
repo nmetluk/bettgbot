@@ -3,15 +3,15 @@
 > **Это первое, что читает любой агент или человек в новой сессии.**
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
-**Обновлено:** 2026-05-22
-**Текущая фаза:** Подготовка инструментария (TASK-002 в работе у cowork).
-**Реализация:** инициализация репо завершена; бизнес-код ещё не пишется.
+**Обновлено:** 2026-05-23
+**Текущая фаза:** Подготовка инфраструктуры разработки.
+**Реализация:** инструментарий поднят (uv, pre-commit, CI зелёный); бизнес-код ещё не пишется.
 
 ## Где мы сейчас
 
-Bootstrap проекта и инициализация репозитория завершены: структура папок, протоколы handoff и sessions, шаблоны задач/отчётов, инструкции для локального Claude Code, утверждён стек. Удалённый репо `nmetluk/bettgbot` (private) подключён, первый коммит `c3a31ae` запушен в `main`. `gh` + git credential helper настроены на машине владельца (PAT — в macOS Keychain).
+TASK-001 и TASK-002 закрыты. Репо `nmetluk/bettgbot` готов к разработке: `uv` с lock-файлом, `.pre-commit-config.yaml` (ruff + mypy через `uv run`), GitHub Actions с тремя job'ами (lint/typecheck/test) — все зелёные. Принято архитектурное решение «репо — сервис, не библиотека» (ADR-0004), что повлияет на Dockerfile в TASK-003+. Формализован паттерн pre-task cleanup PR — правки cowork исполнитель упаковывает в отдельный PR перед основной задачей (как было с PR #1 перед TASK-002).
 
-Следующая задача — TASK-002: финализация `pyproject.toml`, установка `uv`, генерация lock-файла, pre-commit hooks (ruff + mypy), GitHub Actions CI-stub.
+Следующая задача — TASK-003: `infra/docker-compose.yml` с сервисами postgres + redis для локальной разработки, healthchecks, Makefile с командами, smoke-проверка.
 
 ## Что готово
 
@@ -24,16 +24,18 @@ Bootstrap проекта и инициализация репозитория з
 - 2026-05-22 — `.gitignore`, `.env.example`, `pyproject.toml`-заготовка
 - 2026-05-22 — **TASK-001 закрыт:** git-репо инициализирован, root-commit `c3a31ae` в `nmetluk/bettgbot` (private); `gh` + git credential helper настроены; PR-template добавлен. Branch protection отложен (GitHub free не поддерживает для private — см. [DECISIONS.md](DECISIONS.md))
 - 2026-05-22 — сессия приёмки `2026-05-22-02-task-001-review`; имя репо унифицировано на `bettgbot` во всех документах
+- 2026-05-23 — **TASK-002 закрыт:** `pyproject.toml` финализирован, `uv.lock` сгенерирован, `__init__.py` в `src/{shared,bot,admin}`, smoke-тест, `.pre-commit-config.yaml` (ruff + mypy через `uv run`), `.github/workflows/ci.yml` (lint/typecheck/test — все зелёные). PR [#2](https://github.com/nmetluk/bettgbot/pull/2) → squash `bb89808`. Принят [ADR-0004](../docs/adr/0004-no-build-backend.md) (нет build-backend, `package = false`)
+- 2026-05-23 — сессия приёмки `2026-05-23-01-task-002-review`; формализован [pre-task cleanup PR](../handoff/README.md#pre-task-cleanup-pr); CI триггеры сужены до `push: [main]` + `pull_request`
 
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск TASK-002.
+— ничего, ожидание команды на запуск TASK-003.
 
 ## Следующие шаги (короткий горизонт)
 
-1. Владелец даёт команду → локальный Claude Code берёт **TASK-002**: финализация `pyproject.toml`, установка `uv`, lock-файл, pre-commit (ruff + mypy), GitHub Actions CI-stub.
-2. После закрытия TASK-002 — TASK-003: `docker-compose.yml` под dev (postgres + redis), entrypoint-скрипты, healthchecks.
-3. После TASK-003 — TASK-004: конфиг-слой (`pydantic-settings`, `Settings`) + structlog setup.
+1. Владелец даёт команду → локальный Claude Code берёт **TASK-003**: `infra/docker-compose.yml` (db + redis), healthchecks, `Makefile`, smoke-проверка.
+2. После TASK-003 — TASK-004: конфиг-слой (`pydantic-settings`, `Settings`) + structlog setup.
+3. После TASK-004 — TASK-005: ORM-модели всех сущностей по [docs/03-data-model.md](../docs/03-data-model.md).
 
 ## Блокеры / открытые вопросы
 
