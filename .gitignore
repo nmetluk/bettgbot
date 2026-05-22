@@ -57,3 +57,6 @@ infra/mock-registry.local.yml
 # --- handoff (рабочие пометки исполнителя) ---
 # сами файлы задач/отчётов коммитим; локальный draft — нет
 handoff/.draft/
+
+# --- Claude Code runtime ---
+.claude/
