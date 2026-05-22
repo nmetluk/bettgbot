@@ -1,0 +1,10 @@
+# Решения — task-005-review
+
+| # | Решение | Альтернативы | Обоснование | Где зафиксировано |
+|---|---|---|---|---|
+| 1 | `Event.metadata_` — `NOT NULL` с `server_default='{}'` | Оставить nullable | JSONB как «bag of attributes» стандартно делается NOT NULL DEFAULT `'{}'`. Это убирает None-проверки в коде, JSON-операторы (`->`, `||`, `?`) работают без приведений, пустое и «нет данных» однозначно одно состояние — `{}` | [`state/DECISIONS.md`](../../state/DECISIONS.md), TASK-006 (Step 0) |
+| 2 | `AdminUser.full_name` — `String(128)` (nullable) | `Text` (как в отчёте) | Все остальные имена (`User.first_name`/`last_name`) — `String(64)`. Консистентность стиля важнее, чем формальная разница (в Postgres `Text` и `String(n)` хранятся идентично, отличие — только в check на длину) | [`state/DECISIONS.md`](../../state/DECISIONS.md), TASK-006 (Step 0) |
+| 3 | Naming convention `ck` сменена на `%(constraint_name)s`; в моделях везде полные имена | Оставить как есть (ck с авто-префиксом, остальные явно полные) | Унификация со стилем `uq`/`fk`/`ix`. Один раз набрать `ck_event_` лишний раз — меньшая стоимость, чем держать в голове «у ck другая логика». Grep по полному имени находит и модель, и тест | [`state/DECISIONS.md`](../../state/DECISIONS.md), TASK-006 (Step 0) |
+| 4 | `Prediction.is_correct` — без `server_default=null()` | Добавить явный `null()` | Явный `null()` поведения не меняет (PG-дефолт для nullable — NULL). Чистый шум, который потом придётся читать и держать в уме | [`state/DECISIONS.md`](../../state/DECISIONS.md) |
+| 5 | `Outcome.event_id` — `ondelete="CASCADE"` остаётся | Сменить на `RESTRICT` | Опасения агента не сбываются: hard-delete события возможен только при отсутствии прогнозов (`Prediction.event_id` → RESTRICT блокирует). В разрешённом случае orphan-исходы корректно стираются — поведение, которого мы и хотим | [`state/DECISIONS.md`](../../state/DECISIONS.md) |
+| 6 | Три tweaks применяются как Step 0 в TASK-006 (а не отдельной TASK-005b) | Отдельная микро-задача | Tweaks должны быть в репо до автогенерации миграции — иначе понадобится миграция-фикс. Step 0 + один коммит до db.py — самый чистый порядок | TASK-006 DoD |
