@@ -1,0 +1,18 @@
+# Решения — project-bootstrap
+
+| # | Решение | Альтернативы | Обоснование | Где зафиксировано |
+|---|---|---|---|---|
+| 1 | Двухагентная схема через папку `handoff/` (cowork проектирует, локальный Claude Code исполняет) | GitHub Issues, чат владельца, `TASKS.md`, единый `BACKLOG.md` | Автономность, всё в git, простой ментальный модель «положил файл — передал задачу», легко аудировать через `git log handoff/archive/` | [ADR-0003](../../docs/adr/0003-handoff-protocol.md), [`handoff/README.md`](../../handoff/README.md) |
+| 2 | Стек: Python 3.12 + aiogram 3 + FastAPI + SQLAlchemy 2 async + PostgreSQL 16 + Redis + Docker Compose | python-telegram-bot + Django Admin; Flask; Node.js + Next.js; SQLite | Один язык/стек, общая бизнес-логика для бота и админки, зрелые async-инструменты, готовность к масштабированию | [ADR-0001](../../docs/adr/0001-tech-stack.md), [`docs/02-tech-stack.md`](../../docs/02-tech-stack.md) |
+| 3 | Monorepo `src/{bot,admin,shared,migrations}/` | Полирепо с приватной библиотекой; одна папка без `shared` | Один источник правды для модели, один CI, одна команда деплоя | [ADR-0002](../../docs/adr/0002-monorepo-layout.md) |
+| 4 | Внешний API проверки телефонов — за интерфейсом `ExternalUserRegistryClient`; mock-реализация для dev и тестов | Захардкодить http-клиент; отложить пока не будет реального API | Можно разрабатывать и тестировать без внешней системы; контракт-черновик готов отдать на согласование владельцу системы | [`docs/06-external-api.md`](../../docs/06-external-api.md) |
+| 5 | Архивация события — мягкая (`is_archived`, `archived_at`); прогнозы не удаляются | Физическое удаление прошедших событий; разделение на две таблицы | Сохраняет историю для статистики; админ видит весь контекст; нет потерь | [`docs/03-data-model.md`](../../docs/03-data-model.md) |
+| 6 | Регистрация только через Telegram `Contact` (request_contact=true) | Ручной ввод номера | Согласие на обработку явное; защита от опечаток; Telegram уже валидировал номер | [`docs/04-bot-flows.md`](../../docs/04-bot-flows.md) |
+| 7 | FSM-storage — Redis | In-memory storage в процессе бота | Не теряем состояние при рестарте; задел под несколько инстансов; антифлуд тоже через Redis | [`docs/02-tech-stack.md`](../../docs/02-tech-stack.md) |
+| 8 | Админка — server-side rendering (Jinja2 + HTMX + Bootstrap 5), готовый шаблон | React/Vue SPA; собственный дизайн | Дизайнерских ресурсов нет; минимальная функциональность; быстрая разработка; нет лишнего build-pipeline | [`docs/05-admin-spec.md`](../../docs/05-admin-spec.md) |
+| 9 | Транзакционность фиксации итога (event + predictions + audit_log в одной транзакции) | Серия отдельных операций | Гарантия консистентности после фиксации результата | [`docs/01-architecture.md`](../../docs/01-architecture.md) (sequence «Админ фиксирует итог») |
+| 10 | Long-polling, не webhook | Webhook | Проще на старте: не требует публичного HTTPS для бота, меньше точек отказа. Webhook — отдельная задача при необходимости | [`docs/07-deployment.md`](../../docs/07-deployment.md) |
+| 11 | Один пакет `src/shared/services/` — единая бизнес-логика для бота и админки | Логика в обработчиках/роутах | Нет дублирования; одна точка изменения правил; легко тестировать | [`docs/01-architecture.md`](../../docs/01-architecture.md), [`docs/08-conventions.md`](../../docs/08-conventions.md) |
+| 12 | Auditing — обязательно для всех write-операций в админке, в той же транзакции | Логи постфактум | Невозможно «потерять» запись; следствие — гарантированный аудит-трейл | [`docs/05-admin-spec.md`](../../docs/05-admin-spec.md), [`docs/03-data-model.md`](../../docs/03-data-model.md) |
+
+Все эти решения продублированы в [`state/DECISIONS.md`](../../state/DECISIONS.md) (краткий журнал) и в трёх ADR (подробное обоснование).

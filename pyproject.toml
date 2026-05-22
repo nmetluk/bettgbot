@@ -1,0 +1,88 @@
+# Заготовка pyproject.toml. Полный файл (с lock) генерирует локальный агент в TASK-002.
+# Здесь — только то, что зафиксировано на этапе проектирования.
+
+[project]
+name = "betting-bot"
+version = "0.0.0"
+description = "Telegram-бот приёма прогнозов на события с минимальной веб-админкой"
+requires-python = ">=3.12"
+readme = "README.md"
+
+# зависимости — ориентир; финальные версии и lock-файл — TASK-002
+dependencies = [
+  "aiogram>=3.5,<4",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "jinja2>=3.1",
+  "sqlalchemy[asyncio]>=2.0",
+  "alembic>=1.13",
+  "asyncpg>=0.29",
+  "redis>=5.0",
+  "httpx>=0.27",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.2",
+  "passlib[bcrypt]>=1.7",
+  "itsdangerous>=2.2",
+  "apscheduler>=3.10",
+  "structlog>=24.1",
+  "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.2",
+  "pytest-asyncio>=0.23",
+  "factory-boy>=3.3",
+  "freezegun>=1.5",
+  "ruff>=0.4",
+  "mypy>=1.10",
+  "pre-commit>=3.7",
+  "types-passlib",
+  "types-pyyaml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",      # pyflakes/pycodestyle
+  "I",                # isort
+  "UP",               # pyupgrade
+  "B",                # bugbear
+  "ASYNC",            # async-смыслы
+  "RUF",
+  "SIM",              # simplify
+]
+ignore = [
+  "E501",             # длину строки следит format
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+# strict только для shared/; для bot и admin — отдельные секции снижают строгость
+files = ["src/shared"]
+
+[[tool.mypy.overrides]]
+module = ["src.bot.*", "src.admin.*"]
+disallow_untyped_defs = false
+strict_optional = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra -q"
+
+[build-system]
+# финальный выбор (uv / poetry-core / hatchling) — TASK-002
+requires = ["hatchling"]
+build-backend = "hatchling.build"
