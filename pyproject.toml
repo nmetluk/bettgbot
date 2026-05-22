@@ -1,45 +1,46 @@
-# Заготовка pyproject.toml. Полный файл (с lock) генерирует локальный агент в TASK-002.
-# Здесь — только то, что зафиксировано на этапе проектирования.
-
 [project]
 name = "bettgbot"
 version = "0.0.0"
 description = "Telegram-бот приёма прогнозов на события с минимальной веб-админкой"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 readme = "README.md"
 
-# зависимости — ориентир; финальные версии и lock-файл — TASK-002
 dependencies = [
   "aiogram>=3.5,<4",
-  "fastapi>=0.110",
-  "uvicorn[standard]>=0.29",
-  "jinja2>=3.1",
-  "sqlalchemy[asyncio]>=2.0",
-  "alembic>=1.13",
-  "asyncpg>=0.29",
-  "redis>=5.0",
-  "httpx>=0.27",
-  "pydantic>=2.7",
-  "pydantic-settings>=2.2",
-  "passlib[bcrypt]>=1.7",
-  "itsdangerous>=2.2",
-  "apscheduler>=3.10",
-  "structlog>=24.1",
-  "pyyaml>=6.0",
+  "fastapi>=0.110,<1",
+  "uvicorn[standard]>=0.29,<1",
+  "jinja2>=3.1,<4",
+  "sqlalchemy[asyncio]>=2.0,<3",
+  "alembic>=1.13,<2",
+  "asyncpg>=0.29,<1",
+  "redis>=5.0,<7",
+  "httpx>=0.27,<1",
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.2,<3",
+  "passlib[bcrypt]>=1.7,<2",
+  "itsdangerous>=2.2,<3",
+  "apscheduler>=3.10,<4",
+  "structlog>=24.1,<26",
+  "pyyaml>=6.0,<7",
 ]
 
 [dependency-groups]
 dev = [
-  "pytest>=8.2",
-  "pytest-asyncio>=0.23",
-  "factory-boy>=3.3",
-  "freezegun>=1.5",
-  "ruff>=0.4",
-  "mypy>=1.10",
-  "pre-commit>=3.7",
+  "pytest>=8.2,<9",
+  "pytest-asyncio>=0.23,<1",
+  "factory-boy>=3.3,<4",
+  "freezegun>=1.5,<2",
+  "ruff>=0.4,<1",
+  "mypy>=1.10,<2",
+  "pre-commit>=3.7,<5",
   "types-passlib",
   "types-pyyaml",
 ]
+
+[tool.uv]
+# Это сервис, не библиотека: wheel не собираем, поэтому build-backend не нужен,
+# а src.* пакеты подключаются через PYTHONPATH (см. [tool.pytest.ini_options]).
+package = false
 
 [tool.ruff]
 line-length = 100
@@ -48,7 +49,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = [
-  "E", "F", "W",      # pyflakes/pycodestyle
+  "E", "F", "W",      # pyflakes / pycodestyle
   "I",                # isort
   "UP",               # pyupgrade
   "B",                # bugbear
@@ -69,7 +70,7 @@ quote-style = "double"
 [tool.mypy]
 python_version = "3.12"
 strict = true
-# strict только для shared/; для bot и admin — отдельные секции снижают строгость
+# strict только для shared/; для bot и admin — отдельные секции ниже снижают строгость
 files = ["src/shared"]
 
 [[tool.mypy.overrides]]
@@ -79,10 +80,7 @@ strict_optional = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra -q"
-
-[build-system]
-# финальный выбор (uv / poetry-core / hatchling) — TASK-002
-requires = ["hatchling"]
-build-backend = "hatchling.build"
