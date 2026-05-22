@@ -6,7 +6,8 @@
 
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
 
-.PHONY: help up down restart logs ps db.psql redis.cli nuke
+.PHONY: help up down restart logs ps db.psql redis.cli nuke \
+        migrate rollback rollback.all migration.new migration.current migration.history
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -41,3 +42,32 @@ nuke: ## ОПАСНО: down -v — стирает volume'ы pg_data и redis_dat
 		echo "Отмена."; \
 		exit 1; \
 	fi
+
+migrate: ## Применить все миграции (alembic upgrade head)
+	uv run alembic upgrade head
+
+rollback: ## Откатить одну миграцию (alembic downgrade -1)
+	uv run alembic downgrade -1
+
+rollback.all: ## ОПАСНО: откатить ВСЕ миграции (alembic downgrade base) — БД пустеет
+	@printf "ВСЕ ТАБЛИЦЫ ПРИЛОЖЕНИЯ БУДУТ УДАЛЕНЫ. Введите 'ROLLBACK' для подтверждения: "; \
+	read ans; \
+	if [ "$$ans" = "ROLLBACK" ]; then \
+		uv run alembic downgrade base; \
+	else \
+		echo "Отмена."; \
+		exit 1; \
+	fi
+
+migration.new: ## Сгенерировать новую миграцию: make migration.new MSG="add foo"
+	@if [ -z "$(MSG)" ]; then \
+		echo "Использование: make migration.new MSG=\"описание\""; \
+		exit 1; \
+	fi
+	uv run alembic revision --autogenerate -m "$(MSG)"
+
+migration.current: ## Показать текущую ревизию alembic_version
+	uv run alembic current
+
+migration.history: ## История миграций (alembic history --verbose)
+	uv run alembic history --verbose
