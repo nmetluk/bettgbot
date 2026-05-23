@@ -53,7 +53,10 @@ jobs:
       - name: Sync deps (frozen)
         run: uv sync --frozen
       - name: pytest
-        run: uv run pytest -m "not integration"
+        # Явный путь tests/unit, иначе pytest при collection импортирует
+        # tests/integration/repositories/test_*.py, что тянет src.shared.config
+        # без stub-env (он живёт только в tests/unit/conftest.py).
+        run: uv run pytest tests/unit -m "not integration"
 
   integration:
     name: Integration (alembic on real postgres)
