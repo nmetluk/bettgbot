@@ -9,6 +9,13 @@ __all__ = [
     "EVENT_CARD",
     "EVENT_NOT_AVAILABLE",
     "HELP",
+    "MY_HEADER_ACTIVE",
+    "MY_HEADER_ARCHIVE",
+    "MY_NO_ACTIVE",
+    "MY_NO_ARCHIVE",
+    "MY_ROW_ACTIVE",
+    "MY_ROW_ARCHIVE",
+    "MY_STATS",
     "NEED_CONTACT",
     "NEED_OWN_CONTACT",
     "NEED_START",
@@ -91,6 +98,32 @@ EVENT_CARD = (
     "{outcomes_block}"
     "{prediction_block}"
 )
+
+MY_HEADER_ACTIVE = "🟢 <b>Активные прогнозы</b>"
+
+MY_HEADER_ARCHIVE = "📦 <b>Архив прогнозов</b>"
+
+MY_NO_ACTIVE = "У вас пока нет активных прогнозов."
+
+MY_NO_ARCHIVE = "В архиве пока пусто."
+
+# Шаблон строки активного прогноза. Placeholder'ы: `{title}`, `{starts_at}`,
+# `{outcome}`, `{close_at}`. Между строками в списке — пустая строка.
+MY_ROW_ACTIVE = (
+    "⚽ <b>{title}</b>\n🗓 Старт: {starts_at}\n🎯 Ваш выбор: «{outcome}»\n⏳ Дедлайн: {close_at}"
+)
+
+# Шаблон строки архивного прогноза. Placeholder'ы: `{title}`, `{status_emoji}`,
+# `{starts_at}`, `{outcome}`, `{result_label}`. `status_emoji` ∈ {✅, ❌, ⏳}:
+# ⏳ — если итог события ещё не зафиксирован (admin заархивировал «вхолостую»).
+MY_ROW_ARCHIVE = (
+    "⚽ <b>{title}</b> {status_emoji}\n"
+    "🗓 Прошло: {starts_at}\n"
+    "🎯 Ваш выбор: «{outcome}»\n"
+    "🏁 Итог: «{result_label}»"
+)
+
+MY_STATS = "📊 Ваша статистика: {correct} / {total} ({percent}%)"
 
 HELP = (
     "ℹ️ <b>Справка</b>\n\n"
