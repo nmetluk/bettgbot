@@ -24,12 +24,12 @@ def _mock_message() -> MagicMock:
 
 
 def _mock_query(message: Any | None = None) -> MagicMock:
-    query = MagicMock()
-    query.answer = AsyncMock()
-    # query.message — настоящий aiogram.types.Message; используем реальный класс
-    # для прохождения isinstance-check в handler'е.
-    from aiogram.types import Message
+    # `spec=CallbackQuery` нужен для isinstance-check в `@require_active_user`
+    # (он определяет alert vs обычный answer по типу).
+    from aiogram.types import CallbackQuery, Message
 
+    query = MagicMock(spec=CallbackQuery)
+    query.answer = AsyncMock()
     if message is None:
         message = MagicMock(spec=Message)
         message.edit_text = AsyncMock()
