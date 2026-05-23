@@ -17,9 +17,9 @@
 - [x] Конфиг-слой (pydantic-settings, `.env` → `Settings`-объект) → завершено TASK-004
 - [x] ORM-модели: `User`, `Category`, `Event`, `Outcome`, `Prediction`, `ReminderSetting`, `AdminUser`, `AuditLog` (по [`docs/03-data-model.md`](../docs/03-data-model.md)) → завершено TASK-005
 - [x] Alembic + первая миграция → завершено TASK-006
-- [ ] Репозитории (тонкий query-слой, 8 файлов по агрегатам) → **TASK-007**
-- [ ] Сервисы (`UserService`, `EventService`, `PredictionService`, `StatsService`, `ReminderService`, `AuditService`) — композиция репозиториев, транзакции, доменные исключения → **TASK-008**
-- [ ] Интерфейс и mock внешнего API: `ExternalUserRegistryClient` + `MockExternalUserRegistryClient` → **TASK-009**
+- [x] Репозитории (тонкий query-слой, 8 файлов по агрегатам) → завершено TASK-007
+- [ ] Интерфейс и mock внешнего API: `ExternalUserRegistryClient` + `MockExternalUserRegistryClient` + `HttpExternalUserRegistryClient` (скелет) → **TASK-008**
+- [ ] Сервисы (`UserService`, `EventService`, `PredictionService`, `StatsService`, `ReminderService`, `AuditService`) — композиция репозиториев, транзакции, доменные исключения → **TASK-009**
 
 ## Этап 2 — Telegram-бот
 
