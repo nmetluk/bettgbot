@@ -89,7 +89,23 @@ src/
 6. **Логирование — структурное.** `logger = structlog.get_logger(__name__)`. Каждое значимое событие — отдельный `info()/warning()/error()` с полями, не f-строкой.
 7. **Бизнес-исключения — доменные классы** в `src/shared/exceptions.py`, не `ValueError`. Handler ловит их и форматирует ответ.
 
-## Импорты: side-effects в пакетных `__init__.py`
+## Импорты и пакетная структура
+
+### `src/` — полноценный пакет, не namespace
+
+В корне `src/` лежит `__init__.py` (пустой). Это значит, что `src` — обычный пакет, и **все импорты во всём репо абсолютные через `src.*`**:
+
+```python
+from src.shared.config import settings
+from src.shared.models import Event
+from src.bot.middlewares import LoggingMiddleware
+```
+
+Это устраняет неоднозначность для mypy («одно и то же имя через разные пути»): без `src/__init__.py` `bot/main.py` мог бы видеть `from src.shared.logging`, а `shared/__init__.py` — `from .logging`, и mypy спотыкается. С пакетом — одно каноническое имя `src.shared.logging`.
+
+В тестах — тот же стиль: `from src.shared.repositories import ...`. **Никаких relative-импортов выше одного уровня** (`from ..shared` внутри `src/shared/...` — ок, `from ..bot` из `src/admin/...` — нет, используй абсолютный `from src.bot...`).
+
+### Side-effects в пакетных `__init__.py`
 
 Некоторые пакеты в `src/shared/` имеют side-effects при импорте `__init__.py` — фабрики с `@lru_cache`, инициализация коннекций, чтение конфига. Пример: `src/shared/external/__init__.py` создаёт singleton-клиент через `get_registry_client()`, который дёргает `Settings`.
 
@@ -104,6 +120,26 @@ from src.shared.external import ExternalUserRegistryClient, get_registry_client
 ```
 
 Импортируй из пакета только когда **реально нужна** фабрика (в `main.py` бота/админки, где singleton-клиент собирается один раз на процесс).
+
+### Фабрики читают свежий конфиг
+
+Фабрики типа `get_registry_client()` и сборочные функции типа `build_dispatcher()` берут конфиг через `get_settings()`, **не через module-level `settings`**:
+
+```python
+# хорошо — каждый вызов фабрики получает актуальный Settings:
+def build_dispatcher() -> tuple[Bot, Dispatcher]:
+    s = get_settings()
+    bot = Bot(token=s.telegram_bot_token.get_secret_value(), ...)
+    ...
+
+# плохо — module-level `settings` зафиксирован на момент импорта;
+# `get_settings.cache_clear()` в тестах не подхватится:
+from src.shared.config import settings
+def build_dispatcher():
+    bot = Bot(token=settings.telegram_bot_token.get_secret_value(), ...)
+```
+
+Хендлеры и сервисы могут пользоваться module-level `settings` (он singleton через `@lru_cache`) — там нет необходимости перечитывать конфиг. Правило про `get_settings()` касается именно фабрик, которые тесты должны иметь возможность пересобрать со свежим env.
 
 ## Git workflow
 
