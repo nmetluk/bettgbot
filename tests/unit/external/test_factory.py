@@ -18,6 +18,7 @@ def test_get_registry_client_mock_backend_returns_mock(
     monkeypatch.setenv("MOCK_REGISTRY_ALLOWED", "+71,+72")
     monkeypatch.delenv("MOCK_REGISTRY_FILE", raising=False)
     get_settings.cache_clear()
+    get_registry_client.cache_clear()
 
     client = get_registry_client()
     assert isinstance(client, MockExternalUserRegistryClient)
@@ -30,6 +31,7 @@ def test_get_registry_client_http_backend_returns_http(
     monkeypatch.setenv("EXTERNAL_API_BASE_URL", "https://registry.example.com")
     monkeypatch.setenv("EXTERNAL_API_TOKEN", "secret-token")
     get_settings.cache_clear()
+    get_registry_client.cache_clear()
 
     client = get_registry_client()
     assert isinstance(client, HttpExternalUserRegistryClient)
