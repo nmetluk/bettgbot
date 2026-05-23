@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from ..exceptions import (
     OutcomeInUseError,
     OutcomeNotForEventError,
 )
-from ..models import Event, Outcome
+from ..models import Category, Event, Outcome
 from ..repositories import (
     AuditLogRepository,
     EventRepository,
@@ -222,3 +223,26 @@ class EventService:
         status: AdminEventStatus = "all",
     ) -> int:
         return await self._events.count_for_admin(category_id=category_id, status=status)
+
+    async def list_categories_with_counts(
+        self,
+    ) -> tuple[Sequence[tuple[Category, int]], int]:
+        """Возвращает `(список (категория, число активных событий), всего активных)`.
+
+        «Активное» = `is_published AND NOT is_archived`. Категории с нулём
+        активных событий — включаются (UX показывает «событий пока нет»).
+        """
+        count_expr = func.count(Event.id).filter(
+            Event.is_published.is_(True), Event.is_archived.is_(False)
+        )
+        stmt = (
+            select(Category, count_expr)
+            .outerjoin(Event, Event.category_id == Category.id)
+            .where(Category.is_active.is_(True))
+            .group_by(Category.id)
+            .order_by(Category.sort_order, Category.id)
+        )
+        result = await self._session.execute(stmt)
+        rows = [(row[0], int(row[1])) for row in result.all()]
+        total = sum(count for _, count in rows)
+        return rows, total
