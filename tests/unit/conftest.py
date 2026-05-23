@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 
 _STUB_ENV: dict[str, str] = {
-    "TELEGRAM_BOT_TOKEN": "stub-bot-token",
+    # aiogram валидирует формат токена `digits:string` — стуб должен пройти.
+    "TELEGRAM_BOT_TOKEN": "111111:stub-token",
     "DATABASE_URL": "postgresql+asyncpg://stub:stub@localhost:5432/stub",
     "REDIS_URL": "redis://localhost:6379/0",
     "ADMIN_SECRET_KEY": "stub-admin-secret-key",

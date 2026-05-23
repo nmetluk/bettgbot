@@ -114,3 +114,13 @@ async def test_unblock_writes_audit(
     await service.unblock(user.id, admin.id)
     await nested_session.refresh(user)
     assert user.is_blocked is False
+
+
+async def test_register_without_registry_raises_runtimeerror(
+    nested_session: AsyncSession,
+) -> None:
+    # UserService без registry — допустим для touch_last_seen/block/unblock,
+    # но register_or_authenticate должен явно поднять RuntimeError.
+    service = UserService(nested_session)
+    with pytest.raises(RuntimeError, match="registry is required"):
+        await service.register_or_authenticate(tg_user_id=999, phone="+79", first_name="X")
