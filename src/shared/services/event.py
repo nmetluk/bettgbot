@@ -178,7 +178,6 @@ class EventService:
             )
             await self._session.commit()
         except IntegrityError as exc:
-            await self._session.rollback()
             raise OutcomeInUseError(f"outcome {outcome_id} has predictions; cannot delete") from exc
 
     # -- read --
