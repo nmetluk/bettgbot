@@ -24,7 +24,16 @@ _DEFAULT_REMINDER_OFFSETS = [1440, 60]
 class UserService:
     """Доменная логика регистрации, блокировки и поиска пользователей."""
 
-    def __init__(self, session: AsyncSession, registry: ExternalUserRegistryClient) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        registry: ExternalUserRegistryClient | None = None,
+    ) -> None:
+        """`registry` обязателен только для `register_or_authenticate`.
+
+        Для `touch_last_seen`/`block`/`unblock`/read-методов он не используется —
+        тогда можно передавать `None` (например, в middleware `UserMiddleware`).
+        """
         self._session = session
         self._users = UserRepository(session)
         self._reminders = ReminderSettingRepository(session)
@@ -40,14 +49,17 @@ class UserService:
         last_name: str | None = None,
         tg_username: str | None = None,
     ) -> User:
+        if self._registry is None:
+            raise RuntimeError("registry is required for register_or_authenticate")
         existing = await self._users.get_by_tg_user_id(tg_user_id)
         if existing is not None:
             await self._users.touch_last_seen(existing.id)
             await self._session.commit()
             return existing
 
+        registry = self._registry
         try:
-            verification = await self._registry.verify(phone)
+            verification = await registry.verify(phone)
         except ExternalApiError as exc:
             raise RegistryUnavailableError("registry unavailable") from exc
 

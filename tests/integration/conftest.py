@@ -4,6 +4,15 @@
 - Применяет миграции до `head` один раз на сессию тестов.
 - Предоставляет фикстуру `session` с rollback после теста и набор helper-фабрик
   (`make_admin`, `make_category`, `make_user`, `make_event`, `make_outcome`).
+
+Две session-фикстуры:
+
+- `session` (здесь) — простой rollback в финале. Подходит для repository-тестов,
+  которые **не вызывают** `session.commit()`.
+- `nested_session` (в `tests/integration/services/conftest.py`) — внешняя
+  транзакция + SAVEPOINT для тестов сервисов, которые `commit()` внутри;
+  SAVEPOINT откатывается, поэтому коммит не персистится. listener
+  `after_transaction_end` переоткрывает SAVEPOINT после каждого commit.
 """
 
 from __future__ import annotations
