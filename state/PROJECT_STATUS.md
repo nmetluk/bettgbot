@@ -4,14 +4,14 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-23
-**Текущая фаза:** Доменный слой готов целиком. Следующее — Telegram-бот (aiogram bootstrap).
-**Реализация:** runtime + конфиг + логгер + модели + миграция + engine + репозитории + внешний реестр + 6 сервисов; 109 тестов; CI 4 зелёных job'а.
+**Текущая фаза:** Bot bootstrap готов. Следующее — handler'ы команд (начиная с `/start`).
+**Реализация:** runtime + конфиг + логгер + модели + миграция + engine + репозитории + внешний реестр + 6 сервисов + aiogram скелет (dispatcher, RedisStorage, middleware, пустые routers); 119 тестов; CI 4 зелёных job'а.
 
 ## Где мы сейчас
 
-TASK-001 — TASK-009 закрыты. Полный комплект «средний этаж + ниже»: `src/shared/services/` — `UserService` (с инъекцией `ExternalUserRegistryClient`), `EventService` (transactional `set_result`: update + `mark_correctness` + audit), `PredictionService` (валидация дедлайна/архива/исхода), `ReminderService` (валидация offsets), `StatsService`, `AuditService`. Доменные исключения в `src/shared/exceptions.py` (13 классов под `DomainError`). Все write-методы сервисов сами коммитят; rollback — работа контекст-менеджера сессии (зафиксировано в [`docs/08-conventions.md`](../docs/08-conventions.md)). Step 0 TASK-009 применил две правки TASK-008 (shared `X-Request-Id`, `@lru_cache` на фабрике registry).
+TASK-001 — TASK-010 закрыты. В `src/bot/` поднят bootstrap aiogram: `main.py` с `build_dispatcher()` (testable), `RedisStorage` для FSM, три middleware (`LoggingMiddleware` со structlog contextvars + latency, `SessionMiddleware`, `UserMiddleware` с `touch_last_seen`), шесть пустых router-стабов с агрегатором `all_routers`, фабрики клавиатур (`main_menu`, `contact_request`), UI-тексты. `UserService.registry` стал Optional — middleware конструирует `UserService` без registry для `touch_last_seen`. `src/__init__.py` сделан — `src` полноценный пакет, абсолютные импорты `from src.*` обязательны (зафиксировано в [`docs/08-conventions.md`](../docs/08-conventions.md)).
 
-По итогам review TASK-009 согласована одна минорная правка кода (убрать `rollback()` из `EventService.delete_outcome` — сессия сама откатит) — встроена в Step 0 TASK-010 вместе с комментарием про session vs nested_session фикстуры. Следующая задача — TASK-010: скелет aiogram-приложения (dispatcher, RedisStorage для FSM, middleware с `get_session` и `touch_last_seen`, пустые router-стабы, тексты, клавиатуры).
+По итогам review TASK-010 правки только в документах (расширена секция про импорты, новая секция «Фабрики читают свежий конфиг») и BACKLOG (throttling `touch_last_seen` как тех-долг). Следующая задача — TASK-011: первый реальный handler `/start` + `Contact` с вызовом `UserService.register_or_authenticate` и обработкой `UserNotAllowed`/`RegistryUnavailableError`.
 
 ## Что готово
 
@@ -40,16 +40,18 @@ TASK-001 — TASK-009 закрыты. Полный комплект «средн
 - 2026-05-23 — сессия приёмки `2026-05-23-07-task-008-review`; зафиксированы 5 решений (shared `X-Request-Id` для всех попыток одного verify + `@lru_cache` на фабрике — встроены в Step 0 TASK-009; оставлены без изменений defensive YAML parsing, глобальный `random` для fail_rate, `client: AsyncClient | None` параметр)
 - 2026-05-23 — **TASK-009 закрыт:** 6 сервисов в `src/shared/services/` + `src/shared/exceptions.py` (13 классов под `DomainError`); transactional `EventService.set_result` (update + mark_correctness + audit); `UserService` с инъекцией `ExternalUserRegistryClient`. 31 integration-тест на nested-savepoint фикстуре (SAVEPOINT для сервисного commit). Step 0: shared `X-Request-Id` + `@lru_cache` на registry. PR [#23](https://github.com/nmetluk/bettgbot/pull/23) → squash `b102b9e`; pre-task cleanup PR [#22](https://github.com/nmetluk/bettgbot/pull/22)
 - 2026-05-23 — сессия приёмки `2026-05-23-08-task-009-review`; зафиксированы 5 решений (правило импортов внешних модулей дописано в `docs/08-conventions.md`; убрать `rollback()` из `EventService.delete_outcome` встроено в Step 0 TASK-010; оставлены — оба fixture'а раздельно, `touch_last_seen` коммитит, `StubRegistry` в services conftest)
+- 2026-05-23 — **TASK-010 закрыт:** aiogram bootstrap — `src/bot/main.py` с `build_dispatcher()`, `RedisStorage` FSM, три middleware, 6 пустых routers, keyboards/states/texts. `UserService.registry` стал Optional. `src/__init__.py` создан (нужен mypy для канонизации имён модулей). Step 0: drop rollback в `delete_outcome` + docstring conftest. 9 новых unit-тестов. PR [#26](https://github.com/nmetluk/bettgbot/pull/26) → squash `5224140`; pre-task cleanup PR [#25](https://github.com/nmetluk/bettgbot/pull/25)
+- 2026-05-23 — сессия приёмки `2026-05-23-09-task-010-review`; правки только в docs (расширена секция «Импорты», новая «Фабрики читают свежий конфиг» — про `get_settings()` в фабриках) и BACKLOG (throttling `touch_last_seen` как тех-долг)
 
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск TASK-010.
+— ничего, ожидание команды на запуск TASK-011.
 
 ## Следующие шаги (короткий горизонт)
 
-1. Владелец даёт команду → локальный Claude Code берёт **TASK-010**: Step 0 (две правки TASK-009) → aiogram bootstrap (`src/bot/main.py`, `src/bot/middlewares/{logging,session}.py`, `src/bot/routers/*` пустые стабы, `src/bot/keyboards/`, `src/bot/states.py`, `src/bot/texts.py`); RedisStorage для FSM; unit-тесты middleware.
-2. После TASK-010 — TASK-011: `/start` + регистрация через `Contact` + вызов `UserService.register_or_authenticate`.
-3. После TASK-011 — TASK-012: команда «Все события» с пагинацией и фильтром по категории.
+1. Владелец даёт команду → локальный Claude Code берёт **TASK-011**: handlers `/start` (для существующих и новых пользователей) и Contact (с проверкой «свой контакт», вызовом `UserService.register_or_authenticate`, обработкой `UserNotAllowed`/`RegistryUnavailableError`); DI registry через `dp["registry"]` workflow-data; unit-тесты с mock'ами.
+2. После TASK-011 — TASK-012: команда «Все события» с пагинацией и фильтром по категории (handler в `routers/events.py`).
+3. После TASK-012 — TASK-013: команда «Сделать прогноз» (FSM выбор события → выбор исхода → подтверждение).
 
 ## Блокеры / открытые вопросы
 

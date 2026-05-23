@@ -58,3 +58,9 @@
 - Реакции/уведомления при появлении событий в подписанных категориях
 - Экспорт прогнозов пользователя в CSV
 - Многоязычность (i18n уже заложено архитектурой)
+
+## Технический долг
+
+- **Throttling `UserMiddleware.touch_last_seen`** — сейчас на каждый update идёт SELECT + UPDATE + COMMIT. Под нагрузкой превратить в Redis-кеш «не чаще раза в N минут», flush в БД по таймеру или по cardinality threshold. Триггер — когда метрики покажут реальную нагрузку. Решение зафиксировано в [`state/DECISIONS.md`](DECISIONS.md) (TASK-010 review)
+- **`Retry-After` HTTP-date** в `HttpExternalUserRegistryClient` — сейчас парсятся только секунды. HTTP-date добавить, когда контракт реального внешнего API будет согласован и подтверждено, что API может вернуть HTTP-date
+- **`AuditLogRepository.list_with_admin`** с `selectinload(admin)` — добавить, когда в админке появится UI аудит-лога (TASK-026), и станет ясно, рендерится ли `entry.admin.full_name`
