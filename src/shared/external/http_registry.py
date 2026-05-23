@@ -79,6 +79,9 @@ class HttpExternalUserRegistryClient:
             await self._client.aclose()
 
     async def verify(self, phone: str) -> VerificationResult:
+        # `X-Request-Id` фиксируется на logical request — все попытки одного
+        # `verify(phone)` используют один ID. Логи различают попытки через
+        # `retry_count`, дублировать ID нет смысла.
         request_id = uuid.uuid4().hex
         headers = {
             "Authorization": f"Bearer {self._token}",

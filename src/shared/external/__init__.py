@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 from ..config import get_settings
 from .http_registry import HttpExternalUserRegistryClient
 from .mock_registry import (
@@ -30,8 +32,13 @@ __all__ = [
 ]
 
 
+@lru_cache(maxsize=1)
 def get_registry_client() -> ExternalUserRegistryClient:
-    """Возвращает клиент реестра по конфигу. Не кэширует — на каждый вызов новый."""
+    """Возвращает singleton-клиент реестра по конфигу.
+
+    Кэшируется через `lru_cache`. Тесты, меняющие env, должны звать
+    `get_registry_client.cache_clear()` перед повторной фабрикацией.
+    """
     ext = get_settings().external_registry
     if ext.backend == "http":
         # Settings._check_http_backend_has_credentials гарантирует, что url+token заданы.
