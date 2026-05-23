@@ -8,7 +8,15 @@ from __future__ import annotations
 
 from aiogram.filters.callback_data import CallbackData
 
-__all__ = ["CategoryCb", "CategoryListCb", "EventCb"]
+__all__ = [
+    "CategoryCb",
+    "CategoryListCb",
+    "EventCb",
+    "PredictCancelCb",
+    "PredictConfirmCb",
+    "PredictPickCb",
+    "PredictStartCb",
+]
 
 
 class CategoryCb(CallbackData, prefix="c"):
@@ -27,3 +35,31 @@ class EventCb(CallbackData, prefix="e"):
 
 class CategoryListCb(CallbackData, prefix="cl"):
     """Возврат на список категорий — без параметров."""
+
+
+class PredictStartCb(CallbackData, prefix="p"):
+    """Старт FSM прогноза из карточки события."""
+
+    event_id: int
+    back_category_id: int | None
+
+
+class PredictPickCb(CallbackData, prefix="po"):
+    """Выбран исход — переход к шагу подтверждения."""
+
+    event_id: int
+    outcome_id: int
+
+
+class PredictConfirmCb(CallbackData, prefix="pc"):
+    """Финальное подтверждение прогноза."""
+
+    event_id: int
+    outcome_id: int
+
+
+class PredictCancelCb(CallbackData, prefix="px"):
+    """Отмена прогноза — возврат на карточку события."""
+
+    event_id: int
+    back_category_id: int | None

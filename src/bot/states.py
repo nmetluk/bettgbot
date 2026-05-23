@@ -1,7 +1,14 @@
-"""FSM-states будут добавлены вместе с handler'ами (TASK-013, TASK-015)."""
+"""FSM-states aiogram, регистрируются в RedisStorage."""
 
 from __future__ import annotations
 
-from aiogram.fsm.state import StatesGroup  # noqa: F401 — заготовка под будущие FSM
+from aiogram.fsm.state import State, StatesGroup
 
-__all__: list[str] = []
+__all__ = ["MakingPrediction"]
+
+
+class MakingPrediction(StatesGroup):
+    """FSM «Сделать прогноз»: 2 шага — выбор исхода → подтверждение."""
+
+    choosing_outcome = State()
+    confirming = State()

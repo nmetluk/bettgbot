@@ -11,9 +11,17 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from src.shared.models import Category, Event
+from src.shared.models import Category, Event, Outcome
 
-from ..callbacks import CategoryCb, CategoryListCb, EventCb
+from ..callbacks import (
+    CategoryCb,
+    CategoryListCb,
+    EventCb,
+    PredictCancelCb,
+    PredictConfirmCb,
+    PredictPickCb,
+    PredictStartCb,
+)
 
 __all__ = [
     "categories_kbd",
@@ -21,6 +29,8 @@ __all__ = [
     "event_card_kbd",
     "events_in_category_kbd",
     "main_menu",
+    "predict_confirm_kbd",
+    "predict_outcomes_kbd",
 ]
 
 
@@ -114,11 +124,64 @@ def events_in_category_kbd(
     return builder.as_markup()
 
 
-def event_card_kbd(*, back_category_id: int | None) -> InlineKeyboardMarkup:
-    """Карточка события: пока только «🔙 К событиям» (TASK-013 добавит «Сделать прогноз»)."""
+def event_card_kbd(
+    *,
+    event_id: int,
+    back_category_id: int | None,
+    can_predict: bool,
+    has_prediction: bool,
+) -> InlineKeyboardMarkup:
+    """Карточка события: опциональная «Сделать/Изменить прогноз» + «🔙 К событиям»."""
     builder = InlineKeyboardBuilder()
+    if can_predict:
+        predict_text = "✏️ Изменить прогноз" if has_prediction else "🎯 Сделать прогноз"
+        builder.button(
+            text=predict_text,
+            callback_data=PredictStartCb(event_id=event_id, back_category_id=back_category_id),
+        )
     builder.button(
         text="🔙 К событиям",
         callback_data=CategoryCb(category_id=back_category_id, page=0),
     )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def predict_outcomes_kbd(
+    event_id: int,
+    outcomes: Sequence[Outcome],
+    back_category_id: int | None,
+) -> InlineKeyboardMarkup:
+    """Список исходов для выбора + «❌ Отмена»."""
+    builder = InlineKeyboardBuilder()
+    for i, outcome in enumerate(outcomes):
+        builder.button(
+            text=f"{i + 1}) {outcome.label}",
+            callback_data=PredictPickCb(event_id=event_id, outcome_id=outcome.id),
+        )
+    builder.button(
+        text="❌ Отмена",
+        callback_data=PredictCancelCb(event_id=event_id, back_category_id=back_category_id),
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def predict_confirm_kbd(
+    event_id: int,
+    outcome_id: int,
+    back_category_id: int | None,
+) -> InlineKeyboardMarkup:
+    """Подтверждение прогноза: «✅ Подтвердить» + «🔙 Назад»."""
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="✅ Подтвердить",
+        callback_data=PredictConfirmCb(event_id=event_id, outcome_id=outcome_id),
+    )
+    # «🔙 Назад» — повторный заход в `choosing_outcome` через PredictStartCb.
+    builder.button(
+        text="🔙 Назад",
+        callback_data=PredictStartCb(event_id=event_id, back_category_id=back_category_id),
+    )
+    builder.adjust(2)
     return builder.as_markup()
