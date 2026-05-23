@@ -16,6 +16,7 @@ from src.shared.models import AuditLog, Prediction
 from src.shared.services import EventService
 from tests.integration.conftest import (
     make_admin,
+    make_category,
     make_event,
     make_outcome,
     make_user,
@@ -145,3 +146,54 @@ async def test_delete_outcome_in_use_raises(
     service = EventService(nested_session)
     with pytest.raises(OutcomeInUseError):
         await service.delete_outcome(outcome.id, admin.id)
+
+
+async def test_list_categories_with_counts_zero_events_categories_included(
+    nested_session: AsyncSession,
+) -> None:
+    cat = await make_category(nested_session, is_active=True)
+    service = EventService(nested_session)
+    rows, _total = await service.list_categories_with_counts()
+    ids = [c.id for c, _ in rows]
+    assert cat.id in ids
+    counts = {c.id: cnt for c, cnt in rows}
+    assert counts[cat.id] == 0
+
+
+async def test_list_categories_with_counts_counts_only_published_active(
+    nested_session: AsyncSession,
+) -> None:
+    cat = await make_category(nested_session, is_active=True)
+    # published + active — учитываем
+    await make_event(nested_session, category=cat, is_published=True, is_archived=False)
+    # draft — не учитываем
+    await make_event(nested_session, category=cat, is_published=False)
+    # archived (с outcome + result) — не учитываем
+    archived = await make_event(nested_session, category=cat, is_published=True)
+    outcome = await make_outcome(nested_session, archived.id)
+    from datetime import UTC, datetime
+
+    archived.is_archived = True
+    archived.result_outcome_id = outcome.id
+    archived.archived_at = datetime.now(tz=UTC)
+    await nested_session.flush()
+
+    service = EventService(nested_session)
+    rows, _ = await service.list_categories_with_counts()
+    counts = {c.id: cnt for c, cnt in rows}
+    assert counts[cat.id] == 1
+
+
+async def test_list_categories_with_counts_total_matches_sum(
+    nested_session: AsyncSession,
+) -> None:
+    cat1 = await make_category(nested_session, is_active=True)
+    cat2 = await make_category(nested_session, is_active=True)
+    await make_event(nested_session, category=cat1, is_published=True)
+    await make_event(nested_session, category=cat1, is_published=True)
+    await make_event(nested_session, category=cat2, is_published=True)
+
+    service = EventService(nested_session)
+    rows, total = await service.list_categories_with_counts()
+    assert total == sum(cnt for _, cnt in rows)
+    assert total >= 3
