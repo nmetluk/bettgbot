@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,7 @@ from src.shared.services import EventService, PredictionService
 from .. import keyboards, texts
 from ..auth import require_active_user
 from ..callbacks import (
+    CategoryCb,
     PredictCancelCb,
     PredictConfirmCb,
     PredictPickCb,
@@ -193,13 +195,11 @@ async def on_predict_cancel(
     await state.clear()
     from .events import render_event_card
 
-    await render_event_card(
-        query,
-        callback_data.event_id,
-        callback_data.back_category_id,
-        user,
-        session,
+    back_button: tuple[str, CallbackData] = (
+        "🔙 К событиям",
+        CategoryCb(category_id=callback_data.back_category_id, page=0),
     )
+    await render_event_card(query, callback_data.event_id, back_button, user, session)
 
 
 # Fallback: callback приходит без подходящего state (например, после рестарта бота

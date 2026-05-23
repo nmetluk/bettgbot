@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.filters.callback_data import CallbackData
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,18 +115,29 @@ async def on_category(
 async def render_event_card(
     query: CallbackQuery,
     event_id: int,
-    back_category_id: int | None,
+    back_button: tuple[str, CallbackData],
     user: User,
     session: AsyncSession,
+    *,
+    allow_archived: bool = False,
 ) -> None:
     """Собирает текст карточки + клавиатуру и редактирует сообщение.
 
-    Используется в `on_event` (callback из списка) и в `on_predict_cancel`
-    (callback «❌ Отмена» из FSM прогноза).
+    Используется в `on_event` (callback из списка событий), `on_predict_cancel`
+    (отмена FSM) и `on_my_prediction` (тап из «Мои прогнозы»). `back_button` —
+    пара `(text, CallbackData)`: позволяет каждой входной точке задать свою
+    кнопку возврата без знания о других сценариях.
+
+    `allow_archived=True` — для входа из «Мои прогнозы → Архив»: показываем
+    карточку даже если событие архивно. Кнопки «Сделать прогноз» не появится,
+    потому что `predictions_close_at` уже прошёл (`can_predict` будет False).
     """
     service = EventService(session)
     event = await service.get_event(event_id, with_outcomes=True)
-    if event is None or event.is_archived or not event.is_published:
+    if event is None or not event.is_published:
+        await query.answer(texts.EVENT_NOT_AVAILABLE, show_alert=True)
+        return
+    if event.is_archived and not allow_archived:
         await query.answer(texts.EVENT_NOT_AVAILABLE, show_alert=True)
         return
 
@@ -160,9 +172,10 @@ async def render_event_card(
             text,
             reply_markup=keyboards.event_card_kbd(
                 event_id=event.id,
-                back_category_id=back_category_id,
+                back_button=back_button,
                 can_predict=can_predict,
                 has_prediction=existing is not None,
+                predict_back_category_id=event.category_id,
             ),
         )
     await query.answer()
@@ -178,6 +191,8 @@ async def on_event(
 ) -> None:
     # После @require_active_user user не None; mypy не сужает, дадим явный assert.
     assert user is not None
-    await render_event_card(
-        query, callback_data.event_id, callback_data.back_category_id, user, session
+    back_button: tuple[str, CallbackData] = (
+        "🔙 К событиям",
+        CategoryCb(category_id=callback_data.back_category_id, page=0),
     )
+    await render_event_card(query, callback_data.event_id, back_button, user, session)

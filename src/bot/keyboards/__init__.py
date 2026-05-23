@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from aiogram.filters.callback_data import CallbackData
 from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
@@ -17,6 +18,9 @@ from ..callbacks import (
     CategoryCb,
     CategoryListCb,
     EventCb,
+    MyPredictionCb,
+    MyTab,
+    MyTabCb,
     PredictCancelCb,
     PredictConfirmCb,
     PredictPickCb,
@@ -29,6 +33,7 @@ __all__ = [
     "event_card_kbd",
     "events_in_category_kbd",
     "main_menu",
+    "my_predictions_kbd",
     "predict_confirm_kbd",
     "predict_outcomes_kbd",
 ]
@@ -127,23 +132,76 @@ def events_in_category_kbd(
 def event_card_kbd(
     *,
     event_id: int,
-    back_category_id: int | None,
+    back_button: tuple[str, CallbackData],
     can_predict: bool,
     has_prediction: bool,
+    predict_back_category_id: int | None,
 ) -> InlineKeyboardMarkup:
-    """Карточка события: опциональная «Сделать/Изменить прогноз» + «🔙 К событиям»."""
+    """Карточка события: опциональная «Сделать/Изменить прогноз» + произвольная кнопка «Назад».
+
+    `back_button` — пара `(text, CallbackData)`. Это позволяет переиспользовать
+    карточку из разных входных точек (каталог → «🔙 К событиям», «Мои прогнозы»
+    → «🔙 К моим прогнозам»).
+
+    `predict_back_category_id` нужен `PredictStartCb`, чтобы после отмены/конфирма
+    FSM прогноза вернуть пользователя на список событий в категории. Когда вход
+    был не из каталога, передаём `event.category_id` — пользователь приземлится
+    в категории события, а не в исходной точке. Для MVP приемлемо.
+    """
     builder = InlineKeyboardBuilder()
     if can_predict:
         predict_text = "✏️ Изменить прогноз" if has_prediction else "🎯 Сделать прогноз"
         builder.button(
             text=predict_text,
-            callback_data=PredictStartCb(event_id=event_id, back_category_id=back_category_id),
+            callback_data=PredictStartCb(
+                event_id=event_id, back_category_id=predict_back_category_id
+            ),
         )
-    builder.button(
-        text="🔙 К событиям",
-        callback_data=CategoryCb(category_id=back_category_id, page=0),
-    )
+    back_text, back_cb = back_button
+    builder.button(text=back_text, callback_data=back_cb)
     builder.adjust(1)
+    return builder.as_markup()
+
+
+def my_predictions_kbd(
+    events: Sequence[Event],
+    *,
+    tab: MyTab,
+    page: int,
+    has_prev: bool,
+    has_next: bool,
+) -> InlineKeyboardMarkup:
+    """Список «Мои прогнозы»: 1 кнопка на прогноз + ряд табов + опц. пагинация.
+
+    Кнопок на прогноз ровно столько, сколько `events`. Тап → `MyPredictionCb`,
+    `tab` нужен для возврата в ту же вкладку из карточки события. Маркер
+    активного таба — `✓` в тексте кнопки (жирность в кнопках Telegram не доступна).
+    «🏠 В меню» здесь не нужна — главное меню есть в постоянном ReplyKeyboard.
+    """
+    builder = InlineKeyboardBuilder()
+    for event in events:
+        builder.button(
+            text=event.title,
+            callback_data=MyPredictionCb(event_id=event.id, tab=tab),
+        )
+
+    active_label = "✓ 🟢 Активные" if tab == "active" else "🟢 Активные"
+    archive_label = "✓ 📦 Архив" if tab == "archive" else "📦 Архив"
+    builder.button(text=active_label, callback_data=MyTabCb(tab="active", page=0))
+    builder.button(text=archive_label, callback_data=MyTabCb(tab="archive", page=0))
+
+    pagination_count = 0
+    if has_prev:
+        builder.button(text="‹", callback_data=MyTabCb(tab=tab, page=page - 1))
+        pagination_count += 1
+    if has_next:
+        builder.button(text="›", callback_data=MyTabCb(tab=tab, page=page + 1))
+        pagination_count += 1
+
+    layout = [1] * len(events) + [2]
+    if pagination_count > 0:
+        layout.append(pagination_count)
+    builder.adjust(*layout)
     return builder.as_markup()
 
 

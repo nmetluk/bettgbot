@@ -6,17 +6,25 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from aiogram.filters.callback_data import CallbackData
 
 __all__ = [
     "CategoryCb",
     "CategoryListCb",
     "EventCb",
+    "MyPredictionCb",
+    "MyTab",
+    "MyTabCb",
     "PredictCancelCb",
     "PredictConfirmCb",
     "PredictPickCb",
     "PredictStartCb",
 ]
+
+
+MyTab = Literal["active", "archive"]
 
 
 class CategoryCb(CallbackData, prefix="c"):
@@ -63,3 +71,17 @@ class PredictCancelCb(CallbackData, prefix="px"):
 
     event_id: int
     back_category_id: int | None
+
+
+class MyTabCb(CallbackData, prefix="m"):
+    """Раздел «Мои прогнозы»: переключение вкладки и пагинация."""
+
+    tab: MyTab
+    page: int = 0
+
+
+class MyPredictionCb(CallbackData, prefix="mp"):
+    """Тап на конкретный прогноз; `tab` нужен, чтобы кнопка «Назад» вернула в ту же вкладку."""
+
+    event_id: int
+    tab: MyTab
