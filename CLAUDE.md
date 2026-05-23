@@ -57,6 +57,24 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 - Каждая задача → одна ветка → один PR в `main`. Имя PR: `TASK-NNN: <subject>`. В описании PR — ссылка на `handoff/inbox/TASK-NNN.md` и `handoff/outbox/TASK-NNN-report.md`.
 - PAT для пуша уже на машине пользователя — настраивать не нужно. При первой задаче создаст GitHub-репозиторий (детали в TASK-001).
 
+### Push обязателен после каждой задачи
+
+После закрытия любой задачи (фичевой, фикса, cleanup, archive) **обязательно** выполнить:
+
+1. `git push origin <feature-branch>` — выложить ветку до открытия/обновления PR.
+2. `gh pr create ...` или обновить существующий PR; **дождаться** зелёного CI.
+3. `gh pr merge --squash` (если права позволяют) или явно попросить владельца замёрджить.
+4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой).
+5. Только после этого считать задачу закрытой и переходить к следующей.
+
+Цель — на удалённом репо `nmetluk/bettgbot` всегда лежит актуальная `main` сразу после каждой задачи. Это позволяет:
+
+- Поднять рабочее место на любой машине (текущая локальная — не единственная).
+- Использовать `nmetluk/bettgbot` + Drive-бэкап `Claude projects/Betting Bot backup` как single source of truth, к которому может подключиться второй экземпляр локального CC.
+- Откатиться к любой точке без потерь незакоммиченной работы.
+
+Если `git push` падает (auth, network) — это **блокер**, оформить как `outbox/TASK-NNN-question.md`, **не** оставлять локально и идти дальше.
+
 ## Кодовые правила
 
 См. [`docs/08-conventions.md`](docs/08-conventions.md). Если кратко:
@@ -87,7 +105,8 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 ## Когда задача готова
 
 1. Все тесты зелёные (`pytest`), линт чист (`ruff check`), типы (`mypy src/shared`).
-2. Коммиты запушены, PR открыт.
-3. Отчёт в `handoff/outbox/TASK-NNN-report.md` написан.
-4. Исходная задача перемещена в `handoff/archive/`.
-5. Если задача требовала обновления списка готового — пометил в отчёте, что строка для `state/PROJECT_STATUS.md` подготовлена (саму строку добавит проектировщик).
+2. **Коммиты запушены в `origin/<feature-branch>`, PR открыт, CI зелёный.**
+3. Отчёт в `handoff/outbox/TASK-NNN-report.md` написан и закоммичен.
+4. Исходная задача перемещена в `handoff/archive/`, тоже закоммичена.
+5. **PR слит** (squash), **локальная `main` синхронизирована с `origin/main`** (`git checkout main && git pull`).
+6. Если задача требовала обновления списка готового — пометил в отчёте, что строка для `state/PROJECT_STATUS.md` подготовлена (саму строку добавит проектировщик).
