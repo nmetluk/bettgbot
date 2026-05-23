@@ -83,11 +83,27 @@ src/
 
 1. **Не лезть в БД из handlers/routes.** Handler ↔ Service ↔ Repository ↔ Model. Тестируется на ревью.
 2. **Не лезть в сервисы из моделей.** Модели — только schema. Без бизнес-методов.
-3. **Транзакции — в сервисе.** Repository выполняет операции в переданной сессии; commit/rollback решает сервис.
+3. **Транзакции — в сервисе.** Repository выполняет операции в переданной сессии; commit решает сервис. Rollback **не делает** — это работа контекст-менеджера сессии (middleware закроет с откатом при исключении).
 4. **Внешний мир — только через интерфейсы.** Telegram API (через aiogram), HTTP — через `httpx` адаптеры, время — через `datetime.now(tz=UTC)` (никаких `datetime.utcnow()`), генерация id — через uuid.
 5. **Идемпотентность.** Любой обработчик, который пишет в БД, проектируется так, чтобы повторный вызов с тем же входом не плодил дублей (uniq-constraints + upsert).
 6. **Логирование — структурное.** `logger = structlog.get_logger(__name__)`. Каждое значимое событие — отдельный `info()/warning()/error()` с полями, не f-строкой.
 7. **Бизнес-исключения — доменные классы** в `src/shared/exceptions.py`, не `ValueError`. Handler ловит их и форматирует ответ.
+
+## Импорты: side-effects в пакетных `__init__.py`
+
+Некоторые пакеты в `src/shared/` имеют side-effects при импорте `__init__.py` — фабрики с `@lru_cache`, инициализация коннекций, чтение конфига. Пример: `src/shared/external/__init__.py` создаёт singleton-клиент через `get_registry_client()`, который дёргает `Settings`.
+
+**Правило:** если нужен только тип (например, `ExternalUserRegistryClient` Protocol для аннотации параметра конструктора сервиса) — импортируй **из подмодуля** напрямую, не из пакета:
+
+```python
+# хорошо — берём только тип, side-effects __init__ не трогаем:
+from src.shared.external.registry import ExternalUserRegistryClient, VerificationResult
+
+# плохо — пакетный __init__ при импорте создаст фабрику и тронет settings:
+from src.shared.external import ExternalUserRegistryClient, get_registry_client
+```
+
+Импортируй из пакета только когда **реально нужна** фабрика (в `main.py` бота/админки, где singleton-клиент собирается один раз на процесс).
 
 ## Git workflow
 
