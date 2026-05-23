@@ -6,6 +6,7 @@
 """
 
 from .audit import AuditService
+from .category import CategoryService
 from .event import EventService
 from .prediction import PredictionService
 from .reminder import ReminderService
@@ -14,6 +15,7 @@ from .user import UserService
 
 __all__ = [
     "AuditService",
+    "CategoryService",
     "EventService",
     "PredictionService",
     "ReminderService",
