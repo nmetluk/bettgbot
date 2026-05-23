@@ -4,14 +4,14 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-23
-**Текущая фаза:** Bot bootstrap готов. Следующее — handler'ы команд (начиная с `/start`).
-**Реализация:** runtime + конфиг + логгер + модели + миграция + engine + репозитории + внешний реестр + 6 сервисов + aiogram скелет (dispatcher, RedisStorage, middleware, пустые routers); 119 тестов; CI 4 зелёных job'а.
+**Текущая фаза:** Первый реальный handler работает end-to-end. Дальше — каталог событий.
+**Реализация:** runtime + конфиг + логгер + модели + миграция + engine + репозитории + внешний реестр + 6 сервисов + aiogram bootstrap + handler `/start` с регистрацией; 129 тестов; CI 4 зелёных job'а.
 
 ## Где мы сейчас
 
-TASK-001 — TASK-010 закрыты. В `src/bot/` поднят bootstrap aiogram: `main.py` с `build_dispatcher()` (testable), `RedisStorage` для FSM, три middleware (`LoggingMiddleware` со structlog contextvars + latency, `SessionMiddleware`, `UserMiddleware` с `touch_last_seen`), шесть пустых router-стабов с агрегатором `all_routers`, фабрики клавиатур (`main_menu`, `contact_request`), UI-тексты. `UserService.registry` стал Optional — middleware конструирует `UserService` без registry для `touch_last_seen`. `src/__init__.py` сделан — `src` полноценный пакет, абсолютные импорты `from src.*` обязательны (зафиксировано в [`docs/08-conventions.md`](../docs/08-conventions.md)).
+TASK-001 — TASK-011 закрыты. Бот делает первый полезный сценарий: `/start` → share contact → проверка через mock-реестр → создание `User` + дефолтных `ReminderSetting [1440, 60]` → главное меню. Все edge-cases (чужой контакт, заблокированный, уже зарегистрирован, `not_found` в реестре, `ExternalApiError`) с понятными текстами. `dp["registry"] = get_registry_client()` — DI registry через workflow-data aiogram. Phone приводится к E.164 в handler'е (граница ввода); сервис принимает только E.164 как контракт. PII (телефон) в логах — только `sha256[:8]`. FSM сбрасывается на `/start`.
 
-По итогам review TASK-010 правки только в документах (расширена секция про импорты, новая секция «Фабрики читают свежий конфиг») и BACKLOG (throttling `touch_last_seen` как тех-долг). Следующая задача — TASK-011: первый реальный handler `/start` + `Contact` с вызовом `UserService.register_or_authenticate` и обработкой `UserNotAllowed`/`RegistryUnavailableError`.
+По итогам review TASK-011 все пять открытых вопросов закрыты «keep» (никаких правок кода). Следующая задача — TASK-012: handler «📅 Все события» (список категорий → список событий с пагинацией → карточка события), новый `CategoryService` для соответствия Handler→Service→Repo конвенции, типизированные `CallbackData` factories.
 
 ## Что готово
 
@@ -42,16 +42,18 @@ TASK-001 — TASK-010 закрыты. В `src/bot/` поднят bootstrap aiogr
 - 2026-05-23 — сессия приёмки `2026-05-23-08-task-009-review`; зафиксированы 5 решений (правило импортов внешних модулей дописано в `docs/08-conventions.md`; убрать `rollback()` из `EventService.delete_outcome` встроено в Step 0 TASK-010; оставлены — оба fixture'а раздельно, `touch_last_seen` коммитит, `StubRegistry` в services conftest)
 - 2026-05-23 — **TASK-010 закрыт:** aiogram bootstrap — `src/bot/main.py` с `build_dispatcher()`, `RedisStorage` FSM, три middleware, 6 пустых routers, keyboards/states/texts. `UserService.registry` стал Optional. `src/__init__.py` создан (нужен mypy для канонизации имён модулей). Step 0: drop rollback в `delete_outcome` + docstring conftest. 9 новых unit-тестов. PR [#26](https://github.com/nmetluk/bettgbot/pull/26) → squash `5224140`; pre-task cleanup PR [#25](https://github.com/nmetluk/bettgbot/pull/25)
 - 2026-05-23 — сессия приёмки `2026-05-23-09-task-010-review`; правки только в docs (расширена секция «Импорты», новая «Фабрики читают свежий конфиг» — про `get_settings()` в фабриках) и BACKLOG (throttling `touch_last_seen` как тех-долг)
+- 2026-05-23 — **TASK-011 закрыт:** первый реальный handler `/start` + contact в `src/bot/routers/start.py`. DI registry через `dp["registry"]` (workflow-data aiogram). Полная цепочка регистрации: `/start` → contact → `UserService.register_or_authenticate` → mock-реестр → `User` + дефолтный `ReminderSetting`. Все ветки edge-cases (чужой контакт, blocked, not_found, ExternalApiError) с понятными текстами. PII (телефон) в логах только sha256[:8]. 10 новых unit-тестов. PR [#29](https://github.com/nmetluk/bettgbot/pull/29) → squash `82e8cc4`; pre-task cleanup PR [#28](https://github.com/nmetluk/bettgbot/pull/28)
+- 2026-05-23 — сессия приёмки `2026-05-23-10-task-011-review`; все 5 решений «keep» (phone-нормализация в handler как граница ввода; `_phone_hash` дубликат до 3-го использования; `warning` для registry_unavailable; `str.format()` приемлемо; narrowing-паттерн `F.contact`)
 
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск TASK-011.
+— ничего, ожидание команды на запуск TASK-012.
 
 ## Следующие шаги (короткий горизонт)
 
-1. Владелец даёт команду → локальный Claude Code берёт **TASK-011**: handlers `/start` (для существующих и новых пользователей) и Contact (с проверкой «свой контакт», вызовом `UserService.register_or_authenticate`, обработкой `UserNotAllowed`/`RegistryUnavailableError`); DI registry через `dp["registry"]` workflow-data; unit-тесты с mock'ами.
-2. После TASK-011 — TASK-012: команда «Все события» с пагинацией и фильтром по категории (handler в `routers/events.py`).
-3. После TASK-012 — TASK-013: команда «Сделать прогноз» (FSM выбор события → выбор исхода → подтверждение).
+1. Владелец даёт команду → локальный Claude Code берёт **TASK-012**: handler «📅 Все события» (`/events` + кнопка из главного меню) — список категорий с количеством активных событий → список событий с пагинацией → карточка события (read-only); новый `CategoryService` (минимум: `list_active`, `get_by_id`, `get_by_slug`); типизированные `CallbackData` factories.
+2. После TASK-012 — TASK-013: команда «Сделать прогноз» (FSM выбор события → выбор исхода → подтверждение); кнопка «Сделать прогноз» в карточке события из TASK-012.
+3. После TASK-013 — TASK-014: команда «Мои прогнозы» (активные / архив).
 
 ## Блокеры / открытые вопросы
 
