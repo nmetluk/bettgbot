@@ -1,6 +1,8 @@
-"""Router «📅 Все события» — категории, список с пагинацией, карточка (TASK-012)."""
+"""Router «📅 Все события» — категории, список с пагинацией, карточка (TASK-012/013)."""
 
 from __future__ import annotations
+
+from datetime import UTC, datetime
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -11,9 +13,10 @@ from src.shared.models import User
 from src.shared.services import CategoryService, EventService, PredictionService
 
 from .. import keyboards, texts
+from ..auth import require_active_user
 from ..callbacks import CategoryCb, CategoryListCb, EventCb
 
-__all__ = ["router"]
+__all__ = ["render_event_card", "router"]
 
 
 router = Router(name="events")
@@ -21,23 +24,10 @@ router = Router(name="events")
 PAGE_SIZE = 7  # docs/04-bot-flows.md: «по 5–7 на страницу»
 
 
-def _check_access(user: User | None) -> str | None:
-    """Возвращает текст отказа, если доступа нет; `None` если ОК."""
-    if user is None:
-        return texts.NEED_START
-    if user.is_blocked:
-        return texts.ACCESS_DENIED
-    return None
-
-
 @router.message(Command("events"))
 @router.message(F.text == "📅 Все события")
+@require_active_user
 async def cmd_events(message: Message, user: User | None, session: AsyncSession) -> None:
-    deny = _check_access(user)
-    if deny is not None:
-        await message.answer(deny)
-        return
-
     service = EventService(session)
     cats, total = await service.list_categories_with_counts()
     if total == 0:
@@ -51,14 +41,10 @@ async def cmd_events(message: Message, user: User | None, session: AsyncSession)
 
 
 @router.callback_query(CategoryListCb.filter())
+@require_active_user
 async def on_back_to_categories(
     query: CallbackQuery, user: User | None, session: AsyncSession
 ) -> None:
-    deny = _check_access(user)
-    if deny is not None:
-        await query.answer(deny, show_alert=True)
-        return
-
     service = EventService(session)
     cats, total = await service.list_categories_with_counts()
     if isinstance(query.message, Message):
@@ -70,17 +56,13 @@ async def on_back_to_categories(
 
 
 @router.callback_query(CategoryCb.filter())
+@require_active_user
 async def on_category(
     query: CallbackQuery,
     callback_data: CategoryCb,
     user: User | None,
     session: AsyncSession,
 ) -> None:
-    deny = _check_access(user)
-    if deny is not None:
-        await query.answer(deny, show_alert=True)
-        return
-
     service = EventService(session)
     page = callback_data.page
     # +1 чтобы понять, есть ли следующая страница, без отдельного count.
@@ -129,24 +111,21 @@ async def on_category(
     await query.answer()
 
 
-@router.callback_query(EventCb.filter())
-async def on_event(
+async def render_event_card(
     query: CallbackQuery,
-    callback_data: EventCb,
-    user: User | None,
+    event_id: int,
+    back_category_id: int | None,
+    user: User,
     session: AsyncSession,
 ) -> None:
-    deny = _check_access(user)
-    if deny is not None:
-        await query.answer(deny, show_alert=True)
-        return
+    """Собирает текст карточки + клавиатуру и редактирует сообщение.
 
+    Используется в `on_event` (callback из списка) и в `on_predict_cancel`
+    (callback «❌ Отмена» из FSM прогноза).
+    """
     service = EventService(session)
-    event = await service.get_event(callback_data.event_id, with_outcomes=True)
-    if event is None:
-        await query.answer(texts.EVENT_NOT_AVAILABLE, show_alert=True)
-        return
-    if event.is_archived or not event.is_published:
+    event = await service.get_event(event_id, with_outcomes=True)
+    if event is None or event.is_archived or not event.is_published:
         await query.answer(texts.EVENT_NOT_AVAILABLE, show_alert=True)
         return
 
@@ -154,17 +133,15 @@ async def on_event(
     category_name = category.name if category is not None else "Без категории"
 
     description_block = f"\n\n{event.description}" if event.description else ""
-
     outcomes_lines = [f"{i + 1}) {outcome.label}" for i, outcome in enumerate(event.outcomes)]
     outcomes_block = "\n".join(outcomes_lines)
 
+    existing = await PredictionService(session).get_user_prediction(user.id, event.id)
     prediction_block = ""
-    if user is not None:
-        existing = await PredictionService(session).get_user_prediction(user.id, event.id)
-        if existing is not None:
-            chosen = next((o for o in event.outcomes if o.id == existing.outcome_id), None)
-            if chosen is not None:
-                prediction_block = f"\n\n✅ Ваш прогноз: «{chosen.label}»"
+    if existing is not None:
+        chosen = next((o for o in event.outcomes if o.id == existing.outcome_id), None)
+        if chosen is not None:
+            prediction_block = f"\n\n✅ Ваш прогноз: «{chosen.label}»"
 
     text = texts.EVENT_CARD.format(
         category_name=category_name,
@@ -176,9 +153,31 @@ async def on_event(
         prediction_block=prediction_block,
     )
 
+    can_predict = event.predictions_close_at > datetime.now(tz=UTC)
+
     if isinstance(query.message, Message):
         await query.message.edit_text(
             text,
-            reply_markup=keyboards.event_card_kbd(back_category_id=callback_data.back_category_id),
+            reply_markup=keyboards.event_card_kbd(
+                event_id=event.id,
+                back_category_id=back_category_id,
+                can_predict=can_predict,
+                has_prediction=existing is not None,
+            ),
         )
     await query.answer()
+
+
+@router.callback_query(EventCb.filter())
+@require_active_user
+async def on_event(
+    query: CallbackQuery,
+    callback_data: EventCb,
+    user: User | None,
+    session: AsyncSession,
+) -> None:
+    # После @require_active_user user не None; mypy не сужает, дадим явный assert.
+    assert user is not None
+    await render_event_card(
+        query, callback_data.event_id, callback_data.back_category_id, user, session
+    )
