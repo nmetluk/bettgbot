@@ -13,43 +13,44 @@
 
 ## Этап 1 — Основания
 
-- [ ] `docker-compose.yml` с сервисами postgres + redis для разработки → **TASK-003**
-- [ ] Конфиг-слой (pydantic-settings, `.env` → `Settings`-объект) → **TASK-004**
-- [ ] ORM-модели: `User`, `Category`, `Event`, `Outcome`, `Prediction`, `ReminderSetting`, `AdminUser`, `AuditLog` (по [`docs/03-data-model.md`](../docs/03-data-model.md)) → **TASK-005**
-- [ ] Alembic + первая миграция → **TASK-006**
-- [ ] Репозитории/сервисы: `UserService`, `EventService`, `PredictionService`, `StatsService` (заготовки + тесты) → **TASK-007**
-- [ ] Интерфейс и mock внешнего API: `ExternalUserRegistryClient` + `MockExternalUserRegistryClient` → **TASK-008**
+- [x] `docker-compose.yml` с сервисами postgres + redis для разработки → завершено TASK-003
+- [x] Конфиг-слой (pydantic-settings, `.env` → `Settings`-объект) → завершено TASK-004
+- [x] ORM-модели: `User`, `Category`, `Event`, `Outcome`, `Prediction`, `ReminderSetting`, `AdminUser`, `AuditLog` (по [`docs/03-data-model.md`](../docs/03-data-model.md)) → завершено TASK-005
+- [x] Alembic + первая миграция → завершено TASK-006
+- [ ] Репозитории (тонкий query-слой, 8 файлов по агрегатам) → **TASK-007**
+- [ ] Сервисы (`UserService`, `EventService`, `PredictionService`, `StatsService`, `ReminderService`, `AuditService`) — композиция репозиториев, транзакции, доменные исключения → **TASK-008**
+- [ ] Интерфейс и mock внешнего API: `ExternalUserRegistryClient` + `MockExternalUserRegistryClient` → **TASK-009**
 
 ## Этап 2 — Telegram-бот
 
-- [ ] Скелет aiogram-приложения: bootstrap, диспетчер, middleware, логирование → **TASK-009**
-- [ ] `/start` + регистрация через `Contact` + проверка через `ExternalUserRegistryClient` → **TASK-010**
-- [ ] Команда «Все события» с пагинацией и фильтром по категории → **TASK-011**
-- [ ] Команда «Сделать прогноз» (FSM выбор события → выбор исхода → подтверждение) → **TASK-012**
-- [ ] Команда «Мои прогнозы» (активные / архив) → **TASK-013**
-- [ ] Команда «Настройка напоминаний» (моменты «за N часов до события», глобальный включить/выключить) → **TASK-014**
-- [ ] Команда `/help` → **TASK-015**
-- [ ] Фоновая задача (APScheduler/aiogram-scheduler) для рассылки напоминаний → **TASK-016**
-- [ ] Фоновая задача архивации событий после фиксации результата → **TASK-017**
+- [ ] Скелет aiogram-приложения: bootstrap, диспетчер, middleware, логирование → **TASK-010**
+- [ ] `/start` + регистрация через `Contact` + проверка через `ExternalUserRegistryClient` → **TASK-011**
+- [ ] Команда «Все события» с пагинацией и фильтром по категории → **TASK-012**
+- [ ] Команда «Сделать прогноз» (FSM выбор события → выбор исхода → подтверждение) → **TASK-013**
+- [ ] Команда «Мои прогнозы» (активные / архив) → **TASK-014**
+- [ ] Команда «Настройка напоминаний» (моменты «за N часов до события», глобальный включить/выключить) → **TASK-015**
+- [ ] Команда `/help` → **TASK-016**
+- [ ] Фоновая задача (APScheduler/aiogram-scheduler) для рассылки напоминаний → **TASK-017**
+- [ ] Фоновая задача архивации событий после фиксации результата → **TASK-018**
 
 ## Этап 3 — Веб-админка
 
-- [ ] FastAPI-скелет + Jinja2 + Bootstrap 5 шаблон (выбор: AdminLTE / SB Admin 2 / Volt — решается в задаче) → **TASK-018**
-- [ ] Аутентификация админа (логин/пароль, bcrypt, session cookie) → **TASK-019**
-- [ ] CRUD категорий → **TASK-020**
-- [ ] CRUD событий с привязкой к категории + черновик/опубликовано → **TASK-021**
-- [ ] CRUD исходов события → **TASK-022**
-- [ ] Фиксация итога события + автоматическая отметка прогнозов как сбылись/нет → **TASK-023**
-- [ ] Список пользователей + просмотр их прогнозов и статистики → **TASK-024**
-- [ ] Аудит-лог действий в админке → **TASK-025**
+- [ ] FastAPI-скелет + Jinja2 + Bootstrap 5 шаблон (выбор: AdminLTE / SB Admin 2 / Volt — решается в задаче) → **TASK-019**
+- [ ] Аутентификация админа (логин/пароль, bcrypt, session cookie) → **TASK-020**
+- [ ] CRUD категорий → **TASK-021**
+- [ ] CRUD событий с привязкой к категории + черновик/опубликовано → **TASK-022**
+- [ ] CRUD исходов события → **TASK-023**
+- [ ] Фиксация итога события + автоматическая отметка прогнозов как сбылись/нет → **TASK-024**
+- [ ] Список пользователей + просмотр их прогнозов и статистики → **TASK-025**
+- [ ] Аудит-лог действий в админке → **TASK-026**
 
 ## Этап 4 — Подготовка к продакшну
 
-- [ ] Production-ready Docker Compose (nginx, healthchecks, restart-policy, volumes) → **TASK-026**
-- [ ] Бэкап БД (cron, дамп в volume) → **TASK-027**
-- [ ] Структурное логирование (JSON, structlog) + ротация → **TASK-028**
-- [ ] Readme для деплоя на VPS (пошаговое) → **TASK-029**
-- [ ] Smoke-тесты после деплоя → **TASK-030**
+- [ ] Production-ready Docker Compose (override.yml + prod.yml + bot/web сервисы + nginx + healthchecks) → **TASK-027**
+- [ ] Бэкап БД (cron, дамп в volume) → **TASK-028**
+- [ ] Структурное логирование (JSON, structlog) + ротация → **TASK-029**
+- [ ] Readme для деплоя на VPS (пошаговое) → **TASK-030**
+- [ ] Smoke-тесты после деплоя → **TASK-031**
 
 ## Идеи на будущее (не в MVP)
 
