@@ -49,9 +49,14 @@ def _alembic(*args: str) -> subprocess.CompletedProcess[str]:
 
 @pytest.fixture()
 def fresh_db() -> Iterator[None]:
-    """Перед каждым тестом: downgrade до base. БД остаётся чистой для следующего."""
+    """Перед каждым тестом: downgrade до base. После — возвращаем БД на head,
+    чтобы последующие тесты (repository-тесты) видели актуальную схему.
+    """
     _alembic("downgrade", "base")
-    yield
+    try:
+        yield
+    finally:
+        _alembic("upgrade", "head")
 
 
 pytestmark = pytest.mark.integration
