@@ -4,12 +4,15 @@ from __future__ import annotations
 
 __all__ = [
     "ACCESS_DENIED",
+    "ALREADY_REGISTERED",
     "HELP",
     "NEED_CONTACT",
+    "NEED_OWN_CONTACT",
     "NEED_START",
     "PHONE_NOT_FOUND",
     "REGISTRY_UNAVAILABLE",
     "WELCOME_NEW",
+    "WELCOME_NEW_REGISTERED",
     "WELCOME_RETURNING",
 ]
 
@@ -32,6 +35,13 @@ REGISTRY_UNAVAILABLE = "Не удалось проверить номер пря
 ACCESS_DENIED = "Ваш доступ ограничен. Обратитесь к администратору."
 
 NEED_START = "Сначала зарегистрируйтесь: /start"
+
+NEED_OWN_CONTACT = "Поделитесь, пожалуйста, своим контактом — нажмите кнопку ниже."
+
+ALREADY_REGISTERED = "Вы уже зарегистрированы. Главное меню ниже."
+
+# `{first_name}` подставляется через `str.format()` в handler'е.
+WELCOME_NEW_REGISTERED = "Добро пожаловать, {first_name}! Главное меню ниже."
 
 HELP = (
     "ℹ️ <b>Справка</b>\n\n"
