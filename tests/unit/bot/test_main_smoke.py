@@ -16,6 +16,7 @@ def test_dispatcher_constructs(monkeypatch: pytest.MonkeyPatch) -> None:
     get_settings.cache_clear()
 
     from src.bot.main import build_dispatcher
+    from src.shared.external.registry import ExternalUserRegistryClient
 
     bot, dp = build_dispatcher()
     assert isinstance(bot, Bot)
@@ -32,3 +33,7 @@ def test_dispatcher_constructs(monkeypatch: pytest.MonkeyPatch) -> None:
         "reminders",
         "help",
     }
+
+    # Registry зарегистрирован как workflow-data — handler принимает по имени.
+    assert dp["registry"] is not None
+    assert isinstance(dp["registry"], ExternalUserRegistryClient)
