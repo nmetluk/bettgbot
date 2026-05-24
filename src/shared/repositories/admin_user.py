@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,3 +34,8 @@ class AdminUserRepository:
         await self._session.execute(
             update(AdminUser).where(AdminUser.id == admin_id).values(last_login_at=func.now())
         )
+
+    async def list_all(self) -> Sequence[AdminUser]:
+        """Все админы для filter-dropdown'а audit-журнала. Сортировка по login."""
+        result = await self._session.execute(select(AdminUser).order_by(AdminUser.login))
+        return result.scalars().all()
