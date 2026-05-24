@@ -48,8 +48,9 @@ logs/
 tmp/
 
 # --- Docker ---
-# compose override
+# локальный override (не infra/docker-compose.override.yml)
 docker-compose.override.yml
+!infra/docker-compose.override.yml
 
 # --- Mock-registry (если используется отдельный файл с реальными номерами для тестов) ---
 infra/mock-registry.local.yml
