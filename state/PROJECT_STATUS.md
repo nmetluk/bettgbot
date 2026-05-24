@@ -4,7 +4,7 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-25
-**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. **Этап 4 стартовал: TASK-027 (prod docker-compose) закрыт + hotfix применён. В работе TASK-028 (cleanup + смена backup-стратегии).**
+**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. **Этап 4 в работе: TASK-027 (prod docker-compose) + TASK-028 (handoff backup workflow) закрыты, в инбоксе TASK-029 (pg_dump бэкап БД).**
 **Реализация:** runtime + конфиг + логгер + модели (9) + **миграции (3)** + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler с 2 job'ами** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **247 тестов** (156 unit + 91 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает; handoff-протокол поддерживает блокировки задач.
 
 ## Где мы сейчас
@@ -143,13 +143,15 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 
 ## Что в работе сейчас (обновлено 2026-05-25)
 
-- **TASK-027 ЗАКРЫТ.** Squash-merge `7a35016` (PR #78, основная реализация — Dockerfile.bot/web, compose override/prod, nginx, .dockerignore, prod.* Makefile targets). Затем cowork-агент провёл code review, обнаружил 2 блокера и применил hotfix squash-коммитом `19552fc` напрямую в main (PR через api.github.com был недоступен из cowork sandbox через proxy — branch protection на main отложен, прямой push с PAT прошёл). Hotfix: (1) nginx config → `.template` + mount в `/etc/nginx/templates/` + env `ADMIN_DOMAIN`; (2) Makefile `COMPOSE += -f override.yml`; (3) убран alembic race в bot.command; (4) trailing newline; (5) report.md — Known limitations + Hotfix-секция. Полная история — в `handoff/outbox/TASK-027-report.md`. Бывший `handoff/inbox/TASK-027-amendment.md` удалён в этом же cleanup PR — амендмент устарел после применения фиксов.
-- **TASK-028 — в работе.** `handoff/inbox/TASK-028-cleanup-and-local-drive-backup.md` положен. Cleanup трёх orphan-файлов + смена backup handoff с MCP-коннектора cowork на `make backup` (rsync в `/Users/nmetluk/Library/CloudStorage/GoogleDrive-…/Betting Bot backup/`). Зависимостей больше нет — TASK-027 closed, можно стартовать сразу.
+- **TASK-027 ЗАКРЫТ.** Squash-merge `7a35016` (PR #78) + cowork hotfix `19552fc` (2 блокера: nginx envsubst, Makefile override; 3 минора). Подробности — `handoff/outbox/TASK-027-report.md` секции Known limitations + Hotfix-правки. Review-сессия `sessions/2026-05-25-01-task-027-review/`.
+- **TASK-028 ЗАКРЫТ.** Squash-merge `727dd5c` + `d330dd3` (archive+report, PR #80) + cowork hotfix `d1c58b9` (cross-platform скрипт — rsync на macOS/Linux, robocopy `/MIR` на Windows; вычищены 2 inbox-dup'а). **Первый `make backup` на macOS-машине прошёл успешно** — workflow живой end-to-end: Drive backup содержит актуальное зеркало handoff/state/sessions, MCP-коннектор cowork как backup-канал упразднён. Review-сессия `sessions/2026-05-25-02-task-028-review/`.
+- **TASK-029 — в инбоксе.** pg_dump cron-бэкап БД в named volume `bb-db-backups` с retention 14 дней. Размер M.
 
-## Workflow notes (новое в этой сессии 2026-05-25)
+## Workflow notes (новое в сессиях 2026-05-25)
 
-- **Cowork-агент теперь имеет PAT (read/write на content) к репо `nmetluk/bettgbot`.** Хранится в `.gh_pat` локально (в `.gitignore`). Через PAT cowork делает `git fetch/push`, видит реальное состояние веток и может пушить hotfix-ветки + squash merge в main напрямую, когда api.github.com заблокирован прокси sandbox'a.
-- **Drive-папка `Betting Bot backup` подключена в cowork-sandbox через mount.** Bulk-rsync через FUSE-mount нестабилен (File Stream deadlock), но **точечные одиночные cp работают** — cowork может класть в Drive 1-2 файла за раз для срочной видимости новой задачи второй машиной без ожидания merge. Bulk backup всё равно делает CC через `make backup` (TASK-028).
+- **Cowork-агент имеет fine-grained PAT (Contents+PR: write) к репо `nmetluk/bettgbot`.** Хранится в `.gh_pat` локально (в `.gitignore`). Через PAT cowork делает `git fetch/push`, видит реальное состояние веток.
+- **Локальный squash + `git push origin main` как фоллбэк** когда api.github.com заблокирован прокси sandbox'a (стандартный случай). Применяется только для изменений в `infra/`, `handoff/`, `state/`, `sessions/`, `Makefile`, `scripts/`, `.gitignore`. Прецедент — hotfix `19552fc` (TASK-027) и `d1c58b9` (TASK-028).
+- **Drive-папка `Betting Bot backup` подключена в cowork-sandbox через mount.** Bulk-rsync через FUSE-mount нестабилен (File Stream deadlock), но точечные одиночные cp работают. Bulk backup делает только CC через `make backup` (через хост-FS, без FUSE-прослойки). Cowork может класть в Drive 1-2 файла за раз для срочной видимости новой задачи второй машиной.
 
 ## Блокеры / открытые вопросы
 

@@ -46,11 +46,14 @@
 
 ## Этап 4 — Подготовка к продакшну
 
-- [ ] Production-ready Docker Compose (override.yml + prod.yml + bot/web сервисы + nginx + healthchecks) → **TASK-027**
-- [ ] Бэкап БД (cron, дамп в volume) → **TASK-028**
-- [ ] Структурное логирование (JSON, structlog) + ротация → **TASK-029**
-- [ ] Readme для деплоя на VPS (пошаговое) → **TASK-030**
-- [ ] Smoke-тесты после деплоя → **TASK-031**
+- [x] Production-ready Docker Compose (override.yml + prod.yml + bot/web сервисы + nginx + healthchecks) → завершено **TASK-027** + cowork hotfix `19552fc`
+- [x] Cleanup orphan handoff/sessions + смена backup-стратегии handoff на локальный `make backup` (вместо MCP-коннектора cowork) → завершено **TASK-028** + cowork hotfix `d1c58b9` (cross-platform)
+- [ ] Бэкап БД (`pg_dump` cron, дамп в named volume `bb-db-backups`, retention 14 дней) → **TASK-029** (в инбоксе)
+- [ ] Структурное логирование (JSON через structlog) + log rotation → **TASK-030**
+- [ ] Readme для деплоя на VPS (пошаговое — install docker, .env, certbot bootstrap) → **TASK-031**
+- [ ] Smoke-тесты после деплоя → **TASK-032**
+
+После TASK-032 — MVP завершён, проект готов к выкатке на VPS.
 
 ## Идеи на будущее (не в MVP)
 
