@@ -5,6 +5,7 @@
 сервис и ловит `DomainError`-подклассы для форматирования ответа.
 """
 
+from .admin_auth import AdminAuthService
 from .audit import AuditService
 from .category import CategoryService
 from .event import EventService
@@ -14,6 +15,7 @@ from .stats import StatsService
 from .user import UserService
 
 __all__ = [
+    "AdminAuthService",
     "AuditService",
     "CategoryService",
     "EventService",

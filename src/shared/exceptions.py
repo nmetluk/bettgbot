@@ -10,6 +10,8 @@ from __future__ import annotations
 from typing import Literal
 
 __all__ = [
+    "AdminInactiveError",
+    "AdminInvalidCredentialsError",
     "DomainError",
     "EventAlreadyHasResultError",
     "EventNotEnoughOutcomesError",
@@ -102,6 +104,22 @@ class OutcomeNotFoundError(DomainError):
 
 class OutcomeInUseError(DomainError):
     """Удаление исхода невозможно — на него есть прогнозы (RESTRICT FK)."""
+
+
+# --- Админ-аутентификация ---
+
+
+class AdminInvalidCredentialsError(DomainError):
+    """Login не найден или password не подходит. Generic — не раскрываем причину
+    (анти-enumeration). Handler рендерит «неверный логин или пароль»."""
+
+
+class AdminInactiveError(DomainError):
+    """Учётка админа найдена, password верный, но `is_active = false`."""
+
+    def __init__(self, *, admin_id: int) -> None:
+        super().__init__(f"admin {admin_id} is inactive")
+        self.admin_id = admin_id
 
 
 # --- Напоминания ---
