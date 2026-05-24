@@ -116,14 +116,22 @@ handoff/archive/
 make backup
 ```
 
-Это вызовет `scripts/backup-to-drive.sh`, который через `rsync -a --delete` зеркалирует:
+Это вызовет `scripts/backup-to-drive.sh`, который зеркалирует:
 
 - `handoff/{inbox,outbox,archive,templates,README.md}` — полностью (кроме `.draft/`)
 - `state/*.md`
 - `sessions/*/` — полностью
 - корневой `memory-export.md` — если есть
 
-в локально-синкнутую Drive-папку `G:/Мой диск/Claude projects/Betting Bot backup/`. Drive File Stream сам синхронизирует это в облако (1–60 сек).
+в локально-синкнутую Drive-папку. **Дефолтный путь зависит от ОС:**
+
+| ОС | Дефолтный путь | Утилита зеркала |
+|---|---|---|
+| macOS | `/Users/nmetluk/Library/CloudStorage/GoogleDrive-nm@pinspb.ru/Мой диск/Claude projects/Betting Bot backup` | `rsync -a --delete` |
+| Windows (Git Bash/MSYS) | `G:/Мой диск/Claude projects/Betting Bot backup` | `robocopy /MIR` |
+| Linux | (нет дефолта — задавай вручную) | `rsync -a --delete` |
+
+Drive File Stream сам синхронизирует это в облако (1–60 сек). И `rsync --delete`, и `robocopy /MIR` удаляют в destination то, чего нет в source — это нужно, чтобы старые задачи из inbox после move в archive не оставались висеть в Drive.
 
 Если путь Drive-папки на твоей машине отличается — экспортируй `BB_DRIVE_BACKUP` env:
 
