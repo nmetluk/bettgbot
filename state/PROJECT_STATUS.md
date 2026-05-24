@@ -4,23 +4,24 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-24
-**Текущая фаза:** **Бот функционально полный пользовательски + рассылает напоминания.** Осталась автоматическая архивация — закрывает Этап 2.
-**Реализация:** runtime + конфиг + логгер + модели (9) + миграции (2) + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **238 тестов** (153 unit + 85 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает.
+**Текущая фаза:** 🎉 **Этап 2 (Telegram-бот) закрыт.** Стартует Этап 3 — веб-админка.
+**Реализация:** runtime + конфиг + логгер + модели (9) + **миграции (3)** + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler с 2 job'ами** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **247 тестов** (156 unit + 91 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает; handoff-протокол поддерживает блокировки задач.
 
 ## Где мы сейчас
 
-TASK-001 — TASK-017 закрыты. Бот делает:
+TASK-001 — TASK-018 закрыты. Бот функционально полный:
 
-- **Полную пользовательскую поверхность**: регистрация → каталог → FSM прогноза → «Мои прогнозы» (активные/архив + статистика) → «🔔 Напоминания» (toggle/пресеты/свой ввод/удаление) → `/help`.
-- **Автоматическую рассылку напоминаний (TASK-017)**: `AsyncIOScheduler` параллельно polling, `dispatch_reminders` каждые 5 минут (UTC, misfire_grace_time=60). Идемпотентность через `ReminderDispatchLog` с UNIQUE(user, event, offset); `record` ДО `send_message`; `TelegramAPIError` → warning, не падает. `ReminderService.find_candidates(now, window_minutes)` — один SQL с `unnest(offsets_minutes)` + join'ами `event × user × reminder_setting`, OUTER JOIN с prediction и dispatch_log; фильтр по окну `EXTRACT(EPOCH FROM (predictions_close_at - :now))/60 IN [offset, offset+window)`; `User.is_blocked=FALSE` — бонус-фильтр от исполнителя.
+- **Пользовательская поверхность** (TASK-010..016): регистрация → каталог → FSM прогноза → «Мои прогнозы» (активные/архив + статистика) → «🔔 Напоминания» (toggle/пресеты/свой ввод) → `/help`.
+- **Автоматическая рассылка напоминаний** (TASK-017): `AsyncIOScheduler` параллельно polling, `dispatch_reminders` каждые 5 минут (UTC, misfire=60). Идемпотентность через `ReminderDispatchLog` UNIQUE + `record` ДО `send_message`. `find_candidates` — один SQL с `unnest(offsets_minutes)`. Миграция `0002_reminder_dispatch_log`.
+- **Автоматическая архивация стейлевых событий** (TASK-018): `archive_stale_events` ежедневно 03:00 UTC, bulk-UPDATE одним SQL для событий `starts_at < now-7d AND result_outcome_id IS NULL AND is_archived=false`. Миграция `0003_relax_event_archive_constraint` (Variant A после блокировки TASK-018 — расширение инварианта Event до 3 валидных комбинаций `(result_outcome_id, is_archived, archived_at)`).
 
-Все доменные исключения с `reason: Literal[...]` (`EventNotPredictableError`, `InvalidReminderOffsetsError`), handler'ы ловят через exhaustive `match`. APScheduler покрыт mypy-override в `pyproject.toml` (нет `py.typed`).
+Все доменные исключения с `reason: Literal[...]`; handler'ы через exhaustive `match`. APScheduler в pyproject mypy-override.
 
-По итогам review TASK-017 — **все 5 решений «keep»** (никаких code changes). Качество решения исполнителя превысило ожидаемое: я в spec'е допускал «2 шага в Python», но он сделал один SQL.
+**TASK-018 был первой заблокированной задачей** в проекте: исполнитель обнаружил конфликт с CHECK invariant из `0001_init`, оформил `outbox/TASK-NNN-question.md` с 3 вариантами. Cowork выбрал Variant A, обновил `docs/03-data-model.md`, положил amendment. Handoff-протокол отработал штатно. Из этого родилось правило: **cowork сверяет SQL/CHECK-фрагменты с инвариантами `docs/03` до публикации задачи**.
 
-Следующая задача — **TASK-018: APScheduler-job автоматической архивации**. Намного проще TASK-017 (scheduler infra уже есть). Job ежедневно (cron, например 03:00 UTC) помечает `is_archived=true` события с `starts_at < now - 7 days AND result_outcome_id IS NULL AND is_archived=false` — страховка от админа, который забыл зафиксировать итог. Архивированные без итога видны в «Мои прогнозы → Архив» **без** отметки «сбылся/нет» (NULL `is_correct` у `Prediction`).
+По итогам review TASK-018 — 4 keep + 1 в тех-долг (`fresh_db` фикстура должна `TRUNCATE ... CASCADE` для жёсткой изоляции).
 
-После TASK-018 → **Этап 2 закрыт.** Стартует Этап 3 — веб-админка (TASK-019..026).
+Следующая задача — **TASK-019: FastAPI скелет веб-админки**. Старт Этапа 3.
 
 ## Что готово
 
@@ -67,16 +68,30 @@ TASK-001 — TASK-017 закрыты. Бот делает:
 - 2026-05-24 — **TASK-017 закрыт:** **первая фоновая задача**. `AsyncIOScheduler` параллельно polling, `dispatch_reminders` каждые 5 минут (UTC, misfire_grace_time=60). Новая модель `ReminderDispatchLog` + миграция `0002` (UNIQUE на тройку user/event/offset). `ReminderDispatchLogRepository.record` через `pg_insert ON CONFLICT DO NOTHING RETURNING id`. `ReminderService.find_candidates(now, window_minutes)` — **один SQL** с `unnest(offsets_minutes)` + join'ами + OUTER JOIN с prediction и dispatch_log, фильтр окна через `EXTRACT(EPOCH ...)`. `User.is_blocked=FALSE` — бонус-фильтр. **Идемпотентность через порядок `record` → `send_message`**. `TelegramAPIError` ловится одним `except`. `pyproject.toml`: mypy-override для `apscheduler.*` (нет `py.typed`). 13 новых тестов (9 integration find_candidates + 3 unit dispatch_reminders + 1 smoke builder; +1 migration). **Всего 238 тестов** (153 unit + 85 integration). PR [#47](https://github.com/nmetluk/bettgbot/pull/47) → squash `2c57942`; pre-task cleanup PR [#46](https://github.com/nmetluk/bettgbot/pull/46)
 - 2026-05-24 — сессия приёмки `2026-05-24-03-task-017-review`; все 5 решений «keep» (`is_blocked` в find_candidates — правильное расширение; mypy-override для пакетов без py.typed; `SessionLocal` вместо `session_maker` для консистентности; UTC strftime — MVP; общий `except TelegramAPIError`). Добавлены 2 пункта тех-долга: cleanup `reminder_dispatch_log` и `ix_dispatched_at`
 
+## Что готово (последние)
+
+- 2026-05-24 — **TASK-018 закрыт после block resolution:** второй фоновый job `archive_stale_events` (CronTrigger 03:00 UTC, misfire=300s) — bulk-UPDATE стейлевых событий без итога. **Миграция `0003_relax_event_archive_constraint` (Variant A на блокировку):** CHECK расширен до 3 валидных комбинаций. Модель синхронизирована. 8 новых тестов (5 integration archive_stale + 2 unit job + 1 integration migration). PR [#52](https://github.com/nmetluk/bettgbot/pull/52) → squash `b9ac46e`. Связанные PR: cleanup [#49](https://github.com/nmetluk/bettgbot/pull/49), block [#50](https://github.com/nmetluk/bettgbot/pull/50), block-resolution [#51](https://github.com/nmetluk/bettgbot/pull/51), archive [#53](https://github.com/nmetluk/bettgbot/pull/53)
+- 2026-05-24 — сессия приёмки `2026-05-24-04-task-018-block-resolution` (разбор блокера: Variant A — релакс инварианта Event через миграцию 0003)
+- 2026-05-24 — сессия приёмки `2026-05-24-05-task-018-review` (closure Этапа 2: 4 keep, 1 в тех-долг `fresh_db CASCADE`)
+
+## 🎉 Этап 2 (TASK-010..018) — итог
+
+**9 закрытых задач, 247 тестов**, 3 миграции, 7 пользовательских handler'ов + 2 фоновых job'а. Двухмашинный workflow проверен (TASK-014 на удалённой машине). Handoff-протокол поддерживает блокировки (TASK-018). Reusable паттерны: `@require_active_user`, `render_event_card`, exhaustive `match exc.reason`, идемпотентность через `record` ДО `send_message`. **Бот готов к продуктивному использованию** — нужна только админка для управления событиями.
+
 ## Что в работе прямо сейчас
 
-**TASK-018 заблокирован → разблокирован через amendment.** Локальный CC корректно обнаружил конфликт между моей task-спекой и CHECK `ck_event_result_archive_consistency` из `0001_init`. Я принял Вариант A (релакс инварианта через миграцию 0003), обновил `docs/03-data-model.md` (3 валидные комбинации вместо 2), положил `handoff/inbox/TASK-018-amendment.md`. Локальный CC ждёт нового pre-task cleanup PR (state + docs + сессия 2026-05-24-04 + amendment), потом возвращается на ветку `feature/TASK-018-scheduler-archive` (5/7 шагов уже сделано локально, не запушено) и доделывает: миграция 0003 + обновление `CheckConstraint` в модели + 5 integration-тестов на сервис + migration test.
+— ничего, ожидание команды на запуск **TASK-019** (старт Этапа 3).
 
-## Следующие шаги (короткий горизонт)
+## Следующие шаги (Этап 3 — веб-админка)
 
-1. Локальный Claude Code берёт **TASK-018-amendment**: pre-task cleanup PR → миграция 0003 → CheckConstraint → доделать integration-тесты → PR.
-2. После TASK-018 → **Этап 2 закрыт.** Стартует **Этап 3 — веб-админка**: **TASK-019** скелет FastAPI + Jinja2 + Bootstrap 5 (выбор готового шаблона — AdminLTE / SB Admin 2 / Volt — решается в задаче).
-3. **TASK-020**: аутентификация админа (логин/пароль, bcrypt, session cookie).
-4. **TASK-021..026**: CRUD категорий / событий / исходов / фиксация итога / список пользователей / аудит-лог.
+1. **TASK-019** — FastAPI скелет + Jinja2 + Bootstrap 5 шаблон **Volt Free** (выбран как Bootstrap 5 MIT). Базовая структура `src/admin/{app,routes,templates,static}`. Заглушки routes без бизнес-логики. `scripts/create_admin.py` для создания первого админа. uvicorn-команда в Makefile. Размер M.
+2. **TASK-020** — аутентификация админа (логин/пароль, bcrypt через `passlib`, signed cookie через `itsdangerous`, fastapi-limiter поверх Redis для rate-limit, `/login` POST + `/logout`, middleware `require_admin`).
+3. **TASK-021** — CRUD категорий (список с фильтром, форма создания, редактирование, удаление пустой категории через 409).
+4. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
+5. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
+6. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
+7. **TASK-025** — список пользователей с поиском по телефону/username, блокировка/разблокировка.
+8. **TASK-026** — UI аудит-лога с фильтрами по admin/action/датам (потребует `AuditLogRepository.list_with_admin` из тех-долга).
 
 ## Блокеры / открытые вопросы
 
