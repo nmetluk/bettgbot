@@ -200,9 +200,9 @@ def test_edit_form_renders_with_tabs(fake_admin_middleware_session) -> None:
     assert response.status_code == 200
     assert "Existing" in response.text
     assert "nav-tabs" in response.text
-    # Исходы вкладка теперь активирована (TASK-023); Результат — disabled.
+    # Исходы и Результат вкладки — обе после TASK-024 активны/conditional.
     assert "Исходы" in response.text
-    assert "Результат (TASK-024)" in response.text
+    assert "Результат" in response.text
 
 
 def test_publish_event_success_redirects(fake_admin_middleware_session) -> None:
