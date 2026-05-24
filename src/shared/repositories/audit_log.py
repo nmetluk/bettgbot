@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models import AuditLog
 
@@ -54,6 +55,7 @@ class AuditLogRepository:
     ) -> Sequence[AuditLog]:
         stmt = (
             select(AuditLog)
+            .options(selectinload(AuditLog.admin))
             .where(*self._filters(admin_id, action, since, until))
             .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
             .offset(offset)

@@ -46,3 +46,18 @@ async def test_list_window(nested_session: AsyncSession) -> None:
     now = datetime.now(tz=UTC)
     found = await service.list(since=now - timedelta(hours=1), until=now + timedelta(hours=1))
     assert any(e.admin_id == admin.id for e in found)
+
+
+async def test_list_eager_loads_admin(nested_session: AsyncSession) -> None:
+    """`selectinload(AuditLog.admin)` подгружает admin без отдельного SELECT (TASK-026 Step 0)."""
+    admin = await make_admin(nested_session, full_name="Test Admin", login="eager-test")
+    service = AuditService(nested_session)
+    await service.add(admin_id=admin.id, action="eager.check", payload={"k": "v"})
+    await nested_session.commit()
+
+    entries = await service.list(admin_id=admin.id, action="eager.check")
+    assert len(entries) >= 1
+    entry = entries[0]
+    # Доступ к admin не должен дёргать lazy IO — selectinload загрузил.
+    assert entry.admin.login == "eager-test"
+    assert entry.admin.full_name == "Test Admin"

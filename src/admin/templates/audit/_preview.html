@@ -1,0 +1,10 @@
+{# HTMX-fragment: collapsed preview одной audit-записи. #}
+{% set _payload_json = entry.payload | tojson %}
+<div id="audit-details-{{ entry.id }}">
+    <button type="button" class="btn btn-sm btn-outline-secondary text-start"
+            hx-get="/audit/{{ entry.id }}/details"
+            hx-target="#audit-details-{{ entry.id }}"
+            hx-swap="outerHTML">
+        <code style="font-size: 0.85em;">{{ _payload_json[:80] }}{% if _payload_json | length > 80 %}…{% endif %}</code>
+    </button>
+</div>
