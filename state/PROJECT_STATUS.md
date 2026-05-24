@@ -105,14 +105,18 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - 2026-05-24 — **TASK-024 закрыт:** фиксация итога — последняя вкладка карточки события (Данные/Исходы/Результат теперь полная). `POST /events/{id}/result` с CSRF + `EventService.set_result` (готов из TASK-009, транзакционный). Активирована вкладка с условием `is_published AND predictions_close_at <= now()` (disabled + tooltip иначе). Tab content в 3 режимах: read-only (если `result_outcome_id`), warning (если `< 2 outcomes`), form (radio + JS confirm). Flash через query-string. 7 новых unit-тестов. **211 unit + 109 integration = 320**. PR [#70](https://github.com/nmetluk/bettgbot/pull/70) → squash `9800664`; pre-task cleanup PR [#69](https://github.com/nmetluk/bettgbot/pull/69); archive PR [#71](https://github.com/nmetluk/bettgbot/pull/71). **30 минут — второй рекорд подряд** (после TASK-023)
 - 2026-05-24 — сессия приёмки `2026-05-24-11-task-024-review`; **все 5 keep**, никаких code changes. Гипотеза «готовый сервис + изолированный UI = быстро» подтверждена
 
+## Что готово (последние)
+
+- 2026-05-24 — **TASK-025 закрыт:** раздел «Пользователи» в админке. `UserRepository.list_for_admin_with_prediction_counts` (LEFT JOIN + GROUP BY + COUNT) + `PredictionRepository.list_all_by_user_for_admin` (selectinload event+outcome, active+archived в одной выборке). 4 handlers (list+search+pagination, detail, block/unblock POST). Шаблоны `users/list.html` + `users/detail.html`. Sidebar Пользователи active. 15 новых тестов (6 integration + 9 unit). **220 unit + 115 integration = 335**. PR [#73](https://github.com/nmetluk/bettgbot/pull/73) → squash `5696147`. Pre-task cleanup [#72](https://github.com/nmetluk/bettgbot/pull/72); archive PR [#74](https://github.com/nmetluk/bettgbot/pull/74). Время ~50 мин
+- 2026-05-24 — сессия приёмки `2026-05-24-12-task-025-review`; **все 5 keep + паттерн зафиксирован**: «GET `/login` для CSRF в admin-unit-тестах» (test convention — без service-mock'ов)
+
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск **TASK-025** (раздел «Пользователи» в админке).
+— ничего, ожидание команды на запуск **TASK-026** — финал Этапа 3 (UI аудит-лога).
 
-## Следующие шаги (Этап 3 — веб-админка, осталось 2 задачи)
+## Следующие шаги (Этап 3 — веб-админка, осталась 1 задача)
 
-1. **TASK-025** — раздел «Пользователи». Список с **поиском** (телефон E.164 substring, Telegram username, имя), пагинация, колонки `id | tg_user_id | phone | full_name | username | predictions | created_at | blocked`. Карточка пользователя с профилем + таблица его прогнозов (event | category | outcome | event status | is_correct). POST `/users/{id}/block` + `/users/{id}/unblock` через `UserService.set_blocked` (нужно добавить) + audit (admin_id + action="user.block/unblock"). Расширить `UserRepository` методом `search_with_prediction_counts`. Размер L.
-2. **TASK-026** — UI аудит-лога (закрывает Этап 3). Таблица `created_at | admin | action | payload (preview)` с фильтрами (admin, action, диапазон дат). Раскрытие полного payload через HTMX-fragment. **Триггер для использования отложенного `AuditLogRepository.list_with_admin`** (тех-долг из TASK-007). Размер L.
+1. **TASK-026** — UI аудит-лога (**закрывает Этап 3**). Таблица `created_at | admin | action | payload (preview)` с фильтрами (admin, action, диапазон дат). Раскрытие полного payload через HTMX-fragment (по convention из TASK-023: `#X-container` + `outerHTML`). Реализовать `AuditLogRepository.list_with_admin` (тех-долг из TASK-007 — `selectinload(AuditLog.admin)` по convention из TASK-022). Дополнительно: `count_with_admin` для пагинации, новый `AuditService` (если ещё нет) для wrapper'ов. Размер L.
 3. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
 4. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
 5. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
