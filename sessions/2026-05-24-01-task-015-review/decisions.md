@@ -1,0 +1,12 @@
+# Решения — task-015-review
+
+1 change, 4 keep, 1 process-improvement:
+
+| # | Решение | Альтернативы | Обоснование |
+|---|---|---|---|
+| 1 (change) | `InvalidReminderOffsetsError` получает поле `reason: Literal["too_many", "duplicate", "below_minimum"]`; handler ловит по reason, не подстроке | Match по `str(exc)` (текущий fragile подход) | Аналог `EventNotPredictableError.reason` (TASK-009). Подстрочный match сломается тихо при правке сообщения в сервисе. Стоимость рефакторинга — изменения в 1 exception + 1 service + 1 handler. Встраиваем в **Step 0 TASK-016** |
+| 2 (keep) | При `enabled=False` add/remove-кнопки скрыты | Показывать список и позволять редактировать в выключенном виде | Упрощение UX: «сначала включи, потом настраивай». Гибкость не оправдана для MVP — пользователь редко правит интервалы при выключенных напоминаниях |
+| 3 (keep) | `on_custom_offset_input` keeps state при parser-fail и `InvalidReminderOffsetsError` | `state.clear()` при первой ошибке | Пользователь либо введёт правильно, либо явно выйдет через `/reminders` (она `state.clear()`). Сброс state на первой ошибке хуже: пользователь думает, что бот «заглох», и не понимает почему его текст не работает |
+| 4 (keep) | Совмещение «удалить дубликат TASK-014» и «фича TASK-015» в одном PR — допустимо | Отдельный PR `chore(handoff): remove TASK-014 inbox duplicate` | Pre-task cleanup PR — это про много накопленных правок (state/, sessions/, configs). Ради одного удалённого файла отдельный PR — оверхед, не помогает читать историю |
+| 5 (keep) | `MAX_OFFSET_MINUTES = 10080` (неделя) — в parser-модуле, не в `ReminderService` | Перенести в `ReminderService._validate_offsets` как доменное правило | UX-ограничение: «что пользователь может ввести в боте». Сервис в принципе принимает любой `int >= 5`; реальная бизнес-причина «не дольше недели» — UX-предположение. Если когда-то понадобится за-месяц — правим parser, сервис не трогаем |
+| 6 (process-improvement) | Cowork-агент перед публикацией TASK-NNN проверяет `handoff/archive/` — нет ли там уже задачи с этим номером | Не проверять, надеяться, что номера монотонные | Реальный случай TASK-014: я опубликовал задачу, не зная, что параллельный CC-инстанс через Drive backup уже её выполнил и архивировал. Локальному CC пришлось вычищать дубликат в Step 0 TASK-015. Правило `ls handoff/archive/ \| grep TASK-NNN` перед `Write` в inbox — гигиена. Записано в `handoff/README.md` |
