@@ -56,6 +56,37 @@ services:
              while :; do certbot renew --webroot -w /var/www/certbot --quiet;
                          sleep 12h & wait $${!}; done"
 
+  db-backup:
+    image: postgres:16-alpine
+    restart: always
+    env_file: ../.env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - bb-db-backups:/backups
+    depends_on:
+      db: { condition: service_healthy }
+    command: >
+      sh -c '
+      while true; do
+        current_time=$$(date -u +%H%M);
+        target_time="0230";
+        if [ "$$current_time" -ge "$$target_time" ]; then
+          echo "→ Starting backup at $$(date -u +%FT%H-%M-%SZ)";
+          if pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists | gzip > /backups/bettgbot-$$(date -u +%FT%H-%M-%SZ).sql.gz; then
+            echo "✓ Backup successful";
+            find /backups -name "bettgbot-*.sql.gz" -mtime +14 -delete;
+          else
+            echo "[backup-error] pg_dump failed, keeping old backups";
+          fi;
+          sleep 86400;
+        else
+          sleep 300;
+        fi;
+      done
+      '
+
 volumes:
   certbot_certs:
   certbot_www:
+  bb-db-backups:
