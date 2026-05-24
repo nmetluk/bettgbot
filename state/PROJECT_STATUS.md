@@ -3,8 +3,8 @@
 > **Это первое, что читает любой агент или человек в новой сессии.**
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
-**Обновлено:** 2026-05-24
-**Текущая фаза:** 🎉 **Этап 2 (Telegram-бот) закрыт.** Стартует Этап 3 — веб-админка.
+**Обновлено:** 2026-05-25
+**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. **Этап 4 стартовал: TASK-027 (prod docker-compose) закрыт + hotfix применён. В работе TASK-028 (cleanup + смена backup-стратегии).**
 **Реализация:** runtime + конфиг + логгер + модели (9) + **миграции (3)** + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler с 2 job'ами** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **247 тестов** (156 unit + 91 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает; handoff-протокол поддерживает блокировки задач.
 
 ## Где мы сейчас
@@ -110,18 +110,46 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - 2026-05-24 — **TASK-025 закрыт:** раздел «Пользователи» в админке. `UserRepository.list_for_admin_with_prediction_counts` (LEFT JOIN + GROUP BY + COUNT) + `PredictionRepository.list_all_by_user_for_admin` (selectinload event+outcome, active+archived в одной выборке). 4 handlers (list+search+pagination, detail, block/unblock POST). Шаблоны `users/list.html` + `users/detail.html`. Sidebar Пользователи active. 15 новых тестов (6 integration + 9 unit). **220 unit + 115 integration = 335**. PR [#73](https://github.com/nmetluk/bettgbot/pull/73) → squash `5696147`. Pre-task cleanup [#72](https://github.com/nmetluk/bettgbot/pull/72); archive PR [#74](https://github.com/nmetluk/bettgbot/pull/74). Время ~50 мин
 - 2026-05-24 — сессия приёмки `2026-05-24-12-task-025-review`; **все 5 keep + паттерн зафиксирован**: «GET `/login` для CSRF в admin-unit-тестах» (test convention — без service-mock'ов)
 
+## Что готово (последние)
+
+- 2026-05-24 — **TASK-026 закрыт: 🎉 финал Этапа 3.** UI аудит-лога. Step 0 закрыт тех-долг TASK-007: `AuditLogRepository.list` → `.options(selectinload(AuditLog.admin))`. `AdminUserRepository.list_all` для filter-dropdown. 3 handlers (list+filters+pagination / details fragment / collapse fragment). 3 шаблона + sidebar Аудит active. **227 unit + 116 integration = 343**. PR [#76](https://github.com/nmetluk/bettgbot/pull/76) → squash `a5132f3`; pre-task cleanup PR [#75](https://github.com/nmetluk/bettgbot/pull/75); archive PR [#77](https://github.com/nmetluk/bettgbot/pull/77). Время ~40 мин
+- 2026-05-24 — сессия приёмки `2026-05-24-13-task-026-review` (+ **закрытие Этапа 3**): все 6 keep. Зафиксированы 10 паттернов Этапа 3 для baseline в Этап 4
+
+## 🎉 Этап 3 (TASK-019..026) — итог
+
+**8 закрытых задач за ~7 часов**, **96 новых тестов** (с 247 до 343), 0 заблокированных задач. Админка функционально полная: login/auth (bcrypt + signed cookie + middleware + rate-limit + CSRF), CRUD категорий, CRUD событий (Данные/Исходы/Результат), Пользователи (список+карточка+блок), Аудит-журнал. Бот + админка работают вместе.
+
+**Code stats после Этапа 3:**
+- 75 source files в `src/{shared,bot,admin}/` (mypy strict для shared, non-strict для bot+admin)
+- 227 unit + 116 integration = **343 теста**, CI зелёный
+- 7 admin routes (login, dashboard, categories, events, outcomes, users, audit)
+- HTMX 2.x для inline-edit (outcomes), expand/collapse fragments (audit)
+- 10 архитектурных паттернов зафиксированы для Этапа 4
+
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск **TASK-026** — финал Этапа 3 (UI аудит-лога).
+— ничего, ожидание команды на запуск **TASK-027** (старт Этапа 4 — production).
 
-## Следующие шаги (Этап 3 — веб-админка, осталась 1 задача)
+## Следующие шаги (Этап 4 — production deployment)
 
-1. **TASK-026** — UI аудит-лога (**закрывает Этап 3**). Таблица `created_at | admin | action | payload (preview)` с фильтрами (admin, action, диапазон дат). Раскрытие полного payload через HTMX-fragment (по convention из TASK-023: `#X-container` + `outerHTML`). Реализовать `AuditLogRepository.list_with_admin` (тех-долг из TASK-007 — `selectinload(AuditLog.admin)` по convention из TASK-022). Дополнительно: `count_with_admin` для пагинации, новый `AuditService` (если ещё нет) для wrapper'ов. Размер L.
-3. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
-4. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
-5. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
-6. **TASK-025** — список пользователей с поиском по телефону/username, блокировка/разблокировка.
-7. **TASK-026** — UI аудит-лога с фильтрами по admin/action/датам (потребует `AuditLogRepository.list_with_admin` из тех-долга).
+1. **TASK-027** — production docker-compose. `infra/Dockerfile.bot` + `infra/Dockerfile.web` (uvicorn для admin). `infra/docker-compose.override.yml` (dev — bind-mounts кода для hot-reload, exposed ports). `infra/docker-compose.prod.yml` (prod — `image:` через `docker build`, `restart: always`, nginx-proxy для `/admin`, healthchecks). Makefile цели `make prod.build`, `make prod.up`, `make prod.logs`. **Сейчас в работе:** ветка `feature/TASK-027-prod-compose` (PR #78) + `handoff/inbox/TASK-027-amendment.md` с 2 блокерами и 3 минорами. Размер L.
+2. **TASK-028 (NEW)** — cleanup orphan handoff/sessions + смена backup-стратегии handoff с MCP Google Drive коннектора на локально-синкнутую Drive-папку через `make backup` (`rsync -a --delete`). Мотивация: убрать лаг между merge и видимостью на cowork-стороне, устранить Drive Finder duplicates. Размер S. Триггер — повторяющиеся рассинхроны (TASK-014, TASK-027).
+3. **TASK-029** — бэкап БД. `pg_dump` через cron-контейнер (image `postgres:16-alpine`) в Docker volume `bb-db-backups`. Retention 14 дней (cron + find -delete). Размер M.
+4. **TASK-030** — structured logging для prod (JSON output через `structlog.processors.JSONRenderer`) + log rotation через `logging.handlers.TimedRotatingFileHandler`. `Settings.log_format = "json"` в prod. Размер M.
+5. **TASK-031** — Deploy README. Пошаговое руководство на VPS (Ubuntu LTS): install docker + compose plugin, clone репо, `.env` setup, `docker compose -f prod.yml up -d`, домен + TLS через certbot + nginx (с учётом bootstrap-сценария certbot — см. amendment к TASK-027, минор 2). Размер M.
+6. **TASK-032** — Smoke-тесты после деплоя. `scripts/smoke_test.sh` — curl-проверки `/healthz` бота-webhook и админки, проверка миграций через `alembic current`. Используется в CD после deploy. Размер S.
+
+После TASK-032 — **MVP завершён**, проект готов к выкатке на VPS.
+
+## Что в работе сейчас (обновлено 2026-05-25)
+
+- **TASK-027 ЗАКРЫТ.** Squash-merge `7a35016` (PR #78, основная реализация — Dockerfile.bot/web, compose override/prod, nginx, .dockerignore, prod.* Makefile targets). Затем cowork-агент провёл code review, обнаружил 2 блокера и применил hotfix squash-коммитом `19552fc` напрямую в main (PR через api.github.com был недоступен из cowork sandbox через proxy — branch protection на main отложен, прямой push с PAT прошёл). Hotfix: (1) nginx config → `.template` + mount в `/etc/nginx/templates/` + env `ADMIN_DOMAIN`; (2) Makefile `COMPOSE += -f override.yml`; (3) убран alembic race в bot.command; (4) trailing newline; (5) report.md — Known limitations + Hotfix-секция. Полная история — в `handoff/outbox/TASK-027-report.md`. Бывший `handoff/inbox/TASK-027-amendment.md` удалён в этом же cleanup PR — амендмент устарел после применения фиксов.
+- **TASK-028 — в работе.** `handoff/inbox/TASK-028-cleanup-and-local-drive-backup.md` положен. Cleanup трёх orphan-файлов + смена backup handoff с MCP-коннектора cowork на `make backup` (rsync в `/Users/nmetluk/Library/CloudStorage/GoogleDrive-…/Betting Bot backup/`). Зависимостей больше нет — TASK-027 closed, можно стартовать сразу.
+
+## Workflow notes (новое в этой сессии 2026-05-25)
+
+- **Cowork-агент теперь имеет PAT (read/write на content) к репо `nmetluk/bettgbot`.** Хранится в `.gh_pat` локально (в `.gitignore`). Через PAT cowork делает `git fetch/push`, видит реальное состояние веток и может пушить hotfix-ветки + squash merge в main напрямую, когда api.github.com заблокирован прокси sandbox'a.
+- **Drive-папка `Betting Bot backup` подключена в cowork-sandbox через mount.** Bulk-rsync через FUSE-mount нестабилен (File Stream deadlock), но **точечные одиночные cp работают** — cowork может класть в Drive 1-2 файла за раз для срочной видимости новой задачи второй машиной без ожидания merge. Bulk backup всё равно делает CC через `make backup` (TASK-028).
 
 ## Блокеры / открытые вопросы
 
