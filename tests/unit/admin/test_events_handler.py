@@ -13,7 +13,12 @@ from src.admin.app import app
 from src.admin.auth.security import SESSION_COOKIE_NAME, create_session_token
 from src.admin.deps import current_admin
 from src.admin.routes.events import _session_dep as events_session_dep
-from src.shared.exceptions import EventNotEnoughOutcomesError
+from src.shared.exceptions import (
+    EventAlreadyHasResultError,
+    EventNotEnoughOutcomesError,
+    EventNotFoundError,
+    OutcomeNotForEventError,
+)
 from src.shared.models import AdminUser, Category, Event
 
 
@@ -238,3 +243,166 @@ def test_unpublish_event_success_redirects(fake_admin_middleware_session) -> Non
     response = client.post("/events/5/unpublish", data={"csrf_token": csrf_token})
     assert response.status_code == 302
     assert response.headers["location"] == "/events/5"
+
+
+# --- TASK-024: set_result + Результат tab ---
+
+
+def _make_outcome_simple(*, id: int = 1, label: str = "Win") -> MagicMock:
+    o = MagicMock()
+    o.id = id
+    o.label = label
+    o.sort_order = 0
+    return o
+
+
+def _make_published_past_event(
+    *,
+    id: int = 7,
+    outcomes: list[MagicMock] | None = None,
+    result_outcome_id: int | None = None,
+    archived_at: datetime | None = None,
+) -> MagicMock:
+    e = MagicMock(spec=Event)
+    e.id = id
+    e.title = "Past"
+    e.description = None
+    e.category_id = 1
+    e.category = _make_category()
+    e.starts_at = datetime(2026, 5, 20, 12, 0, tzinfo=UTC)
+    # В прошлом — позволяет вкладке Результат быть активной.
+    e.predictions_close_at = datetime(2026, 5, 20, 11, 0, tzinfo=UTC)
+    e.is_published = True
+    e.is_archived = result_outcome_id is not None
+    e.metadata_ = {}
+    e.outcomes = outcomes or [
+        _make_outcome_simple(id=1, label="A"),
+        _make_outcome_simple(id=2, label="B"),
+    ]
+    e.result_outcome_id = result_outcome_id
+    e.archived_at = archived_at
+    return e
+
+
+def test_set_result_success_redirects_with_success_flash(
+    fake_admin_middleware_session,
+) -> None:
+    ev_service = MagicMock()
+    ev_service.set_result = AsyncMock(return_value=3)
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/new")
+    response = client.post(
+        "/events/5/result",
+        data={"csrf_token": csrf_token, "outcome_id": 1},
+    )
+    assert response.status_code == 302
+    loc = response.headers["location"]
+    assert "tab=result" in loc
+    assert "success=result_set" in loc
+    assert "marked=3" in loc
+
+
+def test_set_result_already_set_redirects_with_error(
+    fake_admin_middleware_session,
+) -> None:
+    ev_service = MagicMock()
+    ev_service.set_result = AsyncMock(side_effect=EventAlreadyHasResultError("dup"))
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/new")
+    response = client.post(
+        "/events/5/result",
+        data={"csrf_token": csrf_token, "outcome_id": 1},
+    )
+    assert response.status_code == 302
+    assert "error=already_set" in response.headers["location"]
+
+
+def test_set_result_outcome_not_for_event_redirects_with_error(
+    fake_admin_middleware_session,
+) -> None:
+    ev_service = MagicMock()
+    ev_service.set_result = AsyncMock(side_effect=OutcomeNotForEventError("wrong"))
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/new")
+    response = client.post(
+        "/events/5/result",
+        data={"csrf_token": csrf_token, "outcome_id": 99},
+    )
+    assert response.status_code == 302
+    assert "error=outcome_not_for_event" in response.headers["location"]
+
+
+def test_set_result_unknown_event_404(fake_admin_middleware_session) -> None:
+    ev_service = MagicMock()
+    ev_service.set_result = AsyncMock(side_effect=EventNotFoundError("no"))
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/new")
+    response = client.post(
+        "/events/999/result",
+        data={"csrf_token": csrf_token, "outcome_id": 1},
+    )
+    assert response.status_code == 404
+
+
+def test_edit_form_result_tab_visible_when_published_and_deadline_passed(
+    fake_admin_middleware_session,
+) -> None:
+    ev_service = MagicMock()
+    ev_service.get_event = AsyncMock(return_value=_make_published_past_event(id=7))
+    cat_service = MagicMock()
+    cat_service.list_all_with_counts = AsyncMock(return_value=[(_make_category(), 0)])
+
+    client = _client(event_service=ev_service, category_service=cat_service)
+    response = client.get("/events/7?tab=result")
+
+    assert response.status_code == 200
+    assert "Фиксация итога" in response.text
+    # Радио-кнопки для каждого исхода.
+    assert 'name="outcome_id"' in response.text
+    assert "🏁 Зафиксировать" in response.text
+
+
+def test_edit_form_result_tab_disabled_when_not_published(
+    fake_admin_middleware_session,
+) -> None:
+    ev_service = MagicMock()
+    event = _make_published_past_event(id=7)
+    event.is_published = False
+    ev_service.get_event = AsyncMock(return_value=event)
+    cat_service = MagicMock()
+    cat_service.list_all_with_counts = AsyncMock(return_value=[(_make_category(), 0)])
+
+    client = _client(event_service=ev_service, category_service=cat_service)
+    response = client.get("/events/7?tab=data")
+
+    assert response.status_code == 200
+    # Вкладка «Результат» рендерится с classes disabled + aria-disabled.
+    assert 'aria-disabled="true"' in response.text
+    assert "Доступно после дедлайна" in response.text
+
+
+def test_edit_form_result_tab_shows_readonly_when_result_set(
+    fake_admin_middleware_session,
+) -> None:
+    ev_service = MagicMock()
+    event = _make_published_past_event(
+        id=7,
+        result_outcome_id=1,
+        archived_at=datetime(2026, 5, 21, 18, 0, tzinfo=UTC),
+    )
+    ev_service.get_event = AsyncMock(return_value=event)
+    cat_service = MagicMock()
+    cat_service.list_all_with_counts = AsyncMock(return_value=[(_make_category(), 0)])
+
+    client = _client(event_service=ev_service, category_service=cat_service)
+    response = client.get("/events/7?tab=result")
+
+    assert response.status_code == 200
+    assert "🏁 Итог:" in response.text
+    # Read-only — нет формы / radio-кнопок.
+    assert 'name="outcome_id"' not in response.text
+    assert "Зафиксирован:" in response.text
