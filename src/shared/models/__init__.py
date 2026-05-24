@@ -7,6 +7,7 @@ from .category import Category
 from .event import Event
 from .outcome import Outcome
 from .prediction import Prediction
+from .reminder_dispatch_log import ReminderDispatchLog
 from .reminder_setting import ReminderSetting
 from .user import User
 
@@ -18,6 +19,7 @@ __all__ = [
     "Event",
     "Outcome",
     "Prediction",
+    "ReminderDispatchLog",
     "ReminderSetting",
     "User",
 ]

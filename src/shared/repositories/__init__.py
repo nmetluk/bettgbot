@@ -16,6 +16,7 @@ from .category import CategoryRepository
 from .event import EventRepository
 from .outcome import OutcomeRepository
 from .prediction import PredictionRepository
+from .reminder_dispatch_log import ReminderDispatchLogRepository
 from .reminder_setting import ReminderSettingRepository
 from .user import UserRepository
 
@@ -26,6 +27,7 @@ __all__ = [
     "EventRepository",
     "OutcomeRepository",
     "PredictionRepository",
+    "ReminderDispatchLogRepository",
     "ReminderSettingRepository",
     "UserRepository",
 ]

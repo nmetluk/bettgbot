@@ -9,7 +9,7 @@ from .audit import AuditService
 from .category import CategoryService
 from .event import EventService
 from .prediction import PredictionService
-from .reminder import ReminderService
+from .reminder import ReminderCandidate, ReminderService
 from .stats import StatsService
 from .user import UserService
 
@@ -18,6 +18,7 @@ __all__ = [
     "CategoryService",
     "EventService",
     "PredictionService",
+    "ReminderCandidate",
     "ReminderService",
     "StatsService",
     "UserService",
