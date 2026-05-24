@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 
 from ..models import Event, Prediction
 
@@ -208,10 +208,13 @@ class EventRepository:
         через WHERE. `joinedload(Category)` — чтобы в шаблоне показать имя
         категории, не +N запросов.
         """
+        # selectinload вместо joinedload — joinedload в одном запросе с GROUP BY
+        # требует все Category-колонки в GROUP BY; selectinload делает один
+        # отдельный SELECT по collected category_ids. На admin-странице ОК.
         stmt = (
             select(Event, func.count(Prediction.id))
             .outerjoin(Prediction, Prediction.event_id == Event.id)
-            .options(joinedload(Event.category))
+            .options(selectinload(Event.category))
             .group_by(Event.id)
             .where(
                 *self._admin_filters(category_id, status),
