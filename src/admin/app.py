@@ -44,7 +44,7 @@ def _csrf_config() -> LoadConfig:
         # Форма постит csrf_token полем тела, не header'ом.
         token_location="body",
         token_key="csrf_token",
-        cookie_secure=True,
+        cookie_secure=s.environment != "dev",
         cookie_samesite="lax",
         # CSRF только на изменяющие методы.
         methods={"POST", "PUT", "PATCH", "DELETE"},

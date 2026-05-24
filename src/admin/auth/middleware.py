@@ -94,11 +94,16 @@ class RequireAdminMiddleware:
         new_token = create_session_token(admin_id=admin.id)
         s = get_settings()
         expires = datetime.now(tz=UTC) + timedelta(hours=s.admin.session_hours)
-        cookie_header = (
-            f"{SESSION_COOKIE_NAME}={new_token}; "
-            f"HttpOnly; Secure; SameSite=Lax; Path=/; "
-            f"Expires={expires.strftime('%a, %d %b %Y %H:%M:%S GMT')}"
-        )
+        cookie_parts = [
+            f"{SESSION_COOKIE_NAME}={new_token}",
+            "HttpOnly",
+            "SameSite=Lax",
+            "Path=/",
+            f"Expires={expires.strftime('%a, %d %b %Y %H:%M:%S GMT')}",
+        ]
+        if s.environment != "dev":
+            cookie_parts.append("Secure")
+        cookie_header = "; ".join(cookie_parts)
 
         async def send_with_cookie(message: Any) -> None:
             if message["type"] == "http.response.start":
