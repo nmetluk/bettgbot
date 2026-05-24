@@ -39,7 +39,8 @@ jobs:
       - name: Sync deps (frozen)
         run: uv sync --frozen
       - name: mypy
-        run: uv run mypy src/shared
+        # src/shared — strict; src/bot, src/admin — non-strict overrides в pyproject.
+        run: uv run mypy src/shared src/bot src/admin
 
   test:
     name: Tests (pytest, unit)
