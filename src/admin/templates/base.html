@@ -14,13 +14,43 @@
     {% block head_extra %}{% endblock %}
 </head>
 <body>
-    {% block sidebar %}
-        <nav class="sidebar"><!-- TASK-021+ наполнит --></nav>
-    {% endblock %}
-    <main class="content">
-        {% block content %}{% endblock %}
-    </main>
-    <script src="{{ url_for('static', path='js/volt.js') }}"></script>
-    {% block scripts_extra %}{% endblock %}
+<div class="container-fluid">
+    <div class="row">
+        {% block sidebar %}
+        <nav class="sidebar col-md-3 col-lg-2 d-md-block bg-light min-vh-100 border-end">
+            <ul class="nav flex-column p-3">
+                <li class="nav-item">
+                    <a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/categories"><i class="bi bi-folder"></i> Категории</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#"><i class="bi bi-calendar-event"></i> События (TASK-022)</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#"><i class="bi bi-people"></i> Пользователи (TASK-025)</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#"><i class="bi bi-journal-text"></i> Аудит (TASK-026)</a>
+                </li>
+                <li class="nav-item mt-3">
+                    <form method="post" action="/logout">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token if csrf_token else '' }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-box-arrow-right"></i> Выйти
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+        {% endblock %}
+        <main class="col-md-9 col-lg-10 content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+<script src="{{ url_for('static', path='js/volt.js') }}"></script>
+{% block scripts_extra %}{% endblock %}
 </body>
 </html>

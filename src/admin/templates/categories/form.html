@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if category and category.id is defined %}
+        Категория «{{ category.name }}» — Admin
+    {% else %}
+        Новая категория — Admin
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>
+        {% if category and category.id is defined %}
+            Редактирование категории
+        {% else %}
+            Новая категория
+        {% endif %}
+    </h1>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ form_action }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3">
+            <label class="form-label">Название</label>
+            <input type="text" name="name" class="form-control" required
+                   value="{{ category.name if category else '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Slug</label>
+            <input type="text" name="slug" class="form-control" required
+                   pattern="[a-z0-9-]+"
+                   value="{{ category.slug if category else '' }}">
+            <div class="form-text">Латиница, цифры, дефис.</div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Порядок сортировки</label>
+            <input type="number" name="sort_order" class="form-control"
+                   value="{{ category.sort_order if category else 0 }}">
+        </div>
+        <div class="form-check mb-3">
+            <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
+                   {% if category is none or category.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="is_active">Активна</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <a href="/categories" class="btn btn-outline-secondary">Отмена</a>
+    </form>
+</div>
+{% endblock %}
