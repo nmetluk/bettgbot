@@ -1,0 +1,26 @@
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  bot:
+    restart: "no"
+    volumes:
+      - ../src:/app/src:ro
+    profiles:
+      - full
+
+  web:
+    restart: "no"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ../src:/app/src:ro
+    command: >
+      sh -c "alembic upgrade head && uvicorn src.admin.app:app --host 0.0.0.0 --port 8000 --reload"
+    profiles:
+      - full

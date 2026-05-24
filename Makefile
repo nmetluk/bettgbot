@@ -5,10 +5,12 @@
 # Целевая аудитория — разработчик на macOS / Linux. POSIX-совместимые конструкции, без bash-измов.
 
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
+PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
-        admin admin.create
+        admin admin.create full.up \
+        prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -84,3 +86,28 @@ admin.create: ## Создать админа: make admin.create LOGIN=admin PASS
 	PYTHONPATH=. uv run python scripts/create_admin.py \
 		--login "$(LOGIN)" --password "$(PASSWORD)" \
 		$(if $(FULL_NAME),--full-name "$(FULL_NAME)")
+
+full.up: ## Поднять полный dev-stack (db + redis + bot + web в контейнерах)
+	$(COMPOSE) --profile full up -d
+
+prod.build: ## Собрать prod-образы bot+web
+	$(PROD_COMPOSE) build
+
+prod.up: ## Поднять prod-stack (с nginx)
+	$(PROD_COMPOSE) up -d
+	$(PROD_COMPOSE) ps
+
+prod.down: ## Остановить prod-stack
+	$(PROD_COMPOSE) down
+
+prod.logs: ## Tail prod-логов всех сервисов
+	$(PROD_COMPOSE) logs -f --tail=100
+
+prod.ps: ## Статус prod-сервисов
+	$(PROD_COMPOSE) ps
+
+prod.shell.bot: ## Открыть shell в prod bot-контейнере
+	$(PROD_COMPOSE) exec bot sh
+
+prod.shell.web: ## Открыть shell в prod web-контейнере
+	$(PROD_COMPOSE) exec web sh
