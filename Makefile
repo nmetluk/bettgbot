@@ -7,7 +7,8 @@
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
-        migrate rollback rollback.all migration.new migration.current migration.history
+        migrate rollback rollback.all migration.new migration.current migration.history \
+        admin admin.create
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -71,3 +72,15 @@ migration.current: ## Показать текущую ревизию alembic_ver
 
 migration.history: ## История миграций (alembic history --verbose)
 	uv run alembic history --verbose
+
+admin: ## Запустить веб-админку через uvicorn (auto-reload)
+	uv run uvicorn src.admin.app:app --reload --host 127.0.0.1 --port 8000
+
+admin.create: ## Создать админа: make admin.create LOGIN=admin PASSWORD="..." [FULL_NAME="..."]
+	@if [ -z "$(LOGIN)" ] || [ -z "$(PASSWORD)" ]; then \
+		echo "Использование: make admin.create LOGIN=admin PASSWORD=\"...\" [FULL_NAME=\"...\"]"; \
+		exit 1; \
+	fi
+	PYTHONPATH=. uv run python scripts/create_admin.py \
+		--login "$(LOGIN)" --password "$(PASSWORD)" \
+		$(if $(FULL_NAME),--full-name "$(FULL_NAME)")
