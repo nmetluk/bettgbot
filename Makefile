@@ -13,9 +13,9 @@ PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f in
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
-        admin admin.create full.up backup \
+        admin admin.create admin.create.prod full.up backup \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
-        prod.backup.now prod.backup.ls prod.backup.restore
+        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -140,3 +140,17 @@ prod.backup.restore: ## Восстановить дамп: make prod.backup.rest
 		echo "Отмена."; \
 		exit 1; \
 	fi
+
+prod.certbot.init: ## Получить первый TLS сертификат (bootstrap mode)
+	@echo "Убедись что DNS-запись $$ADMIN_DOMAIN → IP VPS уже распространена."
+	@echo "Временно использует admin-bootstrap.conf (http-only)."
+	$(PROD_COMPOSE) run --rm certbot certonly --webroot -w /var/www/certbot -d $$ADMIN_DOMAIN --email $$TLS_EMAIL --agree-tos --no-eff-email
+
+admin.create.prod: ## Создать админа в prod: make admin.create.prod LOGIN=admin PASSWORD="..."
+		@if [ -z "$(LOGIN)" ] || [ -z "$(PASSWORD)" ]; then \
+			echo "Использование: make admin.create.prod LOGIN=admin PASSWORD=\"...\" [FULL_NAME=\"...\"]"; \
+			exit 1; \
+		fi
+		$(PROD_COMPOSE) exec -T web python scripts/create_admin.py \
+			--login "$(LOGIN)" --password "$(PASSWORD)" \
+			$(if $(FULL_NAME),--full-name "$(FULL_NAME)")
