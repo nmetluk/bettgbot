@@ -109,11 +109,13 @@ def create_app() -> FastAPI:
     # Импорты локально — routes используют `templates` отсюда (circular avoidance).
     from .routes import categories as categories_routes
     from .routes import dashboard as dashboard_routes
+    from .routes import events as events_routes
     from .routes import login as login_routes
 
     app.include_router(login_routes.router)
     app.include_router(dashboard_routes.router)
     app.include_router(categories_routes.router)
+    app.include_router(events_routes.router)
 
     @app.get("/healthz", tags=["meta"])
     async def healthz() -> dict[str, str]:

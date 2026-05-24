@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}События — Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between mb-3">
+        <h1>События</h1>
+        <a href="/events/new" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Создать</a>
+    </div>
+
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label class="form-label">Категория</label>
+            <select name="category_id" class="form-select">
+                <option value="">— все —</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if cat.id == selected_category_id %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Статус</label>
+            <select name="status" class="form-select">
+                <option value="all" {% if selected_status == "all" %}selected{% endif %}>все</option>
+                <option value="draft" {% if selected_status == "draft" %}selected{% endif %}>черновики</option>
+                <option value="published_open" {% if selected_status == "published_open" %}selected{% endif %}>приём открыт</option>
+                <option value="published_closed" {% if selected_status == "published_closed" %}selected{% endif %}>приём закрыт</option>
+                <option value="archived" {% if selected_status == "archived" %}selected{% endif %}>архивные</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Период</label>
+            <select name="period" class="form-select">
+                <option value="all" {% if selected_period == "all" %}selected{% endif %}>все</option>
+                <option value="next7" {% if selected_period == "next7" %}selected{% endif %}>ближайшие 7 дней</option>
+                <option value="past" {% if selected_period == "past" %}selected{% endif %}>прошедшие</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-outline-primary w-100" type="submit">Применить</button>
+        </div>
+    </form>
+
+    {% if rows %}
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>#</th><th>Название</th><th>Категория</th>
+                <th>Старт</th><th>Дедлайн</th><th>Статус</th><th>Прогнозов</th><th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event, pred_count in rows %}
+            <tr>
+                <td>{{ event.id }}</td>
+                <td><a href="/events/{{ event.id }}">{{ event.title }}</a></td>
+                <td>{{ event.category.name }}</td>
+                <td>{{ event.starts_at.strftime("%d.%m.%Y %H:%M") }}</td>
+                <td>{{ event.predictions_close_at.strftime("%d.%m %H:%M") }}</td>
+                <td>
+                    {% if event.is_archived %}
+                        <span class="badge bg-info">архив</span>
+                    {% elif not event.is_published %}
+                        <span class="badge bg-secondary">черновик</span>
+                    {% elif event.predictions_close_at > now() %}
+                        <span class="badge bg-success">приём открыт</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">приём закрыт</span>
+                    {% endif %}
+                </td>
+                <td>{{ pred_count }}</td>
+                <td><a href="/events/{{ event.id }}" class="btn btn-sm btn-outline-secondary">Открыть</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total > page_size %}
+    <nav>
+        <ul class="pagination">
+            {% set qs_prefix = "category_id=" ~ (selected_category_id if selected_category_id is not none else "") ~ "&status=" ~ selected_status ~ "&period=" ~ selected_period %}
+            {% if page > 0 %}
+            <li class="page-item"><a class="page-link" href="?{{ qs_prefix }}&page={{ page - 1 }}">‹</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page + 1 }}</span></li>
+            {% if (page + 1) * page_size < total %}
+            <li class="page-item"><a class="page-link" href="?{{ qs_prefix }}&page={{ page + 1 }}">›</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    {% else %}
+    <p class="text-muted">Событий по выбранным фильтрам нет.</p>
+    {% endif %}
+</div>
+{% endblock %}
