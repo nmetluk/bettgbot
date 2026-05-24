@@ -1,0 +1,17 @@
+/*
+ * volt.css — placeholder (TASK-019).
+ *
+ * Themesberg volt-bootstrap-5-dashboard ships SCSS sources only (src/scss/volt.scss),
+ * без скомпилированного dist/assets/css/volt.css. Чтобы получить полный Volt-styling,
+ * нужно npm-build на Volt-репо:
+ *
+ *   git clone https://github.com/themesberg/volt-bootstrap-5-dashboard.git volt
+ *   cd volt && npm install && npm run build
+ *   # затем скопировать получившийся dist/assets/css/volt.css сюда.
+ *
+ * На MVP (TASK-019) обходимся Bootstrap 5 CDN, который покрывает базовую вёрстку.
+ * Этот файл — пустой placeholder, чтобы шаблон `base.html` не отдавал 404.
+ * Когда понадобится фирменный стиль — компилируем (отдельная задача).
+ *
+ * См. THIRD_PARTY_LICENSES.md.
+ */
