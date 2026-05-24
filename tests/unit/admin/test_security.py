@@ -51,8 +51,12 @@ def test_verify_returns_none_for_expired_token() -> None:
 
 def test_verify_returns_none_for_bad_signature() -> None:
     token = create_session_token(admin_id=1)
-    # Меняем последний символ token — подпись становится невалидной.
-    tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+    # Меняем середину payload (часть до первой точки) — гарантированно ломает signature.
+    # Изменение последнего base64-char ненадёжно: в urlsafe-base64 две последние
+    # битовые позиции — padding, изменение «a»→«b» (отличаются только в них) может
+    # декодироваться в те же байты → signature не меняется.
+    dot = token.index(".")
+    tampered = token[:0] + ("X" if token[0] != "X" else "Y") + token[1:dot] + token[dot:]
     assert verify_session_token(tampered) is None
 
 
