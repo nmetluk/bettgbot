@@ -43,6 +43,7 @@ __all__ = [
     "REMINDERS_LIST_HEADER",
     "REMINDERS_STATUS_DISABLED",
     "REMINDERS_STATUS_ENABLED",
+    "REMINDER_NOTIFICATION",
     "WELCOME_NEW",
     "WELCOME_NEW_REGISTERED",
     "WELCOME_RETURNING",
@@ -180,3 +181,12 @@ REMINDERS_ERR_TOO_MANY = "У вас уже максимум интервалов
 REMINDERS_ERR_DUPLICATE = "Такой интервал уже есть."
 
 REMINDERS_ERR_BELOW_MINIMUM = "Минимальный интервал — 5 минут."
+
+# Шаблон тиковой нотификации scheduler'а (TASK-017). Placeholder'ы:
+# `{title}`, `{humanized}` (через `humanize_minutes`), `{close_at_fmt}` (UTC «dd.mm HH:MM»).
+REMINDER_NOTIFICATION = (
+    "🔔 Напоминание!\n\n"
+    "До приёма прогнозов по событию <b>«{title}»</b> осталось <b>{humanized}</b>.\n"
+    "Дедлайн: <b>{close_at_fmt}</b>.\n\n"
+    "Сделать прогноз: /events"
+)
