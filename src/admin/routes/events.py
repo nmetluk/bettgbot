@@ -17,7 +17,12 @@ from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.shared.db import SessionLocal
-from src.shared.exceptions import EventNotEnoughOutcomesError, EventNotFoundError
+from src.shared.exceptions import (
+    EventAlreadyHasResultError,
+    EventNotEnoughOutcomesError,
+    EventNotFoundError,
+    OutcomeNotForEventError,
+)
 from src.shared.models import AdminUser
 from src.shared.repositories.event import AdminEventPeriod, AdminEventStatus
 from src.shared.services import CategoryService, EventService
@@ -285,6 +290,39 @@ async def publish_event(
             status_code=status.HTTP_302_FOUND,
         )
     return RedirectResponse(url=f"/events/{event_id}", status_code=status.HTTP_302_FOUND)
+
+
+@router.post("/{event_id}/result")
+async def set_result(
+    request: Request,
+    event_id: int,
+    outcome_id: int = Form(...),
+    admin: AdminUser = Depends(current_admin),
+    session: AsyncSession = Depends(_session_dep),
+    csrf_protect: CsrfProtect = Depends(),
+) -> RedirectResponse:
+    """Транзакционная фиксация итога; помечает все прогнозы as correct/incorrect."""
+    await csrf_protect.validate_csrf(request)
+    try:
+        marked = await EventService(session).set_result(
+            event_id=event_id, outcome_id=outcome_id, by_admin_id=admin.id
+        )
+    except EventNotFoundError as exc:
+        raise HTTPException(status_code=404) from exc
+    except EventAlreadyHasResultError:
+        return RedirectResponse(
+            url=f"/events/{event_id}?tab=result&error=already_set",
+            status_code=status.HTTP_302_FOUND,
+        )
+    except OutcomeNotForEventError:
+        return RedirectResponse(
+            url=f"/events/{event_id}?tab=result&error=outcome_not_for_event",
+            status_code=status.HTTP_302_FOUND,
+        )
+    return RedirectResponse(
+        url=f"/events/{event_id}?tab=result&success=result_set&marked={marked}",
+        status_code=status.HTTP_302_FOUND,
+    )
 
 
 @router.post("/{event_id}/unpublish")

@@ -36,7 +36,12 @@
             <a class="nav-link {% if active_tab == 'outcomes' %}active{% endif %}" href="/events/{{ event.id }}?tab=outcomes">Исходы</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link disabled" href="#">Результат (TASK-024)</a>
+            {% set _result_enabled = event.is_published and event.predictions_close_at <= now() %}
+            <a class="nav-link {% if active_tab == 'result' %}active{% endif %} {% if not _result_enabled %}disabled{% endif %}"
+               href="{% if _result_enabled %}/events/{{ event.id }}?tab=result{% else %}#{% endif %}"
+               {% if not _result_enabled %}aria-disabled="true" title="Доступно после дедлайна приёма прогнозов"{% endif %}>
+                Результат
+            </a>
         </li>
     </ul>
     {% endif %}
@@ -49,6 +54,65 @@
             <div class="spinner-border" role="status"></div>
             <p class="mt-2 text-muted">Загрузка исходов…</p>
         </div>
+    </div>
+    {% endif %}
+
+    {% if event and event.id is defined and active_tab == 'result' %}
+    <div class="card p-4">
+        <h5 class="card-title">Фиксация итога</h5>
+
+        {% if request.query_params.get("success") == "result_set" %}
+        <div class="alert alert-success">
+            ✅ Итог зафиксирован. Прогнозов проверено: <strong>{{ request.query_params.get("marked", "?") }}</strong>.
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "already_set" %}
+        <div class="alert alert-warning">
+            Итог уже был зафиксирован ранее. Переопределение не предусмотрено в MVP.
+        </div>
+        {% endif %}
+        {% if request.query_params.get("error") == "outcome_not_for_event" %}
+        <div class="alert alert-danger">
+            Выбранный исход не принадлежит этому событию.
+        </div>
+        {% endif %}
+
+        {% if event.result_outcome_id %}
+            {% set _result_outcome = (event.outcomes | selectattr('id', 'equalto', event.result_outcome_id) | first) %}
+            <p class="lead">
+                🏁 Итог: <strong>{{ _result_outcome.label if _result_outcome else '#' ~ event.result_outcome_id }}</strong>
+            </p>
+            <p class="text-muted">
+                Зафиксирован: {{ event.archived_at.strftime('%d.%m.%Y %H:%M') if event.archived_at else '—' }} UTC.
+                Переопределение в MVP не предусмотрено.
+            </p>
+        {% elif event.outcomes | length < 2 %}
+            <div class="alert alert-warning">
+                Для фиксации итога нужно минимум 2 исхода. Перейдите на вкладку «Исходы».
+            </div>
+        {% else %}
+            <form method="post" action="/events/{{ event.id }}/result">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <p class="text-muted">
+                    Выберите фактический исход. После «Зафиксировать» все прогнозы помечаются
+                    «сбылся / не сбылся», событие архивируется.
+                    <strong>Переопределение не предусмотрено.</strong>
+                </p>
+                {% for outcome in event.outcomes %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="outcome_id"
+                           id="outcome-{{ outcome.id }}" value="{{ outcome.id }}" required>
+                    <label class="form-check-label" for="outcome-{{ outcome.id }}">
+                        {{ outcome.label }}
+                    </label>
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-success mt-3"
+                        onclick="return confirm('Зафиксировать итог? Это действие необратимо.')">
+                    🏁 Зафиксировать
+                </button>
+            </form>
+        {% endif %}
     </div>
     {% endif %}
 
