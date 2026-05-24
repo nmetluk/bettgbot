@@ -52,6 +52,15 @@ tmp/
 docker-compose.override.yml
 !infra/docker-compose.override.yml
 
+# --- Drive/Finder duplicates ---
+# Ловит "brief 2.md", "notes 3.md", "data 2.yml" и т.п.
+* [0-9].md
+* [0-9].txt
+* [0-9].yml
+* [0-9].yaml
+* [0-9].py
+* [0-9].sh
+
 # --- Mock-registry (если используется отдельный файл с реальными номерами для тестов) ---
 infra/mock-registry.local.yml
 

@@ -64,7 +64,7 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 1. `git push origin <feature-branch>` — выложить ветку до открытия/обновления PR.
 2. `gh pr create ...` или обновить существующий PR; **дождаться** зелёного CI.
 3. `gh pr merge --squash` (если права позволяют) или явно попросить владельца замёрджить.
-4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой).
+4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой). И сразу — `make backup`, см. п. 5.5 ниже.
 5. Только после этого считать задачу закрытой и переходить к следующей.
 
 Цель — на удалённом репо `nmetluk/bettgbot` всегда лежит актуальная `main` сразу после каждой задачи. Это позволяет:
@@ -109,4 +109,5 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 3. Отчёт в `handoff/outbox/TASK-NNN-report.md` написан и закоммичен.
 4. Исходная задача перемещена в `handoff/archive/`, тоже закоммичена.
 5. **PR слит** (squash), **локальная `main` синхронизирована с `origin/main`** (`git checkout main && git pull`).
+5.5. **Сделать `make backup`** — зеркалирование `handoff/`, `state/`, `sessions/` в локально-синкнутую Drive-папку. Без этого шага cowork-агент в следующей сессии может работать со старым handoff. См. [`handoff/README.md`](handoff/README.md) секция «Локальный backup handoff».
 6. Если задача требовала обновления списка готового — пометил в отчёте, что строка для `state/PROJECT_STATUS.md` подготовлена (саму строку добавит проектировщик).
