@@ -34,9 +34,18 @@
                 <li class="nav-item">
                     <a class="nav-link disabled" href="#"><i class="bi bi-journal-text"></i> Аудит (TASK-026)</a>
                 </li>
+                {% set _adm = admin or (request.state.admin if request.state and request.state.admin is defined else None) %}
+                {% if _adm %}
+                <li class="nav-item mt-auto pt-3">
+                    <small class="text-muted d-block px-2">
+                        <i class="bi bi-person-circle"></i>
+                        {{ _adm.full_name or _adm.login }}
+                    </small>
+                </li>
+                {% endif %}
                 <li class="nav-item mt-3">
                     <form method="post" action="/logout">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token if csrf_token else '' }}">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
                         <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
                             <i class="bi bi-box-arrow-right"></i> Выйти
                         </button>

@@ -32,19 +32,34 @@ async def _session_dep() -> AsyncIterator[AsyncSession]:
         yield session
 
 
-@router.get("/login", response_class=HTMLResponse)
-async def login_form(
+def _render_login_error(
     request: Request,
-    csrf_protect: CsrfProtect = Depends(),
-) -> HTMLResponse:
+    csrf_protect: CsrfProtect,
+    *,
+    error: str,
+    status_code: int,
+) -> Response:
+    """Re-render формы логина с ошибкой; генерирует CSRF (middleware POST не покрывает)."""
     csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
+    request.state.csrf_token = csrf_token
     response = templates.TemplateResponse(
         request=request,
         name="login.html",
-        context={"error": None, "csrf_token": csrf_token},
+        context={"error": error},
+        status_code=status_code,
     )
     csrf_protect.set_csrf_cookie(signed_token, response)
     return response
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request) -> HTMLResponse:
+    # CSRF token + cookie ставит CsrfTokenMiddleware (TASK-022).
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"error": None},
+    )
 
 
 @router.post(
@@ -70,32 +85,20 @@ async def login_submit(
             login=login,
             ip=request.client.host if request.client else None,
         )
-        csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-        response = templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "error": "Неверный логин или пароль.",
-                "csrf_token": csrf_token,
-            },
+        return _render_login_error(
+            request,
+            csrf_protect,
+            error="Неверный логин или пароль.",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
-        csrf_protect.set_csrf_cookie(signed_token, response)
-        return response
     except AdminInactiveError:
         logger.warning("admin.auth.inactive", login=login)
-        csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-        response = templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "error": "Учётная запись отключена. Обратитесь к администратору.",
-                "csrf_token": csrf_token,
-            },
+        return _render_login_error(
+            request,
+            csrf_protect,
+            error="Учётная запись отключена. Обратитесь к администратору.",
             status_code=status.HTTP_403_FORBIDDEN,
         )
-        csrf_protect.set_csrf_cookie(signed_token, response)
-        return response
 
     token = create_session_token(admin_id=admin.id)
     s = get_settings()
