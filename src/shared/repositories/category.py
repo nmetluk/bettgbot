@@ -5,10 +5,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Category
+from ..models import Category, Event
 
 __all__ = ["CategoryRepository"]
 
@@ -55,3 +55,23 @@ class CategoryRepository:
 
     async def delete(self, category_id: int) -> None:
         await self._session.execute(delete(Category).where(Category.id == category_id))
+
+    async def list_with_event_counts(
+        self, *, include_inactive: bool = True
+    ) -> Sequence[tuple[Category, int]]:
+        """Все категории с числом ВСЕХ связанных событий (включая drafts и архив).
+
+        Счётчик отражает реальное число строк, по которым работает FK RESTRICT
+        при удалении. Для бота-side фильтра «активные опубликованные» — см.
+        `EventService.list_categories_with_counts` (TASK-012).
+        """
+        stmt = (
+            select(Category, func.count(Event.id))
+            .outerjoin(Event, Event.category_id == Category.id)
+            .group_by(Category.id)
+            .order_by(Category.sort_order, Category.id)
+        )
+        if not include_inactive:
+            stmt = stmt.where(Category.is_active.is_(True))
+        result = await self._session.execute(stmt)
+        return [(row[0], int(row[1])) for row in result.all()]

@@ -12,6 +12,9 @@ from typing import Literal
 __all__ = [
     "AdminInactiveError",
     "AdminInvalidCredentialsError",
+    "CategoryHasEventsError",
+    "CategoryNotFoundError",
+    "CategorySlugConflictError",
     "DomainError",
     "EventAlreadyHasResultError",
     "EventNotEnoughOutcomesError",
@@ -104,6 +107,33 @@ class OutcomeNotFoundError(DomainError):
 
 class OutcomeInUseError(DomainError):
     """Удаление исхода невозможно — на него есть прогнозы (RESTRICT FK)."""
+
+
+# --- Категории (админ) ---
+
+
+class CategorySlugConflictError(DomainError):
+    """Категория с таким `slug` уже существует."""
+
+    def __init__(self, slug: str) -> None:
+        super().__init__(f"category slug {slug!r} already exists")
+        self.slug = slug
+
+
+class CategoryHasEventsError(DomainError):
+    """Удаление категории невозможно — есть связанные события (FK RESTRICT)."""
+
+    def __init__(self, category_id: int) -> None:
+        super().__init__(f"category {category_id} has events; cannot delete")
+        self.category_id = category_id
+
+
+class CategoryNotFoundError(DomainError):
+    """Категория не найдена по id."""
+
+    def __init__(self, category_id: int) -> None:
+        super().__init__(f"category {category_id} not found")
+        self.category_id = category_id
 
 
 # --- Админ-аутентификация ---
