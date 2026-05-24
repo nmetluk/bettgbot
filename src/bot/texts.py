@@ -30,6 +30,19 @@ __all__ = [
     "PREDICT_SAVED",
     "PREDICT_UPDATED",
     "REGISTRY_UNAVAILABLE",
+    "REMINDERS_ADDED",
+    "REMINDERS_ADD_PROMPT",
+    "REMINDERS_ASK_CUSTOM",
+    "REMINDERS_ERR_BELOW_MINIMUM",
+    "REMINDERS_ERR_DUPLICATE",
+    "REMINDERS_ERR_TOO_MANY",
+    "REMINDERS_HEADER",
+    "REMINDERS_HINT_DISABLED",
+    "REMINDERS_INVALID_INPUT",
+    "REMINDERS_LIST_EMPTY",
+    "REMINDERS_LIST_HEADER",
+    "REMINDERS_STATUS_DISABLED",
+    "REMINDERS_STATUS_ENABLED",
     "WELCOME_NEW",
     "WELCOME_NEW_REGISTERED",
     "WELCOME_RETURNING",
@@ -134,3 +147,36 @@ HELP = (
     "ℹ️ <b>Справка</b> — этот текст.\n\n"
     "Прогноз можно менять до дедлайна события. После фиксации итога он закрепляется."
 )
+
+REMINDERS_HEADER = "🔔 <b>Напоминания</b>"
+
+REMINDERS_STATUS_ENABLED = "Статус: <b>✅ включены</b>"
+
+REMINDERS_STATUS_DISABLED = "Статус: <b>🔕 выключены</b>"
+
+REMINDERS_LIST_EMPTY = "Список интервалов пуст. Добавьте, за какое время напоминать."
+
+REMINDERS_LIST_HEADER = "Вы получаете напоминания за:"
+
+REMINDERS_HINT_DISABLED = "Чтобы получать напоминания, включите их кнопкой ниже."
+
+REMINDERS_ADD_PROMPT = "Выберите пресет или введите свой:"
+
+REMINDERS_ASK_CUSTOM = (
+    "Пришлите интервал текстом. Форматы: <code>15m</code>, <code>1h</code>, "
+    "<code>2d</code> или число минут.\n\n"
+    "Минимум — 5 минут, максимум — 7 дней (10080 минут)."
+)
+
+REMINDERS_INVALID_INPUT = (
+    "Не понял формат. Попробуйте: <code>15m</code> / <code>1h</code> / "
+    "<code>2d</code> или просто число минут (5–10080)."
+)
+
+REMINDERS_ADDED = "✅ Добавлено: {humanized}."
+
+REMINDERS_ERR_TOO_MANY = "У вас уже максимум интервалов (5). Удалите ненужный перед добавлением."
+
+REMINDERS_ERR_DUPLICATE = "Такой интервал уже есть."
+
+REMINDERS_ERR_BELOW_MINIMUM = "Минимальный интервал — 5 минут."
