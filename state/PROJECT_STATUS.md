@@ -80,14 +80,18 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 
 **9 закрытых задач, 247 тестов**, 3 миграции, 7 пользовательских handler'ов + 2 фоновых job'а. Двухмашинный workflow проверен (TASK-014 на удалённой машине). Handoff-протокол поддерживает блокировки (TASK-018). Reusable паттерны: `@require_active_user`, `render_event_card`, exhaustive `match exc.reason`, идемпотентность через `record` ДО `send_message`. **Бот готов к продуктивному использованию** — нужна только админка для управления событиями.
 
+## Что готово (последние)
+
+- 2026-05-24 — **TASK-020 закрыт:** аутентификация админки. `AdminAuthService` (`bcrypt` напрямую + anti-enumeration timing-attack mitigation: dummy `checkpw` при `admin is None`). Signed cookie `bb_admin_session` через `itsdangerous` (`URLSafeTimedSerializer` + salt `bb-admin-session-v1`, sliding 8 часов через Set-Cookie wrap в send). ASGI `RequireAdminMiddleware` с whitelist `{/login, /logout, /healthz, /static/*}` + stale-token cleanup. `current_admin` dependency. POST `/login`: rate-limit 5/min IP (`fastapi-limiter` 0.1.6 + Redis) + CSRF (`fastapi-csrf-protect` 1.0.7 hidden form input), generic error на 401, отдельный текст для `AdminInactiveError` 403. `/logout` чистит cookie. Step 0: pyproject cleanup `-passlib +bcrypt +fastapi-limiter +fastapi-csrf-protect +python-multipart`. **21 новый тест** (7 security + 4 login handler + 6 middleware + 4 integration AdminAuthService). **177 unit + 95 integration = 272 теста**. PR [#58](https://github.com/nmetluk/bettgbot/pull/58) → squash `2f20573`; pre-task cleanup PR [#57](https://github.com/nmetluk/bettgbot/pull/57); archive PR [#59](https://github.com/nmetluk/bettgbot/pull/59)
+- 2026-05-24 — сессия приёмки `2026-05-24-07-task-020-review`; **5 keep + 1 change + 1 в тех-долг** (Secure cookie conditional через `Settings.environment` → Step 0 TASK-021; `fastapi-limiter` 0.2 переход — в BACKLOG)
+
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск **TASK-020** (аутентификация админки).
+— ничего, ожидание команды на запуск **TASK-021** (первая бизнес-задача в админке: CRUD категорий).
 
 ## Следующие шаги (Этап 3 — веб-админка)
 
-1. **TASK-020** — аутентификация админа. **Step 0**: cleanup pyproject (убрать `passlib[bcrypt]` — `bcrypt` используется напрямую), добавить `fastapi-limiter` в зависимости. **Step 1-N**: POST `/login` (verify через `bcrypt.checkpw`), signed cookie через `itsdangerous` (8 часов, sliding), middleware `require_admin` для всех страниц кроме `/login`/`/healthz`/`/static`, rate-limit на POST `/login` через `fastapi-limiter` (5 попыток/мин с IP) через Redis, CSRF middleware, POST `/logout` (clear cookie). `current_admin` dependency в `src/admin/deps.py`. Размер L.
-2. **TASK-021** — CRUD категорий (список с фильтром, форма создания, редактирование, удаление пустой категории через 409).
+1. **TASK-021** — первая бизнес-задача. **Step 0**: `Settings.environment: Literal["dev","staging","prod"]` + conditional `Secure=` для cookie (закрывает open Q2 TASK-020 — без этого dev на `http://localhost` даёт бесконечный redirect). **Step 1-N**: расширить `CategoryService` методами `create_category` / `update_category` / `delete_category` (с `AuditService.add`). `EventRepository.has_events_in_category` для проверки пустоты при delete (FK RESTRICT иначе бросит). `src/admin/routes/categories.py` — `/categories`, `/categories/new`, `/categories/{id}`, POST для create/update/delete. Шаблоны `categories/list.html` + `categories/edit.html`. Использует existing `@Depends(current_admin)` и CSRF. Размер L.
 3. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
 4. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
 5. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
