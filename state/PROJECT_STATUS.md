@@ -69,11 +69,11 @@ TASK-001 — TASK-017 закрыты. Бот делает:
 
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск TASK-018.
+**TASK-018 заблокирован → разблокирован через amendment.** Локальный CC корректно обнаружил конфликт между моей task-спекой и CHECK `ck_event_result_archive_consistency` из `0001_init`. Я принял Вариант A (релакс инварианта через миграцию 0003), обновил `docs/03-data-model.md` (3 валидные комбинации вместо 2), положил `handoff/inbox/TASK-018-amendment.md`. Локальный CC ждёт нового pre-task cleanup PR (state + docs + сессия 2026-05-24-04 + amendment), потом возвращается на ветку `feature/TASK-018-scheduler-archive` (5/7 шагов уже сделано локально, не запушено) и доделывает: миграция 0003 + обновление `CheckConstraint` в модели + 5 integration-тестов на сервис + migration test.
 
 ## Следующие шаги (короткий горизонт)
 
-1. Владелец даёт команду → локальный Claude Code берёт **TASK-018**: APScheduler-job автоматической архивации стейлевых событий. Job ежедневно (cron, 03:00 UTC) помечает `is_archived=true` события с `starts_at < now - 7 days AND result_outcome_id IS NULL AND is_archived=false` (страховка от админа, забывшего зафиксировать итог). Новый метод `EventService.archive_stale_events(*, threshold_days=7) -> int` (возвращает количество архивированных). Job `archive_stale_events_job` в `src/bot/scheduler/jobs.py`. Регистрация в `build_scheduler` через `CronTrigger(hour=3, minute=0)`. ~5-7 тестов (integration на сервис + unit на job). Размер M — scheduler infra уже есть из TASK-017.
+1. Локальный Claude Code берёт **TASK-018-amendment**: pre-task cleanup PR → миграция 0003 → CheckConstraint → доделать integration-тесты → PR.
 2. После TASK-018 → **Этап 2 закрыт.** Стартует **Этап 3 — веб-админка**: **TASK-019** скелет FastAPI + Jinja2 + Bootstrap 5 (выбор готового шаблона — AdminLTE / SB Admin 2 / Volt — решается в задаче).
 3. **TASK-020**: аутентификация админа (логин/пароль, bcrypt, session cookie).
 4. **TASK-021..026**: CRUD категорий / событий / исходов / фиксация итога / список пользователей / аудит-лог.

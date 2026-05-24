@@ -121,17 +121,29 @@ Telegram-пользователь, прошедший проверку по но
 - `category_id` — обязательная привязка к одной категории.
 - `metadata: jsonb` — для расширения без миграций (например: команды, лига, ссылки на трансляцию). Бизнес-логика на это поле не завязана; рендерится в шаблонах опционально.
 - `predictions_close_at` — дедлайн приёма прогнозов. Обычно `<= starts_at`. По умолчанию равен `starts_at`, если не задан явно.
-- `result_outcome_id` — заполняется при фиксации итога. До этого `NULL`.
+- `result_outcome_id` — заполняется при фиксации итога. До этого `NULL`. **Может оставаться `NULL` и после архивации** (см. инварианты ниже): это «страховочный» путь — автоматическая архивация старых событий без зафиксированного итога (TASK-018).
 - `is_published` — событие в статусе «черновик» (`false`) не видно пользователям, видно в админке. Это даёт админу подготовить событие и опубликовать кнопкой.
-- `is_archived` + `archived_at` — мягкая архивация. Ставится автоматически в транзакции вместе с `result_outcome_id`.
+- `is_archived` + `archived_at` — мягкая архивация. Два пути:
+  - **Нормальный путь:** `set_result(event_id, outcome_id)` транзакционно ставит `result_outcome_id` + `is_archived=true` + `archived_at=now()` + пересчитывает `is_correct` всех прогнозов.
+  - **Страховочный путь:** ежедневный APScheduler-job `archive_stale_events` помечает `is_archived=true` + `archived_at=now()` для событий с `starts_at < now - 7d AND result_outcome_id IS NULL AND is_archived=false`. `result_outcome_id` остаётся `NULL`, прогнозы остаются с `is_correct=NULL`. Пользователь видит такое событие в «Мои прогнозы → Архив» без отметки «сбылся/нет».
 - `created_by_admin_id` — для аудита.
 
-**Инварианты:**
+**Инварианты (CHECK `ck_event_result_archive_consistency`):**
 
-- `predictions_close_at <= starts_at`
-- `result_outcome_id IS NULL` ⇒ `is_archived = false`
-- `result_outcome_id IS NOT NULL` ⇒ `is_archived = true AND archived_at IS NOT NULL`
+Допустимы **три** комбинации `(result_outcome_id, is_archived, archived_at)`:
+
+1. **Активное событие:** `result_outcome_id IS NULL AND is_archived = false AND archived_at IS NULL`.
+2. **Архивное с итогом (нормальный путь):** `result_outcome_id IS NOT NULL AND is_archived = true AND archived_at IS NOT NULL`.
+3. **Архивное без итога (страховочный путь):** `result_outcome_id IS NULL AND is_archived = true AND archived_at IS NOT NULL`.
+
+Семантика: **`is_archived = true` ⇔ `archived_at IS NOT NULL`**; `result_outcome_id` опционален у архивных событий.
+
+Прочие инварианты:
+
+- `predictions_close_at <= starts_at`.
 - Невозможно опубликовать (`is_published = true`) событие, у которого менее 2 связанных `Outcome`.
+
+> **История инварианта:** изначально (`0001_init`) CHECK запрещал «архивное без итога»; миграция `0003_relax_event_archive_constraint` (TASK-018) ослабила его до текущих трёх комбинаций — потребовалось для автоматической архивации забытых админом событий.
 
 ### `Outcome`
 
