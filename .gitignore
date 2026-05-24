@@ -60,3 +60,6 @@ handoff/.draft/
 
 # --- Claude Code runtime ---
 .claude/
+
+# --- GitHub PAT (read-only, cowork local) ---
+.gh_pat

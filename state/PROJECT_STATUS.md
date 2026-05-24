@@ -4,7 +4,7 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-24
-**Текущая фаза:** 🎉 **Этап 2 (Telegram-бот) закрыт.** Стартует Этап 3 — веб-админка.
+**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. Стартует Этап 4 — production.
 **Реализация:** runtime + конфиг + логгер + модели (9) + **миграции (3)** + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler с 2 job'ами** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **247 тестов** (156 unit + 91 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает; handoff-протокол поддерживает блокировки задач.
 
 ## Где мы сейчас
@@ -110,18 +110,39 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - 2026-05-24 — **TASK-025 закрыт:** раздел «Пользователи» в админке. `UserRepository.list_for_admin_with_prediction_counts` (LEFT JOIN + GROUP BY + COUNT) + `PredictionRepository.list_all_by_user_for_admin` (selectinload event+outcome, active+archived в одной выборке). 4 handlers (list+search+pagination, detail, block/unblock POST). Шаблоны `users/list.html` + `users/detail.html`. Sidebar Пользователи active. 15 новых тестов (6 integration + 9 unit). **220 unit + 115 integration = 335**. PR [#73](https://github.com/nmetluk/bettgbot/pull/73) → squash `5696147`. Pre-task cleanup [#72](https://github.com/nmetluk/bettgbot/pull/72); archive PR [#74](https://github.com/nmetluk/bettgbot/pull/74). Время ~50 мин
 - 2026-05-24 — сессия приёмки `2026-05-24-12-task-025-review`; **все 5 keep + паттерн зафиксирован**: «GET `/login` для CSRF в admin-unit-тестах» (test convention — без service-mock'ов)
 
+## Что готово (последние)
+
+- 2026-05-24 — **TASK-026 закрыт: 🎉 финал Этапа 3.** UI аудит-лога. Step 0 закрыт тех-долг TASK-007: `AuditLogRepository.list` → `.options(selectinload(AuditLog.admin))`. `AdminUserRepository.list_all` для filter-dropdown. 3 handlers (list+filters+pagination / details fragment / collapse fragment). 3 шаблона + sidebar Аудит active. **227 unit + 116 integration = 343**. PR [#76](https://github.com/nmetluk/bettgbot/pull/76) → squash `a5132f3`; pre-task cleanup PR [#75](https://github.com/nmetluk/bettgbot/pull/75); archive PR [#77](https://github.com/nmetluk/bettgbot/pull/77). Время ~40 мин
+- 2026-05-24 — сессия приёмки `2026-05-24-13-task-026-review` (+ **закрытие Этапа 3**): все 6 keep. Зафиксированы 10 паттернов Этапа 3 для baseline в Этап 4
+
+## 🎉 Этап 3 (TASK-019..026) — итог
+
+**8 закрытых задач за ~7 часов**, **96 новых тестов** (с 247 до 343), 0 заблокированных задач. Админка функционально полная: login/auth (bcrypt + signed cookie + middleware + rate-limit + CSRF), CRUD категорий, CRUD событий (Данные/Исходы/Результат), Пользователи (список+карточка+блок), Аудит-журнал. Бот + админка работают вместе.
+
+**Code stats после Этапа 3:**
+- 75 source files в `src/{shared,bot,admin}/` (mypy strict для shared, non-strict для bot+admin)
+- 227 unit + 116 integration = **343 теста**, CI зелёный
+- 7 admin routes (login, dashboard, categories, events, outcomes, users, audit)
+- HTMX 2.x для inline-edit (outcomes), expand/collapse fragments (audit)
+- 10 архитектурных паттернов зафиксированы для Этапа 4
+
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск **TASK-026** — финал Этапа 3 (UI аудит-лога).
+— ничего, ожидание команды на запуск **TASK-027** (старт Этапа 4 — production).
 
-## Следующие шаги (Этап 3 — веб-админка, осталась 1 задача)
+## Следующие шаги (Этап 4 — production deployment)
 
-1. **TASK-026** — UI аудит-лога (**закрывает Этап 3**). Таблица `created_at | admin | action | payload (preview)` с фильтрами (admin, action, диапазон дат). Раскрытие полного payload через HTMX-fragment (по convention из TASK-023: `#X-container` + `outerHTML`). Реализовать `AuditLogRepository.list_with_admin` (тех-долг из TASK-007 — `selectinload(AuditLog.admin)` по convention из TASK-022). Дополнительно: `count_with_admin` для пагинации, новый `AuditService` (если ещё нет) для wrapper'ов. Размер L.
-3. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
-4. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
-5. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
-6. **TASK-025** — список пользователей с поиском по телефону/username, блокировка/разблокировка.
-7. **TASK-026** — UI аудит-лога с фильтрами по admin/action/датам (потребует `AuditLogRepository.list_with_admin` из тех-долга).
+1. **TASK-027** — production docker-compose. `infra/Dockerfile.bot` + `infra/Dockerfile.web` (uvicorn для admin). `infra/docker-compose.override.yml` (dev — bind-mounts кода для hot-reload, exposed ports). `infra/docker-compose.prod.yml` (prod — `image:` через `docker build`, `restart: always`, nginx-proxy для `/admin`, healthchecks на bot/web/postgres/redis). Makefile цели `make prod.build`, `make prod.up`, `make prod.logs`. Размер L.
+2. **TASK-028** — бэкап БД. `pg_dump` через cron-контейнер (image `postgres:16-alpine`) в Docker volume `bb-db-backups`. Retention 14 дней (cron + find -delete). Размер M.
+3. **TASK-029** — structured logging для prod (JSON output через `structlog.processors.JSONRenderer`) + log rotation через `logging.handlers.TimedRotatingFileHandler`. `Settings.log_format = "json"` в prod. Размер M.
+4. **TASK-030** — Deploy README. Пошаговое руководство на VPS (Ubuntu LTS): install docker + compose plugin, clone репо, `.env` setup, `docker compose -f prod.yml up -d`, домен + TLS через certbot + nginx. Размер M.
+5. **TASK-031** — Smoke-тесты после деплоя. `scripts/smoke_test.sh` — curl-проверки `/healthz` бота-webhook и админки, проверка миграций через `alembic current`. Используется в CD после deploy. Размер S.
+
+После TASK-031 — **MVP завершён**, проект готов к выкатке на VPS.
+
+## Что в работе сейчас (обновлено)
+
+- **TASK-027** — `feature/TASK-027-prod-compose` запушена локальным CC с другой машины (2 коммита: `3c0c9de` Dockerfile.bot/web + `18f8526` archive+report). Открыт **PR #78**, ожидает review. Сowork-агент провёл review и положил `handoff/inbox/TASK-027-amendment.md` с двумя блокерами (`${ADMIN_DOMAIN}` в nginx не подставится; `make up` без override-файла активирует bot+web вне `profiles: [full]`) и тремя минорами. После фиксов исполнителем — мерж #78, запуск TASK-028.
 
 ## Блокеры / открытые вопросы
 
