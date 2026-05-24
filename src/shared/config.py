@@ -134,7 +134,7 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     redis_url: RedisDsn
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    log_format: Literal["json", "console"] = "json"
+    log_format: Literal["json", "console"] = "console"
     reminder_tick_seconds: PositiveInt = 300
     # `dev` — локальная разработка через http (Secure-cookie отключается).
     # `staging`/`prod` — за https, Secure обязателен.
