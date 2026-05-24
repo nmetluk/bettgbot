@@ -118,6 +118,76 @@ async def test_upgrade_creates_check_constraints(fresh_db: None) -> None:
     assert "ck_event_result_archive_consistency" in constraints
 
 
+async def test_0003_relax_event_archive_check(fresh_db: None) -> None:
+    """После 0003 CHECK разрешает «архивный без result_outcome_id», но требует archived_at."""
+    from sqlalchemy.exc import IntegrityError
+
+    _alembic("upgrade", "head")
+
+    engine = create_async_engine(DATABASE_URL)
+    try:
+        async with engine.begin() as conn:
+            admin_id = (
+                await conn.execute(
+                    text(
+                        "INSERT INTO admin_user (login, password_hash) "
+                        "VALUES ('a', 'h') RETURNING id"
+                    )
+                )
+            ).scalar_one()
+            category_id = (
+                await conn.execute(
+                    text(
+                        "INSERT INTO category (name, slug, sort_order, is_active) "
+                        "VALUES ('C', 'c-0003', 0, true) RETURNING id"
+                    )
+                )
+            ).scalar_one()
+
+            # 1) Архивный без итога, с archived_at — после 0003 разрешено.
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO event (
+                      category_id, title, metadata, starts_at,
+                      predictions_close_at, is_published, is_archived,
+                      archived_at, created_by_admin_id
+                    ) VALUES (
+                      :cat, 'arch-no-result', '{}'::jsonb, now() - interval '10 days',
+                      now() - interval '10 days', true, true, now(), :adm
+                    )
+                    """
+                ),
+                {"cat": category_id, "adm": admin_id},
+            )
+
+        # 2) Архивный без archived_at — нарушение нового CHECK.
+        with pytest.raises(IntegrityError):
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(
+                        """
+                        INSERT INTO event (
+                          category_id, title, metadata, starts_at,
+                          predictions_close_at, is_published, is_archived,
+                          archived_at, created_by_admin_id
+                        ) VALUES (
+                          :cat, 'arch-no-at', '{}'::jsonb, now() - interval '10 days',
+                          now() - interval '10 days', true, true, NULL, :adm
+                        )
+                        """
+                    ),
+                    {"cat": category_id, "adm": admin_id},
+                )
+
+        # Cleanup: убираем созданное, иначе fresh_db.downgrade base в следующем
+        # тесте упадёт (0003→0002 возвращает строгий CHECK).
+        async with engine.begin() as conn:
+            await conn.execute(text("TRUNCATE event, category, admin_user CASCADE"))
+    finally:
+        await engine.dispose()
+
+
 async def test_downgrade_drops_everything(fresh_db: None) -> None:
     _alembic("upgrade", "head")
     _alembic("downgrade", "base")
