@@ -51,16 +51,14 @@ def _format_menu_text(setting: ReminderSetting) -> str:
 
 
 def _format_error(exc: InvalidReminderOffsetsError) -> str:
-    """Превращает текст исключения в человекочитаемую константу."""
-    message = str(exc)
-    if "too many" in message:
-        return texts.REMINDERS_ERR_TOO_MANY
-    if "duplicate" in message:
-        return texts.REMINDERS_ERR_DUPLICATE
-    if "below minimum" in message:
-        return texts.REMINDERS_ERR_BELOW_MINIMUM
-    # Fallback на общий «не понял ввод» — иначе показали бы пустую алертку.
-    return texts.REMINDERS_INVALID_INPUT
+    """Маппит типизированный `reason` в человекочитаемый текст. Match exhaustive."""
+    match exc.reason:
+        case "too_many":
+            return texts.REMINDERS_ERR_TOO_MANY
+        case "duplicate":
+            return texts.REMINDERS_ERR_DUPLICATE
+        case "below_minimum":
+            return texts.REMINDERS_ERR_BELOW_MINIMUM
 
 
 async def _render_menu_edit(query: CallbackQuery, setting: ReminderSetting) -> None:
