@@ -43,12 +43,14 @@ class ReminderService:
     def _validate_offsets(offsets: list[int]) -> None:
         if len(offsets) > _MAX_OFFSETS:
             raise InvalidReminderOffsetsError(
-                f"too many offsets: {len(offsets)} (max {_MAX_OFFSETS})"
+                f"too many offsets: {len(offsets)} (max {_MAX_OFFSETS})",
+                reason="too_many",
             )
         if len(set(offsets)) != len(offsets):
-            raise InvalidReminderOffsetsError("duplicate offsets")
+            raise InvalidReminderOffsetsError("duplicate offsets", reason="duplicate")
         for value in offsets:
             if value < _MIN_OFFSET_MINUTES:
                 raise InvalidReminderOffsetsError(
-                    f"offset {value} below minimum {_MIN_OFFSET_MINUTES}"
+                    f"offset {value} below minimum {_MIN_OFFSET_MINUTES}",
+                    reason="below_minimum",
                 )
