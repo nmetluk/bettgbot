@@ -73,6 +73,8 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - 2026-05-24 — **TASK-018 закрыт после block resolution:** второй фоновый job `archive_stale_events` (CronTrigger 03:00 UTC, misfire=300s) — bulk-UPDATE стейлевых событий без итога. **Миграция `0003_relax_event_archive_constraint` (Variant A на блокировку):** CHECK расширен до 3 валидных комбинаций. Модель синхронизирована. 8 новых тестов (5 integration archive_stale + 2 unit job + 1 integration migration). PR [#52](https://github.com/nmetluk/bettgbot/pull/52) → squash `b9ac46e`. Связанные PR: cleanup [#49](https://github.com/nmetluk/bettgbot/pull/49), block [#50](https://github.com/nmetluk/bettgbot/pull/50), block-resolution [#51](https://github.com/nmetluk/bettgbot/pull/51), archive [#53](https://github.com/nmetluk/bettgbot/pull/53)
 - 2026-05-24 — сессия приёмки `2026-05-24-04-task-018-block-resolution` (разбор блокера: Variant A — релакс инварианта Event через миграцию 0003)
 - 2026-05-24 — сессия приёмки `2026-05-24-05-task-018-review` (closure Этапа 2: 4 keep, 1 в тех-долг `fresh_db CASCADE`)
+- 2026-05-24 — **TASK-019 закрыт: старт Этапа 3 (веб-админка).** FastAPI-скелет `src/admin/app.py` (без OpenAPI, mount /static, /healthz, Jinja2Templates), routes-заглушки `/login` GET и `/` GET, шаблоны base/login/dashboard.html (Bootstrap 5 + HTMX 2 + Bootstrap Icons через CDN), `scripts/create_admin.py` (bcrypt напрямую cost=12, обход passlib 1.7.4 ↔ bcrypt 5.0 incompat). Volt Free assets: js + brand SVGs + MIT license, но **`volt.css` — placeholder** (Themesberg shipping только SCSS-источники). Makefile: `make admin`, `make admin.create LOGIN=… PASSWORD=…`. CI mypy расширен на `src/admin/`. 4 unit smoke-теста (160 unit + 91 integration). PR [#55](https://github.com/nmetluk/bettgbot/pull/55) → squash `c0dbe96`; pre-task cleanup PR [#54](https://github.com/nmetluk/bettgbot/pull/54)
+- 2026-05-24 — сессия приёмки `2026-05-24-06-task-019-review`; **5 keep + 1 в тех-долг (compiled volt.css) + Step 0 TASK-020 (убрать passlib из pyproject)**; зафиксирован архитектурный принцип «`bcrypt` напрямую вместо `passlib`»; урок для cowork: проверять availability готовых шаблонов/extras перед публикацией задачи
 
 ## 🎉 Этап 2 (TASK-010..018) — итог
 
@@ -80,18 +82,17 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск **TASK-019** (старт Этапа 3).
+— ничего, ожидание команды на запуск **TASK-020** (аутентификация админки).
 
 ## Следующие шаги (Этап 3 — веб-админка)
 
-1. **TASK-019** — FastAPI скелет + Jinja2 + Bootstrap 5 шаблон **Volt Free** (выбран как Bootstrap 5 MIT). Базовая структура `src/admin/{app,routes,templates,static}`. Заглушки routes без бизнес-логики. `scripts/create_admin.py` для создания первого админа. uvicorn-команда в Makefile. Размер M.
-2. **TASK-020** — аутентификация админа (логин/пароль, bcrypt через `passlib`, signed cookie через `itsdangerous`, fastapi-limiter поверх Redis для rate-limit, `/login` POST + `/logout`, middleware `require_admin`).
-3. **TASK-021** — CRUD категорий (список с фильтром, форма создания, редактирование, удаление пустой категории через 409).
-4. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
-5. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
-6. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
-7. **TASK-025** — список пользователей с поиском по телефону/username, блокировка/разблокировка.
-8. **TASK-026** — UI аудит-лога с фильтрами по admin/action/датам (потребует `AuditLogRepository.list_with_admin` из тех-долга).
+1. **TASK-020** — аутентификация админа. **Step 0**: cleanup pyproject (убрать `passlib[bcrypt]` — `bcrypt` используется напрямую), добавить `fastapi-limiter` в зависимости. **Step 1-N**: POST `/login` (verify через `bcrypt.checkpw`), signed cookie через `itsdangerous` (8 часов, sliding), middleware `require_admin` для всех страниц кроме `/login`/`/healthz`/`/static`, rate-limit на POST `/login` через `fastapi-limiter` (5 попыток/мин с IP) через Redis, CSRF middleware, POST `/logout` (clear cookie). `current_admin` dependency в `src/admin/deps.py`. Размер L.
+2. **TASK-021** — CRUD категорий (список с фильтром, форма создания, редактирование, удаление пустой категории через 409).
+3. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
+4. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
+5. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
+6. **TASK-025** — список пользователей с поиском по телефону/username, блокировка/разблокировка.
+7. **TASK-026** — UI аудит-лога с фильтрами по admin/action/датам (потребует `AuditLogRepository.list_with_admin` из тех-долга).
 
 ## Блокеры / открытые вопросы
 
