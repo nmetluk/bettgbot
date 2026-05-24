@@ -33,12 +33,23 @@
             <a class="nav-link {% if active_tab == 'data' %}active{% endif %}" href="/events/{{ event.id }}?tab=data">Данные</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link disabled" href="#">Исходы (TASK-023)</a>
+            <a class="nav-link {% if active_tab == 'outcomes' %}active{% endif %}" href="/events/{{ event.id }}?tab=outcomes">Исходы</a>
         </li>
         <li class="nav-item">
             <a class="nav-link disabled" href="#">Результат (TASK-024)</a>
         </li>
     </ul>
+    {% endif %}
+
+    {% if event and event.id is defined and active_tab == 'outcomes' %}
+    <div hx-get="/events/{{ event.id }}/outcomes"
+         hx-trigger="load"
+         hx-swap="outerHTML">
+        <div class="text-center py-4">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2 text-muted">Загрузка исходов…</p>
+        </div>
+    </div>
     {% endif %}
 
     {% if active_tab == 'data' or not event %}
