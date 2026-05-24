@@ -85,10 +85,19 @@ async def test_upgrade_creates_all_tables(fresh_db: None) -> None:
         "event",
         "outcome",
         "prediction",
+        "reminder_dispatch_log",
         "reminder_setting",
         "user",
     }
     assert set(tables) >= expected, f"missing: {expected - set(tables)}"
+
+
+async def test_0002_creates_reminder_dispatch_log_with_unique_constraint(
+    fresh_db: None,
+) -> None:
+    _alembic("upgrade", "head")
+    constraints = await _fetch_scalars("SELECT conname FROM pg_constraint WHERE contype='u'")
+    assert "uq_reminder_dispatch_log_user_event_offset" in constraints
 
 
 async def test_upgrade_creates_indexes(fresh_db: None) -> None:
