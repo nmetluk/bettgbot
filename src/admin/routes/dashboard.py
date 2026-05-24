@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
+from src.shared.models import AdminUser
+
 from ..app import templates
+from ..deps import current_admin
 
 __all__ = ["router"]
 
@@ -14,8 +17,11 @@ router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request) -> HTMLResponse:
-    """Главная админки — заглушка. Auth подключится в TASK-020."""
+async def dashboard(
+    request: Request,
+    admin: AdminUser = Depends(current_admin),
+) -> HTMLResponse:
+    """Главная админки — защищена middleware + dependency."""
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -26,5 +32,6 @@ async def dashboard(request: Request) -> HTMLResponse:
                 "categories": 0,
                 "predictions": 0,
             },
+            "admin": admin,
         },
     )

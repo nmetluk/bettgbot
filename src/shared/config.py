@@ -53,6 +53,8 @@ class AdminSettings(BaseSettings):
 
     secret_key: SecretStr
     session_hours: PositiveInt = 8
+    # Отдельный секрет для CSRF — best practice (не переиспользуем session secret).
+    csrf_secret: SecretStr
 
 
 class ExternalRegistrySettings(BaseSettings):

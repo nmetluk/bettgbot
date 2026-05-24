@@ -1,23 +1,31 @@
-"""FastAPI admin app (TASK-019).
+"""FastAPI admin app (TASK-019/TASK-020).
 
-Скелет веб-админки: статика, Jinja2-шаблоны, healthcheck. Auth/CSRF/middleware
-появятся в TASK-020+, бизнес-роуты — в TASK-021+.
+Каркас: статика, Jinja2-шаблоны, healthcheck, signed-cookie auth-middleware,
+rate-limit на /login через Redis, CSRF на POST.
 
-Запуск:
-    uv run uvicorn src.admin.app:app --reload --host 127.0.0.1 --port 8000
-или `make admin`.
+Запуск: `make admin` (или `uv run uvicorn src.admin.app:app --reload`).
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi_csrf_protect import CsrfProtect
+from fastapi_csrf_protect.exceptions import CsrfProtectError
+from fastapi_csrf_protect.load_config import LoadConfig
+from fastapi_limiter import FastAPILimiter
+from redis.asyncio import Redis
 
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
+
+from .auth.middleware import RequireAdminMiddleware
 
 __all__ = ["app", "templates"]
 
@@ -28,6 +36,35 @@ _BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_BASE_DIR / "templates"))
 
 
+@CsrfProtect.load_config  # type: ignore[arg-type]
+def _csrf_config() -> LoadConfig:
+    s = get_settings()
+    return LoadConfig(
+        secret_key=s.admin.csrf_secret.get_secret_value(),
+        # Форма постит csrf_token полем тела, не header'ом.
+        token_location="body",
+        token_key="csrf_token",
+        cookie_secure=True,
+        cookie_samesite="lax",
+        # CSRF только на изменяющие методы.
+        methods={"POST", "PUT", "PATCH", "DELETE"},
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    s = get_settings()
+    redis_client: Redis = Redis.from_url(str(s.redis_url), decode_responses=True)
+    await FastAPILimiter.init(redis_client)
+    logger.info("admin.startup", redis=str(s.redis_url))
+    try:
+        yield
+    finally:
+        await FastAPILimiter.close()
+        await redis_client.aclose()
+        logger.info("admin.shutdown")
+
+
 def create_app() -> FastAPI:
     s = get_settings()
     configure_logging(s.log_level, s.log_format)
@@ -35,20 +72,34 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Betting Bot Admin",
         version="0.0.0",
-        # OpenAPI docs не нужен для админки — выключаем, чтобы не было сюрпризов
-        # на проде, где /docs/ доступен публично без auth.
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
+        lifespan=lifespan,
     )
 
+    # Static до middleware: /static/* идёт без auth-проверки.
     app.mount(
         "/static",
         StaticFiles(directory=str(_BASE_DIR / "static")),
         name="static",
     )
 
-    # Локальный импорт — избегаем circular (routes импортируют `templates` отсюда).
+    app.add_middleware(RequireAdminMiddleware)
+
+    @app.exception_handler(CsrfProtectError)
+    async def _csrf_error_handler(request: Request, exc: CsrfProtectError) -> Any:
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "error": "Сессия истекла, обновите страницу.",
+                "csrf_token": "",
+            },
+            status_code=403,
+        )
+
+    # Импорты локально — routes используют `templates` отсюда (circular avoidance).
     from .routes import dashboard as dashboard_routes
     from .routes import login as login_routes
 
@@ -59,7 +110,6 @@ def create_app() -> FastAPI:
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    logger.info("admin.startup")
     return app
 
 

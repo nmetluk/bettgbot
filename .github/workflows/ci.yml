@@ -91,4 +91,5 @@ jobs:
           TELEGRAM_BOT_TOKEN: test
           REDIS_URL: redis://localhost:6379/0
           ADMIN_SECRET_KEY: test-secret
+          ADMIN_CSRF_SECRET: test-csrf-secret
         run: uv run pytest tests/integration -m integration -v

@@ -26,8 +26,9 @@ def test_login_form_renders() -> None:
     assert 'name="password"' in response.text
 
 
-def test_dashboard_renders() -> None:
-    client = TestClient(app)
+def test_dashboard_redirects_unauthenticated_to_login() -> None:
+    # После TASK-020 / защищён RequireAdminMiddleware: без cookie → 302 на /login.
+    client = TestClient(app, follow_redirects=False)
     response = client.get("/")
-    assert response.status_code == 200
-    assert "Дашборд" in response.text
+    assert response.status_code == 302
+    assert response.headers["location"] == "/login"
