@@ -16,6 +16,7 @@ __all__ = [
     "EventNotFoundError",
     "EventNotPredictableError",
     "InvalidReminderOffsetsError",
+    "InvalidReminderOffsetsReason",
     "OutcomeInUseError",
     "OutcomeNotForEventError",
     "OutcomeNotFoundError",
@@ -24,6 +25,9 @@ __all__ = [
     "UserBlockedError",
     "UserNotAllowed",
 ]
+
+
+InvalidReminderOffsetsReason = Literal["too_many", "duplicate", "below_minimum"]
 
 
 class DomainError(Exception):
@@ -104,4 +108,17 @@ class OutcomeInUseError(DomainError):
 
 
 class InvalidReminderOffsetsError(DomainError):
-    """Невалидный список offsets: > 5 элементов / < 5 минут / отрицательные / дубликаты."""
+    """Невалидный список offsets: > 5 / < 5 минут / дубликаты.
+
+    `reason` — типизированный код причины (`too_many` / `duplicate` /
+    `below_minimum`); handler ловит по нему, а не по подстроке `str(exc)`.
+    """
+
+    def __init__(
+        self,
+        message: str = "invalid reminder offsets",
+        *,
+        reason: InvalidReminderOffsetsReason,
+    ) -> None:
+        super().__init__(message)
+        self.reason: InvalidReminderOffsetsReason = reason
