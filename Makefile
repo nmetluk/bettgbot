@@ -14,7 +14,8 @@ PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f in
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
         admin admin.create full.up backup \
-        prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web
+        prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
+        prod.backup.now prod.backup.ls prod.backup.restore
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -118,3 +119,24 @@ prod.shell.web: ## Открыть shell в prod web-контейнере
 
 backup: ## Зеркалирование handoff/state/sessions в локально-синкнутую Drive-папку (после git pull main)
 	@./scripts/backup-to-drive.sh
+
+prod.backup.now: ## Однократный pg_dump прямо сейчас
+	@$(PROD_COMPOSE) run --rm db-backup sh -c 'pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists | gzip > /backups/bettgbot-$$(date -u +%FT%H-%M-%SZ).sql.gz'
+
+prod.backup.ls: ## Список бэкапов в volume
+	@$(PROD_COMPOSE) exec db-backup ls -lah /backups
+
+prod.backup.restore: ## Восстановить дамп: make prod.backup.restore FILE=bettgbot-2026-05-25T02-30-00Z.sql.gz
+	@if [ -z "$(FILE)" ]; then \
+		echo "Использование: make prod.backup.restore FILE=bettgbot-YYYY-MM-DDTHH-MM-SSZ.sql.gz"; \
+		exit 1; \
+	fi
+	@printf "ВСЕ ТЕКУЩИЕ ДАННЫЕ В БД БУДУТ ЗАМЕНЕНЫ дампом '$(FILE)'. Введите 'RESTORE' для подтверждения: "; \
+	read ans; \
+	if [ "$$ans" = "RESTORE" ]; then \
+		$(PROD_COMPOSE) exec -T db sh -c 'gunzip -c /backups/$(FILE)' | $(PROD_COMPOSE) exec -T db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'; \
+		echo "✓ Restore завершён"; \
+	else \
+		echo "Отмена."; \
+		exit 1; \
+	fi
