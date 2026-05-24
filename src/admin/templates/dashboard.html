@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд — Betting Bot Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Дашборд</h1>
+    <div class="row g-3">
+        {% for key, value in counters.items() %}
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-4">{{ value }}</div>
+                    <div class="text-muted text-uppercase">{{ key }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="text-muted mt-4">⚠️ Реальные счётчики подключатся в TASK-024+.</p>
+</div>
+{% endblock %}
