@@ -1,0 +1,46 @@
+{# Fragment: список исходов с кнопкой «Добавить». Корневая загрузка вкладки. #}
+<div id="outcomes-container">
+    {% if error %}
+    <div class="alert alert-warning">{{ error }}</div>
+    {% endif %}
+
+    {% if outcomes %}
+    <ol class="list-group list-group-numbered mb-3">
+        {% for outcome in outcomes %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+                <strong>{{ outcome.label }}</strong>
+                <small class="text-muted ms-2">sort: {{ outcome.sort_order }}</small>
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        hx-get="/events/{{ event_id }}/outcomes/{{ outcome.id }}/edit"
+                        hx-target="#outcomes-container"
+                        hx-swap="outerHTML">
+                    <i class="bi bi-pencil"></i> Изм.
+                </button>
+                <form style="display:inline"
+                      hx-post="/events/{{ event_id }}/outcomes/{{ outcome.id }}/delete"
+                      hx-target="#outcomes-container"
+                      hx-swap="outerHTML"
+                      hx-confirm="Удалить исход «{{ outcome.label }}»?">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p class="text-muted">Исходов ещё нет. Добавьте минимум два, чтобы можно было опубликовать.</p>
+    {% endif %}
+
+    <button type="button" class="btn btn-primary"
+            hx-get="/events/{{ event_id }}/outcomes/new"
+            hx-target="#outcomes-container"
+            hx-swap="outerHTML">
+        <i class="bi bi-plus-lg"></i> Добавить исход
+    </button>
+</div>

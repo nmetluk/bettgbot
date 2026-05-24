@@ -1,0 +1,31 @@
+{# Fragment: inline-форма add/edit. Заменяет либо «Добавить» кнопку, либо строку списка. #}
+<div id="outcomes-container">
+    <form hx-post="{% if outcome %}/events/{{ event_id }}/outcomes/{{ outcome.id }}{% else %}/events/{{ event_id }}/outcomes{% endif %}"
+          hx-target="#outcomes-container"
+          hx-swap="outerHTML"
+          class="card p-3 mb-3">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <h6 class="card-title">
+            {% if outcome %}Редактирование исхода #{{ outcome.id }}{% else %}Новый исход{% endif %}
+        </h6>
+        <div class="mb-2">
+            <label class="form-label">Название</label>
+            <input type="text" name="label" class="form-control" required autofocus
+                   value="{{ outcome.label if outcome else '' }}">
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Порядок сортировки</label>
+            <input type="number" name="sort_order" class="form-control"
+                   value="{{ outcome.sort_order if outcome else 0 }}">
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm"
+                    hx-get="/events/{{ event_id }}/outcomes"
+                    hx-target="#outcomes-container"
+                    hx-swap="outerHTML">
+                Отмена
+            </button>
+        </div>
+    </form>
+</div>
