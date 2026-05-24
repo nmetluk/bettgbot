@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Аудит — Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>Журнал аудита</h1>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-3">
+            <label class="form-label">Админ</label>
+            <select name="admin_id" class="form-select">
+                <option value="">— все —</option>
+                {% for a in admins %}
+                <option value="{{ a.id }}" {% if a.id == selected_admin_id %}selected{% endif %}>
+                    {{ a.login }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Action</label>
+            <input type="text" name="action" class="form-control"
+                   placeholder="напр. event.create"
+                   value="{{ selected_action }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">С (UTC)</label>
+            <input type="datetime-local" name="since" class="form-control"
+                   value="{{ selected_since }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">По (UTC)</label>
+            <input type="datetime-local" name="until" class="form-control"
+                   value="{{ selected_until }}">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-outline-primary w-100">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+    </form>
+
+    {% if rows %}
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Когда</th><th>Админ</th><th>Action</th><th>Payload (preview)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in rows %}
+            <tr id="audit-row-{{ entry.id }}">
+                <td>
+                    <small>{{ entry.created_at.strftime("%d.%m.%Y %H:%M:%S") }}</small>
+                </td>
+                <td>{{ entry.admin.full_name or entry.admin.login }}</td>
+                <td><code>{{ entry.action }}</code></td>
+                <td>
+                    {% include "audit/_preview.html" %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total > page_size %}
+    <nav>
+        <ul class="pagination">
+            {% set qs_parts = [] %}
+            {% if selected_admin_id %}{% set _ = qs_parts.append("admin_id=" ~ selected_admin_id) %}{% endif %}
+            {% if selected_action %}{% set _ = qs_parts.append("action=" ~ selected_action) %}{% endif %}
+            {% if selected_since %}{% set _ = qs_parts.append("since=" ~ selected_since) %}{% endif %}
+            {% if selected_until %}{% set _ = qs_parts.append("until=" ~ selected_until) %}{% endif %}
+            {% set qs_extra = ("&" ~ (qs_parts | join("&"))) if qs_parts else "" %}
+
+            {% if page > 0 %}
+            <li class="page-item"><a class="page-link" href="?page={{ page - 1 }}{{ qs_extra }}">‹</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page + 1 }}</span></li>
+            {% if (page + 1) * page_size < total %}
+            <li class="page-item"><a class="page-link" href="?page={{ page + 1 }}{{ qs_extra }}">›</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <p class="text-muted">Всего записей: {{ total }}.</p>
+    {% else %}
+    <p class="text-muted">Записей по выбранным фильтрам нет.</p>
+    {% endif %}
+</div>
+{% endblock %}

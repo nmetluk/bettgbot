@@ -32,7 +32,7 @@
                     <a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link disabled" href="#"><i class="bi bi-journal-text"></i> Аудит (TASK-026)</a>
+                    <a class="nav-link" href="/audit"><i class="bi bi-journal-text"></i> Аудит</a>
                 </li>
                 {% set _adm = admin or (request.state.admin if request.state and request.state.admin is defined else None) %}
                 {% if _adm %}

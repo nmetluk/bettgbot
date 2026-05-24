@@ -1,0 +1,10 @@
+{# HTMX-fragment: полный payload одной audit-записи, JSON pretty-print. #}
+<div id="audit-details-{{ entry.id }}">
+    <pre class="bg-light p-2 mb-1" style="font-size: 0.85em; max-width: 600px; white-space: pre-wrap;"><code>{{ payload_pretty }}</code></pre>
+    <button type="button" class="btn btn-sm btn-link"
+            hx-get="/audit/{{ entry.id }}/details/collapse"
+            hx-target="#audit-details-{{ entry.id }}"
+            hx-swap="outerHTML">
+        <i class="bi bi-chevron-up"></i> Свернуть
+    </button>
+</div>
