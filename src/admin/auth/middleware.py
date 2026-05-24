@@ -27,7 +27,7 @@ __all__ = ["RequireAdminMiddleware"]
 
 logger = get_logger(__name__)
 
-_PUBLIC_PATHS = frozenset({"/login", "/healthz"})
+_PUBLIC_PATHS = frozenset({"/login", "/logout", "/healthz"})
 _PUBLIC_PREFIXES = ("/static/",)
 
 
@@ -45,8 +45,17 @@ class RequireAdminMiddleware:
         session_maker: async_sessionmaker[AsyncSession] | None = None,
     ) -> None:
         self.app = app
-        # session_maker инжектится для тестов; production использует SessionLocal.
-        self._session_maker = session_maker or SessionLocal
+        # `session_maker` можно инжектнуть в тестах; production резолвит
+        # лениво через `_get_session_maker`, чтобы `patch(... .SessionLocal, ...)`
+        # внутри теста влиял на инстанс, созданный в lifespan приложения.
+        self._session_maker = session_maker
+
+    def _get_session_maker(self) -> async_sessionmaker[AsyncSession]:
+        if self._session_maker is not None:
+            return self._session_maker
+        # Импорт-время `SessionLocal` мы патчим в тестах через
+        # `patch("src.admin.auth.middleware.SessionLocal", ...)`.
+        return SessionLocal
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -66,7 +75,7 @@ class RequireAdminMiddleware:
             await RedirectResponse(url="/login", status_code=302)(scope, receive, send)
             return
 
-        async with self._session_maker() as session:
+        async with self._get_session_maker()() as session:
             admin = await session.get(AdminUser, admin_id)
 
         if admin is None or not admin.is_active:

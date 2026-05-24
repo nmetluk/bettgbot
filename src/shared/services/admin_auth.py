@@ -18,11 +18,11 @@ from ..models import AdminUser
 __all__ = ["AdminAuthService"]
 
 
-# Dummy-хеш для timing-attack mitigation: реальный bcrypt-hash с cost=12,
-# полученный из `bcrypt.hashpw(b"unused", bcrypt.gensalt(rounds=12))`.
-# Использован один и тот же сгенерированный заранее — нам не важно, что в нём,
-# важно лишь время `checkpw`.
-_DUMMY_HASH = b"$2b$12$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX01234"
+# Dummy bcrypt-hash (cost=12) для timing-attack mitigation. Сгенерирован один раз
+# через `bcrypt.hashpw(b"unused", bcrypt.gensalt(rounds=12))`. Содержимое не важно,
+# важно только время `checkpw` — оно должно совпадать с реальным сравнением,
+# чтобы атакующий не различал «admin не найден» и «admin найден, пароль не подходит».
+_DUMMY_HASH = b"$2b$12$SXY0ymA//Wbfo7c41.VABuElI5vkkqPpSpi3bWf4eZvFzDzVznqra"
 
 
 class AdminAuthService:
