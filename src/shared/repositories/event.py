@@ -3,18 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models import Event
+from ..models import Event, Prediction
 
-__all__ = ["EventRepository"]
+__all__ = ["AdminEventPeriod", "AdminEventStatus", "EventRepository"]
 
 AdminEventStatus = Literal["all", "draft", "published_open", "published_closed", "archived"]
+AdminEventPeriod = Literal["all", "next7", "past"]
 
 
 class EventRepository:
@@ -179,6 +180,71 @@ class EventRepository:
         )
         result = await self._session.execute(stmt)
         return int(result.rowcount or 0)  # type: ignore[attr-defined]
+
+    def _period_filters(self, period: AdminEventPeriod) -> list:  # type: ignore[type-arg]
+        clauses: list = []  # type: ignore[type-arg]
+        if period == "next7":
+            now = datetime.now(tz=UTC)
+            clauses.append(Event.starts_at >= now)
+            clauses.append(Event.starts_at < now + timedelta(days=7))
+        elif period == "past":
+            clauses.append(Event.starts_at < datetime.now(tz=UTC))
+        # "all" — no extra filter
+        return clauses
+
+    async def list_for_admin_with_predictions_count(
+        self,
+        *,
+        category_id: int | None = None,
+        status: AdminEventStatus = "all",
+        period: AdminEventPeriod = "all",
+        offset: int = 0,
+        limit: int = 50,
+    ) -> Sequence[tuple[Event, int]]:
+        """Список событий для admin-таблицы с подсчётом прогнозов.
+
+        Один SQL: LEFT JOIN prediction + GROUP BY event.id + COUNT. Фильтры
+        status (`all/draft/published_*/archived`) и period (`all/next7/past`)
+        через WHERE. `joinedload(Category)` — чтобы в шаблоне показать имя
+        категории, не +N запросов.
+        """
+        # selectinload вместо joinedload — joinedload в одном запросе с GROUP BY
+        # требует все Category-колонки в GROUP BY; selectinload делает один
+        # отдельный SELECT по collected category_ids. На admin-странице ОК.
+        stmt = (
+            select(Event, func.count(Prediction.id))
+            .outerjoin(Prediction, Prediction.event_id == Event.id)
+            .options(selectinload(Event.category))
+            .group_by(Event.id)
+            .where(
+                *self._admin_filters(category_id, status),
+                *self._period_filters(period),
+            )
+            .order_by(Event.starts_at.desc(), Event.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [(row[0], int(row[1])) for row in result.all()]
+
+    async def count_for_admin_with_period(
+        self,
+        *,
+        category_id: int | None = None,
+        status: AdminEventStatus = "all",
+        period: AdminEventPeriod = "all",
+    ) -> int:
+        """Count с теми же фильтрами для пагинации."""
+        stmt = (
+            select(func.count())
+            .select_from(Event)
+            .where(
+                *self._admin_filters(category_id, status),
+                *self._period_filters(period),
+            )
+        )
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
 
     async def list_with_deadline_in_window(
         self, *, since: datetime, until: datetime

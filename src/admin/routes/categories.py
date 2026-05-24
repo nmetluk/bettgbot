@@ -41,14 +41,16 @@ def _render_form(
     error: str | None,
     status_code: int = 200,
 ) -> HTMLResponse:
+    """Re-render формы; для POST-handler'ов с ошибкой генерирует CSRF вручную
+    (CsrfTokenMiddleware покрывает только GET)."""
     csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
+    request.state.csrf_token = csrf_token
     response = templates.TemplateResponse(
         request=request,
         name="categories/form.html",
         context={
             "admin": admin,
             "category": category,
-            "csrf_token": csrf_token,
             "error": error,
             "form_action": form_action,
         },
@@ -63,33 +65,30 @@ async def list_categories(
     request: Request,
     admin: AdminUser = Depends(current_admin),
     session: AsyncSession = Depends(_session_dep),
-    csrf_protect: CsrfProtect = Depends(),
 ) -> HTMLResponse:
+    # csrf_token для delete-кнопок и logout-формы — из request.state (CsrfTokenMiddleware).
     rows = await CategoryService(session).list_all_with_counts(include_inactive=True)
-    # csrf_token нужен для delete-кнопок и logout-формы в sidebar.
-    csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-    response = templates.TemplateResponse(
+    return templates.TemplateResponse(
         request=request,
         name="categories/list.html",
-        context={"admin": admin, "rows": rows, "csrf_token": csrf_token},
+        context={"admin": admin, "rows": rows},
     )
-    csrf_protect.set_csrf_cookie(signed_token, response)
-    return response
 
 
 @router.get("/new", response_class=HTMLResponse)
 async def new_form(
     request: Request,
     admin: AdminUser = Depends(current_admin),
-    csrf_protect: CsrfProtect = Depends(),
 ) -> HTMLResponse:
-    return _render_form(
-        request,
-        admin=admin,
-        csrf_protect=csrf_protect,
-        category=None,
-        form_action="/categories",
-        error=None,
+    return templates.TemplateResponse(
+        request=request,
+        name="categories/form.html",
+        context={
+            "admin": admin,
+            "category": None,
+            "error": None,
+            "form_action": "/categories",
+        },
     )
 
 
@@ -137,18 +136,19 @@ async def edit_form(
     category_id: int,
     admin: AdminUser = Depends(current_admin),
     session: AsyncSession = Depends(_session_dep),
-    csrf_protect: CsrfProtect = Depends(),
 ) -> HTMLResponse:
     category = await CategoryService(session).get_by_id(category_id)
     if category is None:
         raise HTTPException(status_code=404)
-    return _render_form(
-        request,
-        admin=admin,
-        csrf_protect=csrf_protect,
-        category=category,
-        form_action=f"/categories/{category_id}",
-        error=None,
+    return templates.TemplateResponse(
+        request=request,
+        name="categories/form.html",
+        context={
+            "admin": admin,
+            "category": category,
+            "error": None,
+            "form_action": f"/categories/{category_id}",
+        },
     )
 
 

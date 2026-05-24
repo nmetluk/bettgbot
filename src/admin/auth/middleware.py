@@ -1,9 +1,11 @@
-"""RequireAdminMiddleware — защищает все пути, кроме whitelisted (TASK-020).
+"""Auth middlewares админки (TASK-020 + TASK-022).
 
-ASGI-callable (не `BaseHTTPMiddleware`), чтобы избежать двойной буферизации
-тел запросов и поддержать streaming. Проверяет signed cookie, подгружает
-`AdminUser`, кладёт в `scope.state.admin`, рефрешит cookie на каждом запросе
-(sliding TTL).
+`RequireAdminMiddleware`: защищает все пути, кроме whitelisted. ASGI-callable,
+sliding TTL.
+
+`CsrfTokenMiddleware`: для GET-под-auth генерирует `csrf_token` в `request.state`
++ ставит `fastapi-csrf-token` cookie. Шаблоны читают `{{ request.state.csrf_token }}`
+без необходимости генерировать в каждом handler'е.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -23,7 +26,7 @@ from src.shared.models import AdminUser
 
 from .security import SESSION_COOKIE_NAME, create_session_token, verify_session_token
 
-__all__ = ["RequireAdminMiddleware"]
+__all__ = ["CsrfTokenMiddleware", "RequireAdminMiddleware"]
 
 logger = get_logger(__name__)
 
@@ -113,3 +116,60 @@ class RequireAdminMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_cookie)
+
+
+class CsrfTokenMiddleware:
+    """Для GET под auth кладёт `csrf_token` в `request.state` + cookie.
+
+    Шаблоны читают `{{ request.state.csrf_token }}`, handler'у не нужно
+    генерировать токен вручную. POST/PUT/PATCH/DELETE по-прежнему verify'ятся
+    через `csrf_protect.validate_csrf(request)` в handler'ах.
+
+    Порядок: `RequireAdminMiddleware` должен отработать ДО этого middleware,
+    чтобы `scope["state"]["admin"]` был выставлен. В `app.add_middleware`
+    добавляй CsrfTokenMiddleware ПЕРВЫМ (он inner), RequireAdminMiddleware
+    ВТОРЫМ (он outer, обрабатывает запрос первым).
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive=receive)
+        state = scope.setdefault("state", {})
+
+        # Генерируем токен для всех GET (включая /login, /healthz), кроме статики:
+        # — POST не нуждается (форма прислала токен).
+        # — статика — лишний оверхед.
+        path = request.url.path
+        if request.method != "GET" or path.startswith("/static/") or path == "/healthz":
+            await self.app(scope, receive, send)
+            return
+
+        csrf_protect = CsrfProtect()
+        csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
+        state["csrf_token"] = csrf_token
+
+        s = get_settings()
+        cookie_parts = [
+            f"fastapi-csrf-token={signed_token}",
+            "HttpOnly",
+            "SameSite=Lax",
+            "Path=/",
+        ]
+        if s.environment != "dev":
+            cookie_parts.append("Secure")
+        cookie_header = "; ".join(cookie_parts)
+
+        async def send_with_csrf_cookie(message: Any) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"set-cookie", cookie_header.encode("latin-1")))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_csrf_cookie)

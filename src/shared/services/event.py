@@ -24,7 +24,7 @@ from ..repositories import (
     OutcomeRepository,
     PredictionRepository,
 )
-from ..repositories.event import AdminEventStatus
+from ..repositories.event import AdminEventPeriod, AdminEventStatus
 
 __all__ = ["EventService"]
 
@@ -242,6 +242,34 @@ class EventService:
         status: AdminEventStatus = "all",
     ) -> int:
         return await self._events.count_for_admin(category_id=category_id, status=status)
+
+    async def list_admin_with_counts(
+        self,
+        *,
+        category_id: int | None = None,
+        status: AdminEventStatus = "all",
+        period: AdminEventPeriod = "all",
+        offset: int = 0,
+        limit: int = 50,
+    ) -> Sequence[tuple[Event, int]]:
+        return await self._events.list_for_admin_with_predictions_count(
+            category_id=category_id,
+            status=status,
+            period=period,
+            offset=offset,
+            limit=limit,
+        )
+
+    async def count_admin(
+        self,
+        *,
+        category_id: int | None = None,
+        status: AdminEventStatus = "all",
+        period: AdminEventPeriod = "all",
+    ) -> int:
+        return await self._events.count_for_admin_with_period(
+            category_id=category_id, status=status, period=period
+        )
 
     async def list_categories_with_counts(
         self,

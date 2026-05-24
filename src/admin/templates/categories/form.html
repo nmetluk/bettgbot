@@ -23,7 +23,7 @@
     {% endif %}
 
     <form method="post" action="{{ form_action }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <div class="mb-3">
             <label class="form-label">Название</label>
             <input type="text" name="name" class="form-control" required

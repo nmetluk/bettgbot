@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ from redis.asyncio import Redis
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
 
-from .auth.middleware import RequireAdminMiddleware
+from .auth.middleware import CsrfTokenMiddleware, RequireAdminMiddleware
 
 __all__ = ["app", "templates"]
 
@@ -34,6 +35,8 @@ logger = get_logger(__name__)
 
 _BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_BASE_DIR / "templates"))
+# `now()` доступен в шаблонах для расчёта статус-бэйджей событий.
+templates.env.globals["now"] = lambda: datetime.now(tz=UTC)
 
 
 @CsrfProtect.load_config  # type: ignore[arg-type]
@@ -85,6 +88,10 @@ def create_app() -> FastAPI:
         name="static",
     )
 
+    # Порядок: add_middleware добавляет в обратном порядке выполнения.
+    # CsrfTokenMiddleware добавляем ПЕРВЫМ → он inner (после Require).
+    # RequireAdminMiddleware ВТОРЫМ → он outer, обрабатывает запрос первым.
+    app.add_middleware(CsrfTokenMiddleware)
     app.add_middleware(RequireAdminMiddleware)
 
     @app.exception_handler(CsrfProtectError)
@@ -102,11 +109,13 @@ def create_app() -> FastAPI:
     # Импорты локально — routes используют `templates` отсюда (circular avoidance).
     from .routes import categories as categories_routes
     from .routes import dashboard as dashboard_routes
+    from .routes import events as events_routes
     from .routes import login as login_routes
 
     app.include_router(login_routes.router)
     app.include_router(dashboard_routes.router)
     app.include_router(categories_routes.router)
+    app.include_router(events_routes.router)
 
     @app.get("/healthz", tags=["meta"])
     async def healthz() -> dict[str, str]:

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if event and event.id is defined %}
+        {{ event.title }} — Admin
+    {% else %}
+        Новое событие — Admin
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>
+        {% if event and event.id is defined %}
+            {{ event.title }}
+        {% else %}
+            Новое событие
+        {% endif %}
+    </h1>
+
+    {% if request.query_params.get("error") == "not_enough_outcomes" %}
+    <div class="alert alert-warning">
+        Нельзя опубликовать: нужно минимум 2 исхода. Перейдите на вкладку «Исходы» (появится в TASK-023).
+    </div>
+    {% elif request.query_params.get("error") == "invalid_input" %}
+    <div class="alert alert-danger">Неверный формат даты или metadata-JSON.</div>
+    {% endif %}
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+    {% if event and event.id is defined %}
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if active_tab == 'data' %}active{% endif %}" href="/events/{{ event.id }}?tab=data">Данные</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link disabled" href="#">Исходы (TASK-023)</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link disabled" href="#">Результат (TASK-024)</a>
+        </li>
+    </ul>
+    {% endif %}
+
+    {% if active_tab == 'data' or not event %}
+    <form method="post" action="{{ form_action }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label">Название</label>
+                <input type="text" name="title" class="form-control" required
+                       value="{{ event.title if event else '' }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Категория</label>
+                <select name="category_id" class="form-select" required>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if event and event.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Описание</label>
+                <textarea name="description" rows="3" class="form-control">{{ event.description if event and event.description else '' }}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Старт</label>
+                <input type="datetime-local" name="starts_at" class="form-control" required
+                       value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') if event and event.starts_at else '' }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Дедлайн приёма прогнозов</label>
+                <input type="datetime-local" name="predictions_close_at" class="form-control" required
+                       value="{{ event.predictions_close_at.strftime('%Y-%m-%dT%H:%M') if event and event.predictions_close_at else '' }}">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Metadata (JSON)</label>
+                <textarea name="metadata" rows="4" class="form-control font-monospace">{% if event and event.metadata_ %}{{ event.metadata_ | tojson(indent=2) }}{% else %}{}{% endif %}</textarea>
+            </div>
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="/events" class="btn btn-outline-secondary">Отмена</a>
+        </div>
+    </form>
+
+    {% if event and event.id is defined %}
+    <hr class="my-4">
+    <div class="d-flex gap-2">
+        {% if event.is_archived %}
+        <span class="text-muted">Событие архивно. Восстановление вне scope MVP.</span>
+        {% elif event.is_published %}
+        <form method="post" action="/events/{{ event.id }}/unpublish">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <button type="submit" class="btn btn-outline-warning">Снять с публикации</button>
+        </form>
+        {% else %}
+        <form method="post" action="/events/{{ event.id }}/publish">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <button type="submit" class="btn btn-success">Опубликовать</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
