@@ -9,7 +9,7 @@ PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f in
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
-        admin admin.create full.up \
+        admin admin.create full.up backup \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web
 
 help: ## Показать доступные команды
@@ -111,3 +111,6 @@ prod.shell.bot: ## Открыть shell в prod bot-контейнере
 
 prod.shell.web: ## Открыть shell в prod web-контейнере
 	$(PROD_COMPOSE) exec web sh
+
+backup: ## Зеркалирование handoff/state/sessions в локально-синкнутую Drive-папку (после git pull main)
+	@./scripts/backup-to-drive.sh

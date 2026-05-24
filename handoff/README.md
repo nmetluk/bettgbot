@@ -108,43 +108,28 @@ handoff/archive/
 
 **Важно.** Файлы в `archive/` — это **снимки на момент закрытия задачи**. Относительные ссылки внутри них (вроде `../../docs/08-conventions.md`) могут сломаться, потому что сам файл переехал в более глубокий каталог. Это нормально и менять архивные файлы не нужно. Если хочется перейти по ссылке из архивного `task.md` — открой текущий аналог в `docs/` напрямую.
 
-## Зеркало в Google Drive
+## Локальный backup handoff в Google Drive
 
-Папка `Claude projects/Betting Bot backup` на Google Drive — **read-only снапшот** ключевых артефактов проекта для запуска локального Claude Code на любой машине. Источник истины — GitHub-репо `nmetluk/bettgbot`; Drive — это «онбординг-пакет», который не требует доступа к репо, чтобы агент быстро восстановил контекст.
+Чтобы cowork-агент (в десктоп-приложении) и параллельный второй экземпляр локального CC видели актуальный handoff без задержек, после каждого merge задачи (т.е. сразу после `git checkout main && git pull origin main`) **обязательно** запустить:
 
-### Что зеркалится
+```bash
+make backup
+```
 
-| Drive-путь | Содержимое | Когда обновляется |
-|---|---|---|
-| `memory-export.md` (корень) | Снапшот контекста: роли, стек, конвенции, статус, что закрыто/что дальше, как поднять рабочее место | После каждой review-сессии cowork |
-| `handoff/README.md` | Этот файл (сокращённая версия) | При значимом изменении воркфлоу |
-| `handoff/templates/{task,report}.md` | Шаблоны задач и отчётов | Редко (только при изменении шаблона) |
-| `handoff/inbox/TASK-NNN-<slug>.md` | Открытые задачи | **При каждом создании задачи cowork-агентом** |
-| `handoff/outbox/TASK-NNN-report.md` | Свежие отчёты исполнителя | После каждой review-сессии cowork (свежий отчёт зеркалится сразу после прочтения) |
-| `handoff/archive/TASK-NNN-<slug>/task.md` | Снапшоты закрытых задач | После review-сессии cowork (короткая версия — полная всегда в git) |
-| `state/{PROJECT_STATUS,DECISIONS,BACKLOG,GLOSSARY}.md` | Снапшот живого контекста | После каждой review-сессии cowork |
-| `sessions/YYYY-MM-DD-NN-slug/{brief,decisions}.md` | Артефакты review-сессий | По мере создания cowork |
+Это вызовет `scripts/backup-to-drive.sh`, который через `rsync -a --delete` зеркалирует:
 
-### Кто зеркалит
+- `handoff/{inbox,outbox,archive,templates,README.md}` — полностью (кроме `.draft/`)
+- `state/*.md`
+- `sessions/*/` — полностью
+- корневой `memory-export.md` — если есть
 
-**Только cowork-агент**, через MCP Google Drive коннектор. Локальный Claude Code в Drive не пишет — он работает исключительно через git. Это держит обязанность синхронизации на одном агенте, без скриптов на стороне исполнителя.
+в локально-синкнутую Drive-папку `G:/Мой диск/Claude projects/Betting Bot backup/`. Drive File Stream сам синхронизирует это в облако (1–60 сек).
 
-### Когда зеркалит
+Если путь Drive-папки на твоей машине отличается — экспортируй `BB_DRIVE_BACKUP` env:
 
-- **При создании задачи** (`handoff/inbox/TASK-NNN-<slug>.md`) — сразу же копия в Drive `handoff/inbox/`.
-- **В конце review-сессии** — пакет: обновлённые `state/*.md`, новая `sessions/YYYY-MM-DD-NN-slug/`, свежие `handoff/outbox/TASK-NNN-report.md` и (если задача закрыта) `handoff/archive/TASK-NNN-<slug>/task.md`, обновлённый `memory-export.md`.
-- **Никогда не сам по себе** — только в рамках конкретной сессии, после успешного создания / правки файлов в репо.
+```bash
+export BB_DRIVE_BACKUP="/path/to/your/drive/Betting Bot backup"
+make backup
+```
 
-### Как найти папку
-
-Cowork-агент ищет папку через connector-запрос `title = 'Betting Bot backup' and mimeType = 'application/vnd.google-apps.folder'`. На текущей машине Николая ID корневой папки — `15TjaNQLe27cCU2iFFHZUHALcGW8Lwxws`, но в коде/документации хардкодить его не нужно — поиск по имени надёжнее.
-
-### Что НЕ зеркалится
-
-- Полный исходный код (`src/`, `tests/`, `infra/`) — это берётся через `git clone`.
-- Полные `docs/` и `docs/adr/` — спецификации читаются из репо. Слишком объёмно для Drive-зеркала.
-- Архив закрытых отчётов TASK-001..TASK-012 — исторический baseline; зеркалится по мере необходимости либо одной batch-операцией.
-
-### Поднятие рабочего места на новой машине
-
-См. секцию «Как поднять рабочее место на новой машине» в `memory-export.md` (в корне Drive backup). Главное: `git clone https://github.com/nmetluk/bettgbot` → `uv sync --frozen` → читаем `state/PROJECT_STATUS.md` и свежее `handoff/inbox/`.
+**Чего больше нет.** Раньше cowork-агент копировал то же самое через MCP Google Drive коннектор из десктоп-приложения. Этот путь упразднён — он создавал лаг между merge и видимостью + плодил Drive duplicates. Cowork теперь читает свежий handoff либо через `git fetch` (PAT настроен), либо через ту же Drive-папку.
