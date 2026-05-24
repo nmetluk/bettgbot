@@ -175,7 +175,9 @@ async def test_on_preset_offset_too_many_alerts(monkeypatch: pytest.MonkeyPatch)
     _patch_service(
         monkeypatch,
         setting=_mock_setting(enabled=True, offsets=[15, 30, 60, 180, 720]),
-        update_side_effect=InvalidReminderOffsetsError("too many offsets: 6 (max 5)"),
+        update_side_effect=InvalidReminderOffsetsError(
+            "too many offsets: 6 (max 5)", reason="too_many"
+        ),
     )
     query = _mock_query()
     user = MagicMock(is_blocked=False, id=7)
