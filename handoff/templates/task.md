@@ -29,6 +29,8 @@ estimate: S                 # S | M | L (грубо: <1ч / 1-4ч / >4ч)
 - [ ] Конкретный критерий 3 («покрытие unit-тестами не ниже X%, тесты зелёные»)
 - [ ] PR открыт в GitHub, имя `TASK-NNN: <subject>`
 - [ ] Отчёт в `handoff/outbox/TASK-NNN-report.md` написан
+- [ ] **🚨 Move-семантика inbox→archive (cм. `handoff/README.md`):** перед коммитом `chore(handoff): archive TASK-NNN ...` выполнить `ls handoff/inbox/ | grep TASK-NNN` — если что-то нашлось, `git rm` обе копии (`TASK-NNN-<slug>.md` И `TASK-NNN.in-progress.md`). В archive должна остаться **одна** копия.
+- [ ] **🚨 `make backup` после merge в main** (cм. `CLAUDE.md` п.5.5). Без этого cowork-агент не увидит свежий handoff в Drive-зеркале.
 
 ## Артефакты
 
