@@ -132,17 +132,19 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 
 ## Следующие шаги (Этап 4 — production deployment)
 
-1. **TASK-027** — production docker-compose. `infra/Dockerfile.bot` + `infra/Dockerfile.web` (uvicorn для admin). `infra/docker-compose.override.yml` (dev — bind-mounts кода для hot-reload, exposed ports). `infra/docker-compose.prod.yml` (prod — `image:` через `docker build`, `restart: always`, nginx-proxy для `/admin`, healthchecks на bot/web/postgres/redis). Makefile цели `make prod.build`, `make prod.up`, `make prod.logs`. Размер L.
-2. **TASK-028** — бэкап БД. `pg_dump` через cron-контейнер (image `postgres:16-alpine`) в Docker volume `bb-db-backups`. Retention 14 дней (cron + find -delete). Размер M.
-3. **TASK-029** — structured logging для prod (JSON output через `structlog.processors.JSONRenderer`) + log rotation через `logging.handlers.TimedRotatingFileHandler`. `Settings.log_format = "json"` в prod. Размер M.
-4. **TASK-030** — Deploy README. Пошаговое руководство на VPS (Ubuntu LTS): install docker + compose plugin, clone репо, `.env` setup, `docker compose -f prod.yml up -d`, домен + TLS через certbot + nginx. Размер M.
-5. **TASK-031** — Smoke-тесты после деплоя. `scripts/smoke_test.sh` — curl-проверки `/healthz` бота-webhook и админки, проверка миграций через `alembic current`. Используется в CD после deploy. Размер S.
+1. **TASK-027** — production docker-compose. `infra/Dockerfile.bot` + `infra/Dockerfile.web` (uvicorn для admin). `infra/docker-compose.override.yml` (dev — bind-mounts кода для hot-reload, exposed ports). `infra/docker-compose.prod.yml` (prod — `image:` через `docker build`, `restart: always`, nginx-proxy для `/admin`, healthchecks). Makefile цели `make prod.build`, `make prod.up`, `make prod.logs`. **Сейчас в работе:** ветка `feature/TASK-027-prod-compose` (PR #78) + `handoff/inbox/TASK-027-amendment.md` с 2 блокерами и 3 минорами. Размер L.
+2. **TASK-028 (NEW)** — cleanup orphan handoff/sessions + смена backup-стратегии handoff с MCP Google Drive коннектора на локально-синкнутую Drive-папку через `make backup` (`rsync -a --delete`). Мотивация: убрать лаг между merge и видимостью на cowork-стороне, устранить Drive Finder duplicates. Размер S. Триггер — повторяющиеся рассинхроны (TASK-014, TASK-027).
+3. **TASK-029** — бэкап БД. `pg_dump` через cron-контейнер (image `postgres:16-alpine`) в Docker volume `bb-db-backups`. Retention 14 дней (cron + find -delete). Размер M.
+4. **TASK-030** — structured logging для prod (JSON output через `structlog.processors.JSONRenderer`) + log rotation через `logging.handlers.TimedRotatingFileHandler`. `Settings.log_format = "json"` в prod. Размер M.
+5. **TASK-031** — Deploy README. Пошаговое руководство на VPS (Ubuntu LTS): install docker + compose plugin, clone репо, `.env` setup, `docker compose -f prod.yml up -d`, домен + TLS через certbot + nginx (с учётом bootstrap-сценария certbot — см. amendment к TASK-027, минор 2). Размер M.
+6. **TASK-032** — Smoke-тесты после деплоя. `scripts/smoke_test.sh` — curl-проверки `/healthz` бота-webhook и админки, проверка миграций через `alembic current`. Используется в CD после deploy. Размер S.
 
-После TASK-031 — **MVP завершён**, проект готов к выкатке на VPS.
+После TASK-032 — **MVP завершён**, проект готов к выкатке на VPS.
 
 ## Что в работе сейчас (обновлено)
 
-- **TASK-027** — `feature/TASK-027-prod-compose` запушена локальным CC с другой машины (2 коммита: `3c0c9de` Dockerfile.bot/web + `18f8526` archive+report). Открыт **PR #78**, ожидает review. Сowork-агент провёл review и положил `handoff/inbox/TASK-027-amendment.md` с двумя блокерами (`${ADMIN_DOMAIN}` в nginx не подставится; `make up` без override-файла активирует bot+web вне `profiles: [full]`) и тремя минорами. После фиксов исполнителем — мерж #78, запуск TASK-028.
+- **TASK-027** — `feature/TASK-027-prod-compose` запушена локальным CC с другой машины (2 коммита: `3c0c9de` Dockerfile.bot/web + `18f8526` archive+report). Открыт **PR #78**, ожидает review. Cowork-агент провёл review и положил `handoff/inbox/TASK-027-amendment.md` с двумя блокерами (`${ADMIN_DOMAIN}` в nginx не подставится; `make up` без override-файла активирует bot+web вне `profiles: [full]`) и тремя минорами.
+- **TASK-028 (NEW)** — `handoff/inbox/TASK-028-cleanup-and-local-drive-backup.md` положен. Cleanup трёх orphan-файлов + смена backup handoff с MCP-коннектора cowork на `make backup` (rsync в `/Users/nmetluk/Library/CloudStorage/GoogleDrive-…/Betting Bot backup/`). Стартовать после merge PR #78 (иначе rebase-конфликт по `.gitignore` и `Makefile`).
 
 ## Блокеры / открытые вопросы
 
