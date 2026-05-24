@@ -106,7 +106,7 @@ async def login_submit(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=True,
+        secure=s.environment != "dev",
         samesite="lax",
         expires=expires,
         path="/",

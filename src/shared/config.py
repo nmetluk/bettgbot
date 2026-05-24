@@ -26,11 +26,15 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 __all__ = [
     "AdminSettings",
+    "Environment",
     "ExternalRegistrySettings",
     "Settings",
     "get_settings",
     "settings",
 ]
+
+
+Environment = Literal["dev", "staging", "prod"]
 
 
 def _empty_to_none(value: Any) -> Any:
@@ -132,6 +136,9 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "json"
     reminder_tick_seconds: PositiveInt = 300
+    # `dev` — локальная разработка через http (Secure-cookie отключается).
+    # `staging`/`prod` — за https, Secure обязателен.
+    environment: Environment = "dev"
 
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
     external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)

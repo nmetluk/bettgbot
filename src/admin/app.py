@@ -44,7 +44,7 @@ def _csrf_config() -> LoadConfig:
         # Форма постит csrf_token полем тела, не header'ом.
         token_location="body",
         token_key="csrf_token",
-        cookie_secure=True,
+        cookie_secure=s.environment != "dev",
         cookie_samesite="lax",
         # CSRF только на изменяющие методы.
         methods={"POST", "PUT", "PATCH", "DELETE"},
@@ -100,11 +100,13 @@ def create_app() -> FastAPI:
         )
 
     # Импорты локально — routes используют `templates` отсюда (circular avoidance).
+    from .routes import categories as categories_routes
     from .routes import dashboard as dashboard_routes
     from .routes import login as login_routes
 
     app.include_router(login_routes.router)
     app.include_router(dashboard_routes.router)
+    app.include_router(categories_routes.router)
 
     @app.get("/healthz", tags=["meta"])
     async def healthz() -> dict[str, str]:
