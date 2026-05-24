@@ -4,7 +4,11 @@
 #
 # Целевая аудитория — разработчик на macOS / Linux. POSIX-совместимые конструкции, без bash-измов.
 
-COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
+# Базовый COMPOSE — base + dev-override. Явное указание `-f override.yml` нужно
+# потому что compose v2 не делает auto-merge override-файла рядом с base, если
+# base указан явным `-f path/to/...`. Без override `make up` поднимет и bot+web
+# из base, потеряв `profiles: [full]`, который живёт только в override.
+COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.override.yml
 PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \

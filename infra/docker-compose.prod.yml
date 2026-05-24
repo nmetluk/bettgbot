@@ -27,8 +27,14 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      # Подставляется в admin.conf.template через встроенный envsubst nginx-образа.
+      # Имя переменной должно совпадать с ${ADMIN_DOMAIN} в .template.
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
     volumes:
-      - ./nginx/admin.conf:/etc/nginx/conf.d/default.conf:ro
+      # Образ nginx сам прогоняет файлы из /etc/nginx/templates/ через envsubst
+      # и кладёт результат в /etc/nginx/conf.d/ перед запуском.
+      - ./nginx/admin.conf.template:/etc/nginx/templates/default.conf.template:ro
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
     depends_on:

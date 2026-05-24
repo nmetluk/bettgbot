@@ -38,8 +38,10 @@ services:
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
-    command: >
-      sh -c "alembic upgrade head && python -m src.bot.main"
+      # web берёт ответственность за миграции, поэтому bot ждёт его healthcheck —
+      # это убирает race на alembic upgrade head между двумя сервисами.
+      web: { condition: service_healthy }
+    command: ["python", "-m", "src.bot.main"]
 
   web:
     build:
