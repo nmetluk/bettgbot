@@ -11,8 +11,10 @@ from typing import Literal
 from aiogram.filters.callback_data import CallbackData
 
 __all__ = [
+    "AddOffsetCb",
     "CategoryCb",
     "CategoryListCb",
+    "CustomOffsetCb",
     "EventCb",
     "MyPredictionCb",
     "MyTab",
@@ -21,6 +23,10 @@ __all__ = [
     "PredictConfirmCb",
     "PredictPickCb",
     "PredictStartCb",
+    "PresetOffsetCb",
+    "RemindersMenuCb",
+    "RemoveOffsetCb",
+    "ToggleRemindersCb",
 ]
 
 
@@ -85,3 +91,31 @@ class MyPredictionCb(CallbackData, prefix="mp"):
 
     event_id: int
     tab: MyTab
+
+
+class RemindersMenuCb(CallbackData, prefix="r"):
+    """Возврат в главное меню напоминаний (рендер заново)."""
+
+
+class ToggleRemindersCb(CallbackData, prefix="rt"):
+    """Глобальный toggle `enabled`/`disabled`."""
+
+
+class AddOffsetCb(CallbackData, prefix="ra"):
+    """Открыть подменю с пресетами + кнопкой «Свой ввод»."""
+
+
+class PresetOffsetCb(CallbackData, prefix="rp"):
+    """Добавить интервал из пресета."""
+
+    minutes: int
+
+
+class CustomOffsetCb(CallbackData, prefix="rc"):
+    """Запросить у пользователя текстовый ввод (state → adding_offset)."""
+
+
+class RemoveOffsetCb(CallbackData, prefix="rd"):
+    """Удалить конкретный интервал."""
+
+    minutes: int
