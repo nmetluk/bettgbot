@@ -162,6 +162,24 @@ class EventRepository:
             )
         )
 
+    async def archive_stale(self, *, cutoff: datetime) -> int:
+        """Bulk-update: помечает `is_archived=true, archived_at=now()` события без итога,
+        у которых `starts_at < cutoff`.
+
+        Returns: количество затронутых строк.
+        """
+        stmt = (
+            update(Event)
+            .where(
+                Event.starts_at < cutoff,
+                Event.result_outcome_id.is_(None),
+                Event.is_archived.is_(False),
+            )
+            .values(is_archived=True, archived_at=func.now())
+        )
+        result = await self._session.execute(stmt)
+        return int(result.rowcount or 0)  # type: ignore[attr-defined]
+
     async def list_with_deadline_in_window(
         self, *, since: datetime, until: datetime
     ) -> Sequence[Event]:
