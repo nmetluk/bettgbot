@@ -4,7 +4,7 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-25
-**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. **Этап 4 в работе: TASK-027 (prod docker-compose) + TASK-028 (handoff backup workflow) закрыты, в инбоксе TASK-029 (pg_dump бэкап БД).**
+**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. **Этап 4 в работе: TASK-027 (prod docker-compose) + TASK-028 (handoff backup workflow) + TASK-029 (pg_dump бэкап БД) закрыты, в инбоксе TASK-030 (structured JSON logging).**
 **Реализация:** runtime + конфиг + логгер + модели (9) + **миграции (3)** + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler с 2 job'ами** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **247 тестов** (156 unit + 91 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает; handoff-протокол поддерживает блокировки задач.
 
 ## Где мы сейчас
@@ -145,7 +145,8 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 
 - **TASK-027 ЗАКРЫТ.** Squash-merge `7a35016` (PR #78) + cowork hotfix `19552fc` (2 блокера: nginx envsubst, Makefile override; 3 минора). Подробности — `handoff/outbox/TASK-027-report.md` секции Known limitations + Hotfix-правки. Review-сессия `sessions/2026-05-25-01-task-027-review/`.
 - **TASK-028 ЗАКРЫТ.** Squash-merge `727dd5c` + `d330dd3` (archive+report, PR #80) + cowork hotfix `d1c58b9` (cross-platform скрипт — rsync на macOS/Linux, robocopy `/MIR` на Windows; вычищены 2 inbox-dup'а). **Первый `make backup` на macOS-машине прошёл успешно** — workflow живой end-to-end: Drive backup содержит актуальное зеркало handoff/state/sessions, MCP-коннектор cowork как backup-канал упразднён. Review-сессия `sessions/2026-05-25-02-task-028-review/`.
-- **TASK-029 — в инбоксе.** pg_dump cron-бэкап БД в named volume `bb-db-backups` с retention 14 дней. Размер M.
+- **TASK-029 ЗАКРЫТ.** Squash-merge `1e2d540` + `ef45b0d` (archive+report, PR #81): db-backup сервис в prod.yml на postgres:16-alpine, sleep-loop до 02:30 UTC, `pg_dump --no-owner --clean --if-exists | gzip`, retention 14 дней через `find -mtime +14 -delete`, 3 Makefile-цели (`prod.backup.now/ls/restore` с RESTORE-подтверждением). Cowork hotfix в этом же cleanup: restore-баг (`exec -T db` для gunzip → `exec -T db-backup`, volume только у db-backup), 2 inbox-dup'а (повтор TASK-028, оформлен explicit-rule в `handoff/README.md`). Review-сессия `sessions/2026-05-25-03-task-029-review/`.
+- **TASK-030 — в инбоксе.** Structured JSON logging для prod (`Settings.log_format = "console" | "json"`, `structlog.processors.JSONRenderer` в processor chain, env override для prod в `infra/docker-compose.prod.yml`). Размер M.
 
 ## Workflow notes (новое в сессиях 2026-05-25)
 

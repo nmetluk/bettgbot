@@ -36,6 +36,18 @@ stateDiagram-v2
 
 Переходы — **атомарные `mv` в пределах одной FS**, не `cp` + удаление.
 
+### Move-семантика inbox → archive (важно)
+
+Когда задача закрыта и переезжает в `archive/`:
+
+1. **Исходный файл** `inbox/TASK-NNN-<slug>.md` — должен быть **удалён** (`git rm`).
+2. **In-progress rename** `inbox/TASK-NNN.in-progress.md` — должен быть **удалён** (`git rm`).
+3. **Только один файл остаётся** — `archive/TASK-NNN-<slug>/task.md` (плюс `report.md` если файлами; в текущей практике report живёт в `outbox/`).
+
+Типичная ошибка (зафиксирована в TASK-028 и TASK-029): CC оставляет оригинал И in-progress в inbox после move в archive. Это создаёт три копии одной задачи и шумит в `git status`/`make backup`. Cowork-агент потом руками их вычищает hotfix-коммитом.
+
+**Правило для CC:** до коммита `chore(handoff): archive TASK-NNN and add report` — проверь `ls handoff/inbox/ | grep TASK-NNN`. Если что-то нашлось — `git rm` это.
+
 ## Формат задачи
 
 См. [`templates/task.md`](templates/task.md). Обязательные секции:

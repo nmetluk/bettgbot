@@ -134,7 +134,7 @@ prod.backup.restore: ## Восстановить дамп: make prod.backup.rest
 	@printf "ВСЕ ТЕКУЩИЕ ДАННЫЕ В БД БУДУТ ЗАМЕНЕНЫ дампом '$(FILE)'. Введите 'RESTORE' для подтверждения: "; \
 	read ans; \
 	if [ "$$ans" = "RESTORE" ]; then \
-		$(PROD_COMPOSE) exec -T db sh -c 'gunzip -c /backups/$(FILE)' | $(PROD_COMPOSE) exec -T db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'; \
+		$(PROD_COMPOSE) exec -T db-backup sh -c 'gunzip -c /backups/$(FILE)' | $(PROD_COMPOSE) exec -T db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'; \
 		echo "✓ Restore завершён"; \
 	else \
 		echo "Отмена."; \
