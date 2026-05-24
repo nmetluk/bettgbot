@@ -55,8 +55,10 @@ class Event(Base):
             name="ck_event_close_before_start",
         ),
         CheckConstraint(
-            "(result_outcome_id IS NULL AND is_archived = false) OR "
-            "(result_outcome_id IS NOT NULL AND is_archived = true "
+            "(result_outcome_id IS NULL AND is_archived = false AND archived_at IS NULL) "
+            "OR (result_outcome_id IS NULL AND is_archived = true "
+            "AND archived_at IS NOT NULL) "
+            "OR (result_outcome_id IS NOT NULL AND is_archived = true "
             "AND archived_at IS NOT NULL)",
             name="ck_event_result_archive_consistency",
         ),

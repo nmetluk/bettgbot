@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.shared.logging import get_logger
 from src.shared.repositories import ReminderDispatchLogRepository
-from src.shared.services import ReminderService
+from src.shared.services import EventService, ReminderService
 
 from .. import keyboards, texts
 
-__all__ = ["dispatch_reminders"]
+__all__ = ["archive_stale_events", "dispatch_reminders"]
 
 
 logger = get_logger(__name__)
@@ -69,3 +69,15 @@ async def dispatch_reminders(*, bot: Bot, session_maker: async_sessionmaker[Asyn
                 )
 
         await session.commit()
+
+
+async def archive_stale_events(*, session_maker: async_sessionmaker[AsyncSession]) -> None:
+    """Ежедневный job: архивирует события старше 7 дней без зафиксированного итога.
+
+    Без TG-side-effects — только update в БД. Логирует количество архивированных
+    событий даже при нуле (sysadmin'у нужен sanity check «job отработал»).
+    """
+    async with session_maker() as session:
+        service = EventService(session)
+        count = await service.archive_stale_events()
+        logger.info("scheduler.archive_stale.done", archived_count=count)
