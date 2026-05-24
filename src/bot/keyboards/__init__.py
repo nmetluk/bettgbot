@@ -12,11 +12,13 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from src.shared.models import Category, Event, Outcome
+from src.shared.models import Category, Event, Outcome, ReminderSetting
 
 from ..callbacks import (
+    AddOffsetCb,
     CategoryCb,
     CategoryListCb,
+    CustomOffsetCb,
     EventCb,
     MyPredictionCb,
     MyTab,
@@ -25,6 +27,10 @@ from ..callbacks import (
     PredictConfirmCb,
     PredictPickCb,
     PredictStartCb,
+    PresetOffsetCb,
+    RemindersMenuCb,
+    RemoveOffsetCb,
+    ToggleRemindersCb,
 )
 
 __all__ = [
@@ -32,11 +38,32 @@ __all__ = [
     "contact_request",
     "event_card_kbd",
     "events_in_category_kbd",
+    "humanize_minutes",
     "main_menu",
     "my_predictions_kbd",
     "predict_confirm_kbd",
     "predict_outcomes_kbd",
+    "reminders_add_kbd",
+    "reminders_menu_kbd",
 ]
+
+
+def humanize_minutes(minutes: int) -> str:
+    """`90 → "1 ч 30 мин"`, `60 → "1 ч"`, `1440 → "1 д"`, `15 → "15 мин"`."""
+    if minutes < 60:
+        return f"{minutes} мин"
+    if minutes < 1440:
+        hours, rem = divmod(minutes, 60)
+        if rem == 0:
+            return f"{hours} ч"
+        return f"{hours} ч {rem} мин"
+    days, rem = divmod(minutes, 1440)
+    if rem == 0:
+        return f"{days} д"
+    hours, rem_min = divmod(rem, 60)
+    if rem_min == 0:
+        return f"{days} д {hours} ч"
+    return f"{days} д {hours} ч {rem_min} мин"
 
 
 def main_menu() -> ReplyKeyboardMarkup:
@@ -222,6 +249,49 @@ def predict_outcomes_kbd(
         callback_data=PredictCancelCb(event_id=event_id, back_category_id=back_category_id),
     )
     builder.adjust(1)
+    return builder.as_markup()
+
+
+def reminders_menu_kbd(setting: ReminderSetting) -> InlineKeyboardMarkup:
+    """Главное меню напоминаний: toggle, +добавить, кнопки удаления интервалов.
+
+    При `enabled=False` показываем только toggle — UX упрощённый (включи → потом
+    настраивай). Список интервалов отсортирован по убыванию.
+    """
+    builder = InlineKeyboardBuilder()
+    toggle_text = "🔕 Выключить" if setting.enabled else "🔔 Включить"
+    builder.button(text=toggle_text, callback_data=ToggleRemindersCb())
+
+    if not setting.enabled:
+        builder.adjust(1)
+        return builder.as_markup()
+
+    builder.button(text="➕ Добавить интервал", callback_data=AddOffsetCb())
+    sorted_offsets = sorted(setting.offsets_minutes, reverse=True)
+    for minutes in sorted_offsets:
+        builder.button(
+            text=f"🗑 {humanize_minutes(minutes)}",
+            callback_data=RemoveOffsetCb(minutes=minutes),
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+_PRESETS_MINUTES: tuple[int, ...] = (15, 30, 60, 180, 720, 1440)
+
+
+def reminders_add_kbd() -> InlineKeyboardMarkup:
+    """Подменю: 6 пресетов + «Свой ввод» + «🔙 Назад»."""
+    builder = InlineKeyboardBuilder()
+    for minutes in _PRESETS_MINUTES:
+        builder.button(
+            text=humanize_minutes(minutes),
+            callback_data=PresetOffsetCb(minutes=minutes),
+        )
+    builder.button(text="✍️ Свой ввод", callback_data=CustomOffsetCb())
+    builder.button(text="🔙 Назад", callback_data=RemindersMenuCb())
+    # 6 пресетов в 2 ряда по 3 + ряд «свой ввод» + ряд «🔙».
+    builder.adjust(3, 3, 1, 1)
     return builder.as_markup()
 
 
