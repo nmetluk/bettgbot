@@ -100,13 +100,19 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - 2026-05-24 — **TASK-023 закрыт: первая HTMX-задача в админке** (всего 3 коммита, 30 минут — рекорд проекта). Вкладка «Исходы» работает inline: 6 handlers в `src/admin/routes/outcomes.py` (list/new/create/edit/update/delete fragments) + `_list_response` helper для DRY. 2 партиала `outcomes/{_list,_form}.html` с **корневым `<div id="outcomes-container">` + `hx-swap="outerHTML"`** (зафиксировано как HTMX-паттерн). Активирована вкладка «Исходы» в `events/form.html` через `hx-trigger="load"` + spinner. `OutcomeInUseError` → 409 + alert. CSRF через hidden input + `request.state.csrf_token`. 10 новых unit-тестов. **204 unit + 109 integration = 313**. PR [#67](https://github.com/nmetluk/bettgbot/pull/67) → squash `97725c7`; pre-task cleanup PR [#66](https://github.com/nmetluk/bettgbot/pull/66); archive PR [#68](https://github.com/nmetluk/bettgbot/pull/68)
 - 2026-05-24 — сессия приёмки `2026-05-24-10-task-023-review`; **4 keep + 2 в тех-долг + паттерн HTMX**: «корневой `#X-container` + `outerHTML`» зафиксирован для всех HTMX-fragments в админке. Тех-долг: NotFound при no-op outcome ops; archived event guard в add_outcome
 
+## Что готово (последние)
+
+- 2026-05-24 — **TASK-024 закрыт:** фиксация итога — последняя вкладка карточки события (Данные/Исходы/Результат теперь полная). `POST /events/{id}/result` с CSRF + `EventService.set_result` (готов из TASK-009, транзакционный). Активирована вкладка с условием `is_published AND predictions_close_at <= now()` (disabled + tooltip иначе). Tab content в 3 режимах: read-only (если `result_outcome_id`), warning (если `< 2 outcomes`), form (radio + JS confirm). Flash через query-string. 7 новых unit-тестов. **211 unit + 109 integration = 320**. PR [#70](https://github.com/nmetluk/bettgbot/pull/70) → squash `9800664`; pre-task cleanup PR [#69](https://github.com/nmetluk/bettgbot/pull/69); archive PR [#71](https://github.com/nmetluk/bettgbot/pull/71). **30 минут — второй рекорд подряд** (после TASK-023)
+- 2026-05-24 — сессия приёмки `2026-05-24-11-task-024-review`; **все 5 keep**, никаких code changes. Гипотеза «готовый сервис + изолированный UI = быстро» подтверждена
+
 ## Что в работе прямо сейчас
 
-— ничего, ожидание команды на запуск **TASK-024** (фиксация итога — вкладка «Результат» в карточке события).
+— ничего, ожидание команды на запуск **TASK-025** (раздел «Пользователи» в админке).
 
-## Следующие шаги (Этап 3 — веб-админка)
+## Следующие шаги (Этап 3 — веб-админка, осталось 2 задачи)
 
-1. **TASK-024** — фиксация итога (вкладка «Результат» в карточке события). Видна только когда событие **опубликовано** и `predictions_close_at` прошёл. Форма: radio-кнопки на исходах + «Зафиксировать». POST `/events/{id}/result` → `EventService.set_result(event_id, outcome_id, admin_id)` (готов из TASK-009 — транзакционно ставит `result_outcome_id` + `is_archived=true` + `archived_at=now()` + `PredictionRepository.mark_correctness` + audit). После — редирект на карточку с зелёным баннером «Итог зафиксирован, N прогнозов проверено». Поле read-only после фиксации; **переопределение не предусмотрено в MVP**. Размер M (намного проще TASK-022/023 — сервис всё умеет).
+1. **TASK-025** — раздел «Пользователи». Список с **поиском** (телефон E.164 substring, Telegram username, имя), пагинация, колонки `id | tg_user_id | phone | full_name | username | predictions | created_at | blocked`. Карточка пользователя с профилем + таблица его прогнозов (event | category | outcome | event status | is_correct). POST `/users/{id}/block` + `/users/{id}/unblock` через `UserService.set_blocked` (нужно добавить) + audit (admin_id + action="user.block/unblock"). Расширить `UserRepository` методом `search_with_prediction_counts`. Размер L.
+2. **TASK-026** — UI аудит-лога (закрывает Этап 3). Таблица `created_at | admin | action | payload (preview)` с фильтрами (admin, action, диапазон дат). Раскрытие полного payload через HTMX-fragment. **Триггер для использования отложенного `AuditLogRepository.list_with_admin`** (тех-долг из TASK-007). Размер L.
 3. **TASK-022** — CRUD событий (drafts + publish) с фильтрами (категория/статус/период), вкладка «Данные».
 4. **TASK-023** — CRUD исходов через HTMX inline-редактирование, вкладка «Исходы».
 5. **TASK-024** — фиксация итога: вкладка «Результат» + использует готовый `EventService.set_result` + `PredictionRepository.mark_correctness`.
