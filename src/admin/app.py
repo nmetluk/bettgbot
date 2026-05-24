@@ -112,12 +112,14 @@ def create_app() -> FastAPI:
     from .routes import events as events_routes
     from .routes import login as login_routes
     from .routes import outcomes as outcomes_routes
+    from .routes import users as users_routes
 
     app.include_router(login_routes.router)
     app.include_router(dashboard_routes.router)
     app.include_router(categories_routes.router)
     app.include_router(events_routes.router)
     app.include_router(outcomes_routes.router)
+    app.include_router(users_routes.router)
 
     @app.get("/healthz", tags=["meta"])
     async def healthz() -> dict[str, str]:

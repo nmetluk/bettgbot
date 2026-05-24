@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Пользователи — Admin{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-3">Пользователи</h1>
+
+    <form method="get" class="row g-2 mb-4">
+        <div class="col-md-6">
+            <input type="text" name="query" class="form-control"
+                   placeholder="Поиск: телефон, username или имя"
+                   value="{{ query }}" minlength="1">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100">
+                <i class="bi bi-search"></i> Найти
+            </button>
+        </div>
+        {% if query %}
+        <div class="col-md-2">
+            <a href="/users" class="btn btn-outline-secondary w-100">Сбросить</a>
+        </div>
+        {% endif %}
+    </form>
+
+    {% if rows %}
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>#</th><th>TG ID</th><th>Телефон</th>
+                <th>Имя</th><th>Username</th>
+                <th>Прогнозов</th><th>Регистрация</th><th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user, pred_count in rows %}
+            <tr class="{% if user.is_blocked %}table-secondary{% endif %}">
+                <td><a href="/users/{{ user.id }}">{{ user.id }}</a></td>
+                <td><code>{{ user.tg_user_id }}</code></td>
+                <td><code>{{ user.phone }}</code></td>
+                <td>{{ user.first_name }} {{ user.last_name or "" }}</td>
+                <td>{% if user.tg_username %}@{{ user.tg_username }}{% else %}—{% endif %}</td>
+                <td>{{ pred_count }}</td>
+                <td>{{ user.created_at.strftime("%d.%m.%Y") }}</td>
+                <td>
+                    {% if user.is_blocked %}
+                    <span class="badge bg-danger">заблокирован</span>
+                    {% else %}
+                    <span class="badge bg-success">активен</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total > page_size %}
+    <nav>
+        <ul class="pagination">
+            {% set qs_query = "&query=" ~ query if query else "" %}
+            {% if page > 0 %}
+            <li class="page-item"><a class="page-link" href="?page={{ page - 1 }}{{ qs_query }}">‹</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page + 1 }}</span></li>
+            {% if (page + 1) * page_size < total %}
+            <li class="page-item"><a class="page-link" href="?page={{ page + 1 }}{{ qs_query }}">›</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <p class="text-muted">Всего: {{ total }} пользователей.</p>
+    {% else %}
+    <p class="text-muted">Пользователей по выбранным критериям нет.</p>
+    {% endif %}
+</div>
+{% endblock %}
