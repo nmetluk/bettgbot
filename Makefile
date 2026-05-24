@@ -144,7 +144,10 @@ prod.backup.restore: ## Восстановить дамп: make prod.backup.rest
 prod.certbot.init: ## Получить первый TLS сертификат (bootstrap mode)
 	@echo "Убедись что DNS-запись $$ADMIN_DOMAIN → IP VPS уже распространена."
 	@echo "Временно использует admin-bootstrap.conf (http-only)."
-	$(PROD_COMPOSE) run --rm certbot certonly --webroot -w /var/www/certbot -d $$ADMIN_DOMAIN --email $$TLS_EMAIL --agree-tos --no-eff-email
+	# --entrypoint="" обязательно: сервис certbot в prod.yml имеет entrypoint
+	# с бесконечным renew-loop. Без override команда certonly уйдёт как args
+	# к sh, а не к certbot, и первый сертификат не выпустится.
+	$(PROD_COMPOSE) run --rm --entrypoint="" certbot certbot certonly --webroot -w /var/www/certbot -d $$ADMIN_DOMAIN --email $$TLS_EMAIL --agree-tos --no-eff-email
 
 admin.create.prod: ## Создать админа в prod: make admin.create.prod LOGIN=admin PASSWORD="..."
 		@if [ -z "$(LOGIN)" ] || [ -z "$(PASSWORD)" ]; then \
