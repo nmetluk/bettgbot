@@ -57,3 +57,11 @@ class PredictionService:
         self, user_id: int, *, offset: int = 0, limit: int = 20
     ) -> Sequence[Prediction]:
         return await self._predictions.list_archived_by_user(user_id, offset=offset, limit=limit)
+
+    async def list_all_by_user_for_admin(
+        self, user_id: int, *, offset: int = 0, limit: int = 100
+    ) -> Sequence[Prediction]:
+        """Все прогнозы пользователя (active + archived) с eager event+outcome."""
+        return await self._predictions.list_all_by_user_for_admin(
+            user_id, offset=offset, limit=limit
+        )

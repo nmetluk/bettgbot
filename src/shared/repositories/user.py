@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import User
+from ..models import Prediction, User
 
 __all__ = ["UserRepository"]
 
@@ -92,3 +92,28 @@ class UserRepository:
         stmt = select(func.count()).select_from(User).where(*self._admin_filter(query))
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
+
+    async def list_for_admin_with_prediction_counts(
+        self,
+        *,
+        query: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> Sequence[tuple[User, int]]:
+        """Список пользователей для admin-таблицы с количеством прогнозов.
+
+        Один SQL: LEFT JOIN prediction + GROUP BY user.id + COUNT. Сортировка
+        `created_at DESC` — новые наверху. selectinload здесь не нужен (нам
+        нужен только COUNT, не сами Prediction-объекты).
+        """
+        stmt = (
+            select(User, func.count(Prediction.id))
+            .outerjoin(Prediction, Prediction.user_id == User.id)
+            .where(*self._admin_filter(query))
+            .group_by(User.id)
+            .order_by(User.created_at.desc(), User.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [(row[0], int(row[1])) for row in result.all()]

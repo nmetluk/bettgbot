@@ -111,6 +111,17 @@ class UserService:
     async def count_for_admin(self, *, query: str | None = None) -> int:
         return await self._users.count_for_admin(query=query)
 
+    async def list_admin_with_counts(
+        self,
+        *,
+        query: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> Sequence[tuple[User, int]]:
+        return await self._users.list_for_admin_with_prediction_counts(
+            query=query, offset=offset, limit=limit
+        )
+
     async def get_by_id(self, user_id: int) -> User | None:
         return await self._users.get_by_id(user_id)
 

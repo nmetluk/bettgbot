@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from sqlalchemy import and_, case, func, not_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models import Event, Prediction, User
 
@@ -93,6 +94,35 @@ class PredictionRepository:
         result = await self._session.execute(stmt)
         row = result.one()
         return int(row[0]), int(row[1])
+
+    async def list_all_by_user_for_admin(
+        self,
+        user_id: int,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Prediction]:
+        """Все прогнозы пользователя (active + archived) для админ-карточки.
+
+        Сортировка `Event.starts_at DESC` — недавние/предстоящие наверху,
+        старые ниже. Eager loads (`selectinload`):
+        - `Prediction.event` (для title / is_archived / is_published / starts_at);
+        - `Prediction.outcome` (для label выбора пользователя).
+        """
+        stmt = (
+            select(Prediction)
+            .join(Event, Prediction.event_id == Event.id)
+            .options(
+                selectinload(Prediction.event),
+                selectinload(Prediction.outcome),
+            )
+            .where(Prediction.user_id == user_id)
+            .order_by(Event.starts_at.desc(), Prediction.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().all()
 
     async def users_without_prediction_for_event(self, event_id: int) -> Sequence[int]:
         existing = select(Prediction.user_id).where(Prediction.event_id == event_id)
