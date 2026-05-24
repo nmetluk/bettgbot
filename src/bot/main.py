@@ -1,7 +1,7 @@
 """Entrypoint Telegram-бота: dispatcher с Redis FSM, middleware, routers.
 
 Запуск: `python -m src.bot.main` (или `uv run python -m src.bot.main`).
-Handler'ы пока пустые — реальные команды добавляются в TASK-011 — TASK-016.
+Параллельно polling крутится APScheduler (TASK-017+) для фоновых задач.
 """
 
 from __future__ import annotations
@@ -15,11 +15,13 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage
 
 from src.shared.config import get_settings
+from src.shared.db import SessionLocal
 from src.shared.external import get_registry_client
 from src.shared.logging import configure_logging, get_logger
 
 from .middlewares import LoggingMiddleware, SessionMiddleware, UserMiddleware
 from .routers import all_routers
+from .scheduler import build_scheduler
 
 __all__ = ["build_dispatcher", "main"]
 
@@ -61,10 +63,15 @@ async def main() -> None:
     logger.info("bot.startup", log_format=s.log_format)
 
     bot, dp = build_dispatcher()
+    scheduler = build_scheduler(bot=bot, session_maker=SessionLocal)
+    scheduler.start()
+    logger.info("scheduler.started", jobs=[j.id for j in scheduler.get_jobs()])
+
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         await dp.start_polling(bot)
     finally:
+        scheduler.shutdown(wait=True)
         # HttpExternalUserRegistryClient имеет .close(); Mock — нет.
         closer = getattr(dp["registry"], "close", None)
         if callable(closer):
