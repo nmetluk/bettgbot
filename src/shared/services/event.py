@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -142,6 +142,25 @@ class EventService:
         )
         await self._session.commit()
         return marked
+
+    async def archive_stale_events(
+        self, *, now: datetime | None = None, threshold_days: int = 7
+    ) -> int:
+        """Архивирует события без итога, у которых `starts_at < now - threshold_days`.
+
+        Возвращает количество архивированных. Это страховка от ситуации, когда
+        админ забыл зафиксировать итог: чтобы такие события не висели в каталоге
+        бесконечно, через N дней их прячем в архив (без `result_outcome_id`).
+        Прогнозы по ним остаются с `is_correct = NULL`. Audit-лог не пишем —
+        автоматическое действие без `admin_id`.
+        """
+        if now is None:
+            now = datetime.now(tz=UTC)
+        cutoff = now - timedelta(days=threshold_days)
+        archived_count = await self._events.archive_stale(cutoff=cutoff)
+        if archived_count > 0:
+            await self._session.commit()
+        return archived_count
 
     async def add_outcome(
         self,
