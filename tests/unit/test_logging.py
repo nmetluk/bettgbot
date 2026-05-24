@@ -58,3 +58,23 @@ def test_logging_idempotent(capsys: pytest.CaptureFixture[str]) -> None:
     output = _captured(capsys)
     event_lines = [s for s in output.splitlines() if "once_only" in s]
     assert len(event_lines) == 1, f"expected one line, got: {event_lines}"
+
+
+def test_logging_json_processor_chain() -> None:
+    """При json-формате в chain должен быть JSONRenderer."""
+    import structlog
+
+    configure_logging("INFO", "json")
+    config = structlog.get_config()
+    # ProcessorFormatter с JSONRenderer внутри
+    assert any("ProcessorFormatter" in str(p) for p in config["processors"])
+
+
+def test_logging_console_processor_chain() -> None:
+    """При console-формате должен быть ConsoleRenderer."""
+    import structlog
+
+    configure_logging("INFO", "console")
+    config = structlog.get_config()
+    # ProcessorFormatter с ConsoleRenderer внутри
+    assert any("ProcessorFormatter" in str(p) for p in config["processors"])

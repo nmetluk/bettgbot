@@ -7,6 +7,8 @@ services:
 
   bot:
     restart: always
+    environment:
+      LOG_FORMAT: json
     logging:
       driver: json-file
       options:
@@ -15,6 +17,8 @@ services:
 
   web:
     restart: always
+    environment:
+      LOG_FORMAT: json
     logging:
       driver: json-file
       options:

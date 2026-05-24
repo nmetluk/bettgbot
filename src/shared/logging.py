@@ -27,17 +27,20 @@ _SHARED_PROCESSORS: list[Any] = [
 ]
 
 
+def _get_renderer(format: Literal["json", "console"]) -> Any:
+    """Возвращает renderer в зависимости от формата."""
+    if format == "json":
+        return structlog.processors.JSONRenderer()
+    return structlog.dev.ConsoleRenderer(colors=True)
+
+
 def configure_logging(level: str, format: Literal["json", "console"]) -> None:
     """Конфигурирует structlog + перенаправляет stdlib `logging` в ту же трубу.
 
     Идемпотентно: сбрасывает все handlers root-logger'а перед добавлением нового,
     чтобы повторный вызов в тестах не плодил дублирующие строки лога.
     """
-    renderer: Any
-    if format == "json":
-        renderer = structlog.processors.JSONRenderer()
-    else:
-        renderer = structlog.dev.ConsoleRenderer(colors=True)
+    renderer = _get_renderer(format)
 
     structlog.configure(
         processors=[
