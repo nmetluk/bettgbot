@@ -51,9 +51,9 @@
 - [x] Бэкап БД (`pg_dump` cron, дамп в named volume `bb-db-backups`, retention 14 дней) → завершено **TASK-029** + cowork hotfix (restore-баг)
 - [x] Структурное логирование (JSON через structlog) → завершено **TASK-030** (`Settings.log_format`, `JSONRenderer`, mixed stdlib через `ProcessorFormatter.wrap_for_formatter`)
 - [x] Readme для деплоя на VPS (пошаговое — install docker, .env, certbot bootstrap) → завершено **TASK-031** + cowork hotfix (`prod.certbot.init --entrypoint=""`)
-- [ ] Smoke-тесты после деплоя → **TASK-032** (в инбоксе) — финальная задача MVP
+- [x] Smoke-тесты после деплоя → завершено **TASK-032** + cowork hotfix (archive convention)
 
-После TASK-032 — MVP завершён, проект готов к выкатке на VPS.
+🎉🎉🎉 **MVP завершён 2026-05-25.** Проект готов к выкатке на VPS по `docs/07-deployment.md`.
 
 ## Идеи на будущее (не в MVP)
 

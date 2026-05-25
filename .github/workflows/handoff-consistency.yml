@@ -1,16 +1,16 @@
 name: handoff-consistency
 
-# Проверяет инвариант workflow handoff/: после закрытия задачи (move в archive)
-# в inbox/ не должно оставаться файлов с тем же TASK-NNN.
+# Проверяет инварианты workflow handoff/:
 #
-# Контекст: 4 случая подряд (TASK-028..031) CC оставлял в inbox оригинал
-# (TASK-NNN-<slug>.md) и rename (TASK-NNN.in-progress.md), хотя финальная
-# копия уже была в archive/TASK-NNN-<slug>/task.md. Cowork-агент чистил
-# руками. Подсекция в handoff/README.md (TASK-029 cleanup) и DoD-пункт
-# с 🚨 в handoff/templates/task.md (TASK-030 cleanup) — не сработали:
-# CC не перечитывает README и игнорирует DoD-пункт. Этот workflow —
-# принудительная защита на серверной стороне: блочит merge в main, пока
-# инвариант не восстановлен.
+# (1) После закрытия задачи (move в archive) в inbox/ не должно оставаться
+#     файлов с тем же TASK-NNN.
+# (2) handoff/archive/ должна содержать только директории вида TASK-NNN-<slug>/
+#     с task.md/report.md/amendments/ внутри — не TASK-NNN.md прямо в archive/.
+#
+# Контекст: 5 случаев подряд (TASK-028..032) CC нарушал move-семантику.
+# В TASK-032 дополнительно сломалась convention (положил файл вместо
+# директории), что обошло первую версию этого CI-check'a. Расширили обе
+# проверки в одном workflow.
 
 on:
   pull_request:
@@ -19,23 +19,44 @@ on:
     branches: [main]
 
 jobs:
-  check-inbox-archive-consistency:
+  check-handoff-consistency:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check no inbox orphans after archive
+      - name: Check archive format (directory, not file) + no inbox orphans
         run: |
           set -euo pipefail
           violations=0
+
           if [ ! -d handoff/archive ]; then
             echo "✓ handoff/archive не существует — нечего проверять"
             exit 0
           fi
-          for archive_dir in handoff/archive/TASK-*; do
-            [ -d "$archive_dir" ] || continue
-            task_id=$(basename "$archive_dir" | grep -oE '^TASK-[0-9]+')
-            [ -n "$task_id" ] || continue
+
+          # (2) archive должна содержать только директории TASK-NNN-<slug>/, не файлы TASK-NNN.md
+          echo "→ Проверка формата handoff/archive (только директории)..."
+          for orphan_file in handoff/archive/TASK-*.md; do
+            [ -e "$orphan_file" ] || continue  # glob не раскрылся — ничего нет
+            if [ -f "$orphan_file" ]; then
+              task_id=$(basename "$orphan_file" .md | grep -oE '^TASK-[0-9]+')
+              echo "❌ Archive convention violation: $orphan_file"
+              echo "   Должно быть: handoff/archive/${task_id}-<slug>/task.md (директория)"
+              echo "   См. handoff/README.md секция «Где история»."
+              violations=$((violations + 1))
+            fi
+          done
+
+          # (1) Для каждого TASK-NNN в archive (директория ИЛИ файл-нарушение) —
+          # не должно быть TASK-NNN* в inbox.
+          echo "→ Проверка inbox vs archive (move-семантика)..."
+          archived_ids=$(
+            {
+              find handoff/archive -maxdepth 1 -type d -name 'TASK-*' -exec basename {} \; 2>/dev/null
+              find handoff/archive -maxdepth 1 -type f -name 'TASK-*.md' -exec basename {} .md \; 2>/dev/null
+            } | grep -oE '^TASK-[0-9]+' | sort -u
+          )
+          for task_id in $archived_ids; do
             orphans=$(find handoff/inbox -maxdepth 1 -name "${task_id}*.md" 2>/dev/null || true)
             if [ -n "$orphans" ]; then
               echo "❌ Workflow violation: $task_id уже в handoff/archive/, но в handoff/inbox/ остались:"
@@ -43,13 +64,15 @@ jobs:
               violations=$((violations + 1))
             fi
           done
+
           if [ $violations -gt 0 ]; then
             echo ""
-            echo "Найдено $violations нарушений move-семантики inbox → archive."
+            echo "Найдено $violations нарушений handoff-инвариантов."
             echo "Перед коммитом 'chore(handoff): archive TASK-NNN ...' нужно:"
-            echo "  git rm handoff/inbox/TASK-NNN-<slug>.md"
-            echo "  git rm handoff/inbox/TASK-NNN.in-progress.md"
-            echo "См. handoff/README.md подсекция «Move-семантика inbox → archive»."
+            echo "  - переместить task.md в handoff/archive/TASK-NNN-<slug>/ (директория!)"
+            echo "  - git rm handoff/inbox/TASK-NNN-<slug>.md"
+            echo "  - git rm handoff/inbox/TASK-NNN.in-progress.md"
+            echo "См. handoff/README.md секции «Где история» и «Move-семантика inbox → archive»."
             exit 1
           fi
-          echo "✓ Инвариант handoff соблюдён: ни один TASK-NNN из archive не остался в inbox"
+          echo "✓ handoff-инварианты соблюдены"

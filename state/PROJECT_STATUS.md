@@ -4,7 +4,7 @@
 > Снапшот должен помещаться в одну прокрутку и отвечать на вопросы: «где мы», «что следующее», «есть ли блокеры».
 
 **Обновлено:** 2026-05-25
-**Текущая фаза:** 🎉🎉 **Этап 2 + Этап 3 закрыты.** Бот + админка функционально полные. **Этап 4 на финише: TASK-027/028/029/030/031 закрыты (prod compose + handoff backup + pg_dump + JSON logging + Deploy README), в инбоксе TASK-032 (smoke-тесты — финальная задача MVP).**
+**Текущая фаза:** 🎉🎉🎉 **MVP ЗАВЕРШЁН.** Все 32 задачи закрыты (TASK-001..032), 4 этапа пройдены за 4 дня (2026-05-22..05-25). Проект готов к выкатке на VPS по `docs/07-deployment.md`.
 **Реализация:** runtime + конфиг + логгер + модели (9) + **миграции (3)** + engine + репозитории (9) + внешний реестр + 7 сервисов + aiogram bootstrap + **6 router'ов + AsyncIOScheduler с 2 job'ами** + декоратор `@require_active_user` + 2 FSM + helper `render_event_card` + parser `parse_offset`; **247 тестов** (156 unit + 91 integration); CI 4 зелёных job'а; зеркало в Google Drive через MCP-коннектор работает; handoff-протокол поддерживает блокировки задач.
 
 ## Где мы сейчас
@@ -148,7 +148,34 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - **TASK-029 ЗАКРЫТ.** Squash-merge `1e2d540` + `ef45b0d` (archive+report, PR #81): db-backup сервис в prod.yml на postgres:16-alpine, sleep-loop до 02:30 UTC, `pg_dump --no-owner --clean --if-exists | gzip`, retention 14 дней через `find -mtime +14 -delete`, 3 Makefile-цели (`prod.backup.now/ls/restore` с RESTORE-подтверждением). Cowork hotfix в этом же cleanup: restore-баг (`exec -T db` для gunzip → `exec -T db-backup`, volume только у db-backup), 2 inbox-dup'а (повтор TASK-028, оформлен explicit-rule в `handoff/README.md`). Review-сессия `sessions/2026-05-25-03-task-029-review/`.
 - **TASK-030 ЗАКРЫТ.** Squash-merge `76755b9` + `34ba0bc` (archive+report, PR #82): `Settings.log_format: Literal["json","console"]="console"`, `structlog.processors.JSONRenderer` через `_get_renderer(format)` helper в `src/shared/logging.py`. Mixed structlog+stdlib через `ProcessorFormatter.wrap_for_formatter` + `foreign_pre_chain` — uvicorn/aiogram/sqlalchemy в JSON автоматически в prod. `infra/docker-compose.prod.yml`: bot/web получили `environment: LOG_FORMAT: json` (override на уровне сервиса, не env_file). 5 unit-тестов. Cowork review: реализация корректная, минор тех-долг (StackInfoRenderer для exceptions). Inbox cleanup (3-й повтор подряд!) + усиление move-правила перенесено в `handoff/templates/task.md` как DoD-пункт с 🚨. Review-сессия `sessions/2026-05-25-04-task-030-review/`.
 - **TASK-031 ЗАКРЫТ.** Squash-merge `8edb6df` + `63624fe` (archive+report, PR #83): `docs/07-deployment.md` расширен с 117 до ~300+ строк (требования VPS, DNS, install Docker, .env, двухфазный certbot bootstrap, `make prod.up`, `make prod.backup.now`, `admin.create.prod`, операции, откат). `infra/nginx/admin-bootstrap.conf` для bootstrap-фазы. Makefile цели `prod.certbot.init` и `admin.create.prod`. Cowork hotfix: `prod.certbot.init` исправлен через `--entrypoint=""` (без override `certonly` уходил args к existing renew-loop entrypoint). Inbox cleanup (4-й повтор!) + **запущен CI-check `.github/workflows/handoff-consistency.yml`** для server-side enforcement. Review-сессия `sessions/2026-05-25-05-task-031-review/`.
-- **TASK-032 — в инбоксе.** Финальная задача MVP. `scripts/smoke_test.sh` + `make prod.smoke`: проверка web `/healthz` (retry 12×5s), docker compose ps healthy, alembic current==heads, db-backup живой. Запускается после `make prod.up`. Размер S.
+- **TASK-032 ЗАКРЫТ.** Финальная задача MVP. Squash-merge `0eecd27`: `scripts/smoke_test.sh` (retry web `/healthz` 12×5s, парсинг `docker compose ps --format json`, alembic current==heads), `make prod.smoke`, `BB_COMPOSE_ARGS` для dev/prod override. Cowork hotfix: archive convention violation (CC положил `archive/TASK-032.md` как файл вместо `archive/TASK-032-smoke-tests/task.md` директории) + inbox cleanup (5-й повтор) + **CI-check расширен** (добавлена проверка archive формата — orphan-файлы в archive теперь блокируются, и сбор archived IDs из обоих источников). Review-сессия `sessions/2026-05-25-06-task-032-review-and-mvp-closure/`.
+
+## 🎉🎉🎉 MVP ЗАВЕРШЁН
+
+**32 задачи, 4 этапа, 4 дня (2026-05-22..05-25).** Проект готов к выкатке на VPS:
+
+- **Этап 0 (TASK-001..002)** — каркас репо, pyproject, CI
+- **Этап 1 (TASK-003..009)** — compose dev, конфиг, ORM-модели + миграции, репозитории, внешний реестр, сервисы
+- **Этап 2 (TASK-010..018)** — Telegram-бот: bootstrap, /start, каталог, FSM прогноза, мои прогнозы, напоминания, /help, scheduler reminders, scheduler archive
+- **Этап 3 (TASK-019..026)** — Веб-админка: skeleton, auth, CRUD категорий/событий/исходов, фиксация итога, пользователи, аудит-лог
+- **Этап 4 (TASK-027..032)** — Production: prod compose + Dockerfile + nginx + certbot, handoff backup workflow, pg_dump бэкап БД, JSON logging, Deploy README, smoke-тесты
+
+**Code stats:**
+- 343 теста (227 unit + 116 integration), CI 5 job'ов зелёных (lint + typecheck + test + integration + handoff-consistency)
+- ~75 source-файлов в `src/{shared,bot,admin}/` (mypy strict для shared)
+- 3 PostgreSQL миграции
+- Docker Compose: base + dev-override (`profiles: [full]`) + prod (nginx + certbot + db-backup + JSON logging)
+- pg_dump cron + retention 14 дней + restore через `make prod.backup.restore`
+- Smoke-тесты после деплоя через `make prod.smoke`
+- Deploy README пошагово для Ubuntu 24.04 LTS
+
+**Workflow:**
+- Cowork-агент (проектировщик) + локальный CC (исполнитель) через `handoff/`
+- Cowork PAT для прямого `git fetch/push` (Contents+PR+Workflows: write)
+- Локально-синкнутая Drive-папка для зеркала handoff/state/sessions (через `make backup`)
+- CI-check `handoff-consistency.yml` для server-side enforcement workflow-инвариантов
+
+**Следующий шаг — деплой:** см. `docs/07-deployment.md` пошагово.
 
 ## Workflow notes (новое в сессиях 2026-05-25)
 
