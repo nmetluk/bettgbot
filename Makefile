@@ -15,7 +15,7 @@ PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f in
         migrate rollback rollback.all migration.new migration.current migration.history \
         admin admin.create admin.create.prod full.up backup \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
-        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore
+        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.smoke
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -157,3 +157,6 @@ admin.create.prod: ## Создать админа в prod: make admin.create.pro
 		$(PROD_COMPOSE) exec -T web python scripts/create_admin.py \
 			--login "$(LOGIN)" --password "$(PASSWORD)" \
 			$(if $(FULL_NAME),--full-name "$(FULL_NAME)")
+
+prod.smoke: ## Smoke-тесты после деплоя: web healthz, services, alembic
+	@./scripts/smoke_test.sh
