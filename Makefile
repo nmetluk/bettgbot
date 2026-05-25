@@ -10,12 +10,14 @@
 # из base, потеряв `profiles: [full]`, который живёт только в override.
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.override.yml
 PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml
+PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod-no-domain.yml
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
         admin admin.create admin.create.prod full.up backup \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
-        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.smoke
+        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.smoke \
+        prod.nodomain.build prod.nodomain.up prod.nodomain.down prod.nodomain.logs prod.nodomain.ps
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -160,3 +162,21 @@ admin.create.prod: ## Создать админа в prod: make admin.create.pro
 
 prod.smoke: ## Smoke-тесты после деплоя: web healthz, services, alembic
 	@./scripts/smoke_test.sh
+
+# ==== Prod БЕЗ домена (порт 8888, без TLS) ====
+
+prod.nodomain.build: ## Собрать prod-образы для no-domain (порт 8888)
+	$(PROD_NO_DOMAIN_COMPOSE) build
+
+prod.nodomain.up: ## Поднять prod-stack без домена (порт 8888)
+	$(PROD_NO_DOMAIN_COMPOSE) up -d
+	$(PROD_NO_DOMAIN_COMPOSE) ps
+
+prod.nodomain.down: ## Остановить prod-stack без домена
+	$(PROD_NO_DOMAIN_COMPOSE) down
+
+prod.nodomain.logs: ## Tail логов no-domain prod
+	$(PROD_NO_DOMAIN_COMPOSE) logs -f --tail=100
+
+prod.nodomain.ps: ## Статус no-domain prod сервисов
+	$(PROD_NO_DOMAIN_COMPOSE) ps

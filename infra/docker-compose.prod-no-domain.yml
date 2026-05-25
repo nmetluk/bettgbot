@@ -1,0 +1,77 @@
+# Prod-конфигурация БЕЗ домена и TLS.
+# Использует порт 8888 вместо 80/443, без certbot.
+# Подходит для первичного деплоя или тестирования на VPS по IP.
+services:
+  db:
+    restart: always
+
+  redis:
+    restart: always
+
+  bot:
+    restart: always
+    environment:
+      LOG_FORMAT: json
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    restart: always
+    environment:
+      LOG_FORMAT: json
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "8888:80"
+    volumes:
+      - ./nginx/admin-no-domain.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  db-backup:
+    image: postgres:16-alpine
+    restart: always
+    env_file: ../.env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - bb-db-backups:/backups
+    depends_on:
+      db: { condition: service_healthy }
+    command: >
+      sh -c '
+      while true; do
+        current_time=$$(date -u +%H%M);
+        target_time="0230";
+        if [ "$$current_time" -ge "$$target_time" ]; then
+          echo "→ Starting backup at $$(date -u +%FT%H-%M-%SZ)";
+          if pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists | gzip > /backups/bettgbot-$$(date -u +%FT%H-%M-%SZ).sql.gz; then
+            echo "✓ Backup successful";
+            find /backups -name "bettgbot-*.sql.gz" -mtime +14 -delete;
+          else
+            echo "[backup-error] pg_dump failed, keeping old backups";
+          fi;
+          sleep 86400;
+        else
+          sleep 300;
+        fi;
+      done
+      '
+
+volumes:
+  bb-db-backups:
