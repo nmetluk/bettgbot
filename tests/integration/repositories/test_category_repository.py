@@ -55,3 +55,21 @@ async def test_delete_with_event_raises(session: AsyncSession) -> None:
     with pytest.raises(IntegrityError):
         await repo.delete(cat.id)
         await session.flush()
+
+
+async def test_count_all_categories(session: AsyncSession) -> None:
+    """Счётчик возвращает общее количество категорий (включая неактивные)."""
+    await make_category(session, is_active=True)
+    await make_category(session, is_active=False)
+    repo = CategoryRepository(session)
+
+    assert await repo.count(include_inactive=True) == 2
+
+
+async def test_count_active_only(session: AsyncSession) -> None:
+    """Счётчик с include_inactive=False считает только активные."""
+    await make_category(session, is_active=True)
+    await make_category(session, is_active=False)
+    repo = CategoryRepository(session)
+
+    assert await repo.count(include_inactive=False) == 1

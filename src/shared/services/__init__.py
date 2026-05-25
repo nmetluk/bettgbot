@@ -8,6 +8,7 @@
 from .admin_auth import AdminAuthService
 from .audit import AuditService
 from .category import CategoryService
+from .dashboard import DashboardService
 from .event import EventService
 from .prediction import PredictionService
 from .reminder import ReminderCandidate, ReminderService
@@ -18,6 +19,7 @@ __all__ = [
     "AdminAuthService",
     "AuditService",
     "CategoryService",
+    "DashboardService",
     "EventService",
     "PredictionService",
     "ReminderCandidate",

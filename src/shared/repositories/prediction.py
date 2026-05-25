@@ -133,3 +133,9 @@ class PredictionRepository:
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def count(self) -> int:
+        """Общее количество прогнозов."""
+        stmt = select(func.count()).select_from(Prediction)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
