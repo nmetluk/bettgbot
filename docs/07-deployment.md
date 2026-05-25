@@ -159,6 +159,10 @@ docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml exec
 ## Шаг 8. Проверка
 
 ```bash
+make prod.smoke
+# или одной командой: автоматически проверит web healthz, статусы сервисов и alembic
+
+# Или вручную:
 curl https://your-domain.com/healthz
 # Ожидается: 200 OK
 
@@ -216,6 +220,7 @@ make prod.backup.restore FILE=bettgbot-...
 | `make prod.down` | Остановить стек |
 | `make prod.logs` | Логи всех сервисов |
 | `make prod.ps` | Статус сервисов |
+| `make prod.smoke` | Smoke-тесты: web healthz, сервисы, alembic |
 | `make prod.backup.now` | Однократный бэкап |
 | `make prod.backup.ls` | Список бэкапов |
 | `make prod.backup.restore FILE=...` | Восстановить из дампа |
