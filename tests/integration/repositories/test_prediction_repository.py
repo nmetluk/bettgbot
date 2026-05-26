@@ -88,3 +88,17 @@ async def test_users_without_prediction_for_event(session: AsyncSession) -> None
     assert u_without.id in ids
     assert u_with.id not in ids
     assert u_blocked.id not in ids
+
+
+async def test_count_returns_total_predictions(session: AsyncSession) -> None:
+    """Счётчик возвращает общее количество прогнозов."""
+    event = await make_event(session)
+    outcome = await make_outcome(session, event.id)
+    u1 = await make_user(session)
+    u2 = await make_user(session)
+
+    repo = PredictionRepository(session)
+    await repo.upsert(user_id=u1.id, event_id=event.id, outcome_id=outcome.id)
+    await repo.upsert(user_id=u2.id, event_id=event.id, outcome_id=outcome.id)
+
+    assert await repo.count() == 2

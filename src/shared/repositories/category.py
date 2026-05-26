@@ -75,3 +75,11 @@ class CategoryRepository:
             stmt = stmt.where(Category.is_active.is_(True))
         result = await self._session.execute(stmt)
         return [(row[0], int(row[1])) for row in result.all()]
+
+    async def count(self, *, include_inactive: bool = True) -> int:
+        """Общее количество категорий."""
+        stmt = select(func.count()).select_from(Category)
+        if not include_inactive:
+            stmt = stmt.where(Category.is_active.is_(True))
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
