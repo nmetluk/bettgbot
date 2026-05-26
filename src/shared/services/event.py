@@ -90,15 +90,6 @@ class EventService:
         )
         await self._session.commit()
 
-    async def update_event(self, event_id: int, by_admin_id: int, **fields: Any) -> None:
-        await self._events.update(event_id, **fields)
-        await self._audit.add(
-            admin_id=by_admin_id,
-            action="event.update",
-            payload={"event_id": event_id, "fields": list(fields.keys())},
-        )
-        await self._session.commit()
-
     async def publish_event(self, event_id: int, by_admin_id: int) -> None:
         event = await self._events.get_by_id(event_id)
         if event is None:
