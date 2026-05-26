@@ -12,6 +12,7 @@ from src.shared.models import User
 from src.shared.services import EventService, PredictionService, StatsService
 
 from .. import keyboards, texts
+from .._text_safety import safe_format
 from ..auth import require_active_user
 from ..callbacks import MyPredictionCb, MyTab, MyTabCb
 
@@ -75,7 +76,8 @@ async def _build_my_view(
         outcome_label = outcome.label if outcome is not None else "—"
         if tab == "active":
             row_lines.append(
-                texts.MY_ROW_ACTIVE.format(
+                safe_format(
+                    texts.MY_ROW_ACTIVE,
                     title=event.title,
                     starts_at=event.starts_at.strftime("%d.%m %H:%M"),
                     outcome=outcome_label,
@@ -91,7 +93,8 @@ async def _build_my_view(
                 result = next((o for o in event.outcomes if o.id == event.result_outcome_id), None)
                 result_label = result.label if result is not None else "—"
             row_lines.append(
-                texts.MY_ROW_ARCHIVE.format(
+                safe_format(
+                    texts.MY_ROW_ARCHIVE,
                     title=event.title,
                     status_emoji=status_emoji,
                     starts_at=event.starts_at.strftime("%d.%m %H:%M"),
@@ -113,7 +116,7 @@ async def _build_my_view(
 
 async def _format_stats(user_id: int, session: AsyncSession) -> str:
     correct, total, percent = await StatsService(session).user_stats(user_id)
-    return texts.MY_STATS.format(correct=correct, total=total, percent=percent)
+    return safe_format(texts.MY_STATS, correct=correct, total=total, percent=percent)
 
 
 @router.message(Command("my"))

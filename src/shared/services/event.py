@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -12,9 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..exceptions import (
     EventAlreadyHasResultError,
+    EventInvalidContentError,
     EventNotEnoughOutcomesError,
     EventNotFoundError,
     OutcomeInUseError,
+    OutcomeInvalidContentError,
     OutcomeNotForEventError,
 )
 from ..models import Category, Event, Outcome
@@ -25,6 +28,9 @@ from ..repositories import (
     PredictionRepository,
 )
 from ..repositories.event import AdminEventPeriod, AdminEventStatus
+
+# Регулярка для поиска HTML-тегов — любой < или > (защита от XSS/DoS)
+_HTML_CHARS_PATTERN = re.compile(r"[<>]")
 
 __all__ = ["EventService"]
 
@@ -52,6 +58,7 @@ class EventService:
         predictions_close_at: datetime,
         by_admin_id: int,
     ) -> Event:
+        self._validate_event_content(title, description)
         event = await self._events.create(
             category_id=category_id,
             title=title,
@@ -74,6 +81,7 @@ class EventService:
         return event
 
     async def update_event(self, event_id: int, by_admin_id: int, **fields: Any) -> None:
+        self._validate_event_content(fields.get("title"), fields.get("description"))
         await self._events.update(event_id, **fields)
         await self._audit.add(
             admin_id=by_admin_id,
@@ -141,25 +149,6 @@ class EventService:
         await self._session.commit()
         return marked
 
-    async def archive_stale_events(
-        self, *, now: datetime | None = None, threshold_days: int = 7
-    ) -> int:
-        """Архивирует события без итога, у которых `starts_at < now - threshold_days`.
-
-        Возвращает количество архивированных. Это страховка от ситуации, когда
-        админ забыл зафиксировать итог: чтобы такие события не висели в каталоге
-        бесконечно, через N дней их прячем в архив (без `result_outcome_id`).
-        Прогнозы по ним остаются с `is_correct = NULL`. Audit-лог не пишем —
-        автоматическое действие без `admin_id`.
-        """
-        if now is None:
-            now = datetime.now(tz=UTC)
-        cutoff = now - timedelta(days=threshold_days)
-        archived_count = await self._events.archive_stale(cutoff=cutoff)
-        if archived_count > 0:
-            await self._session.commit()
-        return archived_count
-
     async def add_outcome(
         self,
         *,
@@ -168,6 +157,7 @@ class EventService:
         sort_order: int = 0,
         by_admin_id: int,
     ) -> Outcome:
+        self._validate_outcome_label(label)
         outcome = await self._outcomes.create(event_id=event_id, label=label, sort_order=sort_order)
         await self._audit.add(
             admin_id=by_admin_id,
@@ -180,6 +170,8 @@ class EventService:
     async def update_outcome(
         self, outcome_id: int, event_id: int, by_admin_id: int, **fields: Any
     ) -> None:
+        if "label" in fields:
+            self._validate_outcome_label(fields["label"])
         affected = await self._outcomes.update(outcome_id, event_id, **fields)
         if affected == 0:
             raise OutcomeNotForEventError(event_id, outcome_id)
@@ -204,6 +196,47 @@ class EventService:
             await self._session.commit()
         except IntegrityError as exc:
             raise OutcomeInUseError(f"outcome {outcome_id} has predictions; cannot delete") from exc
+
+    # -- validation helpers --
+
+    def _validate_event_content(self, title: Any, description: Any) -> None:
+        """Проверяет title и description на отсутствие символов < >.
+
+        Raises:
+            EventInvalidContentError: если найден запрещённый символ.
+        """
+        if isinstance(title, str) and _HTML_CHARS_PATTERN.search(title):
+            raise EventInvalidContentError(field="title")
+        if isinstance(description, str) and _HTML_CHARS_PATTERN.search(description):
+            raise EventInvalidContentError(field="description")
+
+    def _validate_outcome_label(self, label: Any) -> None:
+        """Проверяет label на отсутствие символов < >.
+
+        Raises:
+            OutcomeInvalidContentError: если найден запрещённый символ.
+        """
+        if isinstance(label, str) and _HTML_CHARS_PATTERN.search(label):
+            raise OutcomeInvalidContentError()
+
+    async def archive_stale_events(
+        self, *, now: datetime | None = None, threshold_days: int = 7
+    ) -> int:
+        """Архивирует события без итога, у которых `starts_at < now - threshold_days`.
+
+        Возвращает количество архивированных. Это страховка от ситуации, когда
+        админ забыл зафиксировать итог: чтобы такие события не висели в каталоге
+        бесконечно, через N дней их прячем в архив (без `result_outcome_id`).
+        Прогнозы по ним остаются с `is_correct = NULL`. Audit-лог не пишем —
+        автоматическое действие без `admin_id`.
+        """
+        if now is None:
+            now = datetime.now(tz=UTC)
+        cutoff = now - timedelta(days=threshold_days)
+        archived_count = await self._events.archive_stale(cutoff=cutoff)
+        if archived_count > 0:
+            await self._session.commit()
+        return archived_count
 
     # -- read --
 

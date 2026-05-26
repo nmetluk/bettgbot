@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.db import SessionLocal
 from src.shared.exceptions import (
     CategoryHasEventsError,
+    CategoryInvalidContentError,
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
@@ -125,6 +126,21 @@ async def create_category(
             error=f"Категория со slug «{exc.slug}» уже существует.",
             status_code=status.HTTP_409_CONFLICT,
         )
+    except CategoryInvalidContentError:
+        return _render_form(
+            request,
+            admin=admin,
+            csrf_protect=csrf_protect,
+            category={
+                "name": name,
+                "slug": slug,
+                "sort_order": sort_order,
+                "is_active": is_active,
+            },
+            form_action="/categories",
+            error="Символы `<` и `>` не допускаются.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     return RedirectResponse(url="/categories", status_code=status.HTTP_302_FOUND)
 
 
@@ -189,6 +205,22 @@ async def update_category(
             form_action=f"/categories/{category_id}",
             error=f"Категория со slug «{exc.slug}» уже существует.",
             status_code=status.HTTP_409_CONFLICT,
+        )
+    except CategoryInvalidContentError:
+        return _render_form(
+            request,
+            admin=admin,
+            csrf_protect=csrf_protect,
+            category={
+                "id": category_id,
+                "name": name,
+                "slug": slug,
+                "sort_order": sort_order,
+                "is_active": is_active,
+            },
+            form_action=f"/categories/{category_id}",
+            error="Символы `<` и `>` не допускаются.",
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
     return RedirectResponse(url="/categories", status_code=status.HTTP_302_FOUND)
 

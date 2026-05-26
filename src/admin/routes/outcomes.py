@@ -17,6 +17,7 @@ from src.shared.db import SessionLocal
 from src.shared.exceptions import (
     EventNotFoundError,
     OutcomeInUseError,
+    OutcomeInvalidContentError,
     OutcomeNotForEventError,
 )
 from src.shared.models import AdminUser
@@ -110,6 +111,15 @@ async def create(
         )
     except EventNotFoundError as exc:
         raise HTTPException(status_code=404) from exc
+    except OutcomeInvalidContentError:
+        return await _list_response(
+            request,
+            session,
+            event_id,
+            csrf_protect,
+            error="Символы `<` и `>` не допускаются.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     return await _list_response(request, session, event_id, csrf_protect)
 
 
@@ -157,6 +167,15 @@ async def update(
         )
     except OutcomeNotForEventError:
         raise HTTPException(status_code=404) from None
+    except OutcomeInvalidContentError:
+        return await _list_response(
+            request,
+            session,
+            event_id,
+            csrf_protect,
+            error="Символы `<` и `>` не допускаются.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
     return await _list_response(request, session, event_id, csrf_protect)
 
 

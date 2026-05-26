@@ -266,6 +266,31 @@ async def test_on_event_not_found_returns_alert(
     assert args[0] == texts.EVENT_NOT_AVAILABLE
 
 
+async def test_on_event_escapes_html_in_title(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """HTML-символы в title события должны быть экранированы в карточке."""
+    event = _mock_event()
+    event.title = "Match <script>alert('xss')</script>"
+    _patch_event_service(monkeypatch, get_event=AsyncMock(return_value=event))
+    _patch_category_service(monkeypatch, get_by_id=AsyncMock(return_value=MagicMock(name="Cat")))
+    _patch_prediction_service(monkeypatch, get_user_prediction=AsyncMock(return_value=None))
+
+    query = _mock_query()
+    user = MagicMock(is_blocked=False, id=7)
+    cb = EventCb(event_id=42, back_category_id=1)
+    await on_event(query, callback_data=cb, user=user, session=MagicMock())
+
+    args, _ = query.message.edit_text.call_args
+    text = args[0]
+    # Проверяем, что теги экранированы
+    assert "&lt;script&gt;" in text
+    assert "<script>" not in text
+    # Остальная часть карточки на месте
+    assert "Match" in text
+    assert "A" in text and "B" in text
+
+
 # ===== auth для callback'ов =====
 
 

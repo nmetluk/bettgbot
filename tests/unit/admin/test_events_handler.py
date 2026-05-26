@@ -15,6 +15,7 @@ from src.admin.deps import current_admin
 from src.admin.routes.events import _session_dep as events_session_dep
 from src.shared.exceptions import (
     EventAlreadyHasResultError,
+    EventInvalidContentError,
     EventNotEnoughOutcomesError,
     EventNotFoundError,
     OutcomeNotForEventError,
@@ -408,3 +409,56 @@ def test_edit_form_result_tab_shows_readonly_when_result_set(
     # Read-only — нет формы / radio-кнопок.
     assert 'name="outcome_id"' not in response.text
     assert "Зафиксирован:" in response.text
+
+
+def test_create_event_with_html_chars_rejects_with_error(
+    fake_admin_middleware_session,
+) -> None:
+    """Событие с символами < > в title или description должно отклоняться."""
+    ev_service = MagicMock()
+    ev_service.create_event = AsyncMock(side_effect=EventInvalidContentError(field="title"))
+    cat_service = MagicMock()
+    cat_service.list_all_with_counts = AsyncMock(return_value=[(_make_category(), 0)])
+
+    client = _client(event_service=ev_service, category_service=cat_service)
+    csrf_token = _get_csrf(client, "/events/new")
+    response = client.post(
+        "/events",
+        data={
+            "csrf_token": csrf_token,
+            "title": "Match <script>",
+            "description": "",
+            "category_id": 1,
+            "starts_at": "2026-06-01T12:00",
+            "predictions_close_at": "2026-06-01T11:00",
+            "metadata": "{}",
+        },
+    )
+    assert response.status_code == 400
+    assert "не допускаются" in response.text
+
+
+def test_update_event_with_html_chars_redirects_with_error(
+    fake_admin_middleware_session,
+) -> None:
+    """Обновление события с HTML-символами должно редиректить с ошибкой."""
+    ev_service = MagicMock()
+    ev_service.update_event = AsyncMock(side_effect=EventInvalidContentError(field="title"))
+    ev_service.get_event = AsyncMock(return_value=_make_event(id=7))
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/7")
+    response = client.post(
+        "/events/7",
+        data={
+            "csrf_token": csrf_token,
+            "title": "Match <b>Bold</b>",
+            "description": "",
+            "category_id": 1,
+            "starts_at": "2026-06-01T12:00",
+            "predictions_close_at": "2026-06-01T11:00",
+            "metadata": "{}",
+        },
+    )
+    assert response.status_code == 302
+    assert "error=html_chars" in response.headers["location"]

@@ -13,16 +13,21 @@ __all__ = [
     "AdminInactiveError",
     "AdminInvalidCredentialsError",
     "CategoryHasEventsError",
+    "CategoryInvalidContentError",
     "CategoryNotFoundError",
     "CategorySlugConflictError",
     "DomainError",
     "EventAlreadyHasResultError",
+    "EventInvalidContentError",
     "EventNotEnoughOutcomesError",
     "EventNotFoundError",
     "EventNotPredictableError",
+    "InvalidContentError",
+    "InvalidContentReason",
     "InvalidReminderOffsetsError",
     "InvalidReminderOffsetsReason",
     "OutcomeInUseError",
+    "OutcomeInvalidContentError",
     "OutcomeNotForEventError",
     "OutcomeNotFoundError",
     "PredictionDeadlinePassedError",
@@ -30,6 +35,8 @@ __all__ = [
     "UserBlockedError",
     "UserNotAllowed",
 ]
+
+InvalidContentReason = Literal["html_chars"]
 
 
 InvalidReminderOffsetsReason = Literal["too_many", "duplicate", "below_minimum"]
@@ -175,3 +182,57 @@ class InvalidReminderOffsetsError(DomainError):
     ) -> None:
         super().__init__(message)
         self.reason: InvalidReminderOffsetsReason = reason
+
+
+# --- Валидация контента (HTML-escape, TASK-036) ---
+
+
+class InvalidContentError(DomainError):
+    """Контент содержит запрещённые символы (например, < > для HTML).
+
+    Используется как базовый класс для конкретных сущностей.
+    """
+
+    def __init__(
+        self,
+        message: str = "invalid content",
+        *,
+        reason: InvalidContentReason,
+        field: str,
+    ) -> None:
+        super().__init__(message)
+        self.reason: InvalidContentReason = reason
+        self.field: str = field
+
+
+class EventInvalidContentError(InvalidContentError):
+    """Событие содержит недопустимые символы в title или description."""
+
+    def __init__(self, *, field: str) -> None:
+        super().__init__(
+            message=f"event {field} contains invalid characters",
+            reason="html_chars",
+            field=field,
+        )
+
+
+class OutcomeInvalidContentError(InvalidContentError):
+    """Исход содержит недопустимые символы в label."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="outcome label contains invalid characters",
+            reason="html_chars",
+            field="label",
+        )
+
+
+class CategoryInvalidContentError(InvalidContentError):
+    """Категория содержит недопустимые символы в name."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="category name contains invalid characters",
+            reason="html_chars",
+            field="name",
+        )

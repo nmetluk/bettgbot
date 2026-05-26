@@ -21,6 +21,7 @@ from src.shared.models import User
 from src.shared.services import EventService, PredictionService
 
 from .. import keyboards, texts
+from .._text_safety import safe_format
 from ..auth import require_active_user
 from ..callbacks import (
     CategoryCb,
@@ -78,7 +79,7 @@ async def on_predict_start(
     await state.set_state(MakingPrediction.choosing_outcome)
     await state.update_data(event_id=event.id, back_category_id=callback_data.back_category_id)
 
-    text = texts.PREDICT_PICK_OUTCOME.format(title=event.title)
+    text = safe_format(texts.PREDICT_PICK_OUTCOME, title=event.title)
     if isinstance(query.message, Message):
         await query.message.edit_text(
             text,
@@ -118,7 +119,8 @@ async def on_predict_pick(
     data = await state.get_data()
     back_category_id = data.get("back_category_id")
 
-    text = texts.PREDICT_CONFIRM.format(
+    text = safe_format(
+        texts.PREDICT_CONFIRM,
         label=outcome.label,
         close_at_fmt=event.predictions_close_at.strftime("%d.%m %H:%M"),
     )
@@ -155,7 +157,7 @@ async def on_predict_confirm(
         outcome = next(o for o in event.outcomes if o.id == prediction.outcome_id)
 
         template = texts.PREDICT_SAVED if was_new else texts.PREDICT_UPDATED
-        text = template.format(label=outcome.label)
+        text = safe_format(template, label=outcome.label)
         if isinstance(query.message, Message):
             await query.message.edit_text(text)
         logger.info(

@@ -14,6 +14,7 @@ from src.shared.models import User
 from src.shared.services import CategoryService, EventService, PredictionService
 
 from .. import keyboards, texts
+from .._text_safety import safe_format
 from ..auth import require_active_user
 from ..callbacks import CategoryCb, CategoryListCb, EventCb
 
@@ -155,7 +156,8 @@ async def render_event_card(
         if chosen is not None:
             prediction_block = f"\n\n✅ Ваш прогноз: «{chosen.label}»"
 
-    text = texts.EVENT_CARD.format(
+    text = safe_format(
+        texts.EVENT_CARD,
         category_name=category_name,
         title=event.title,
         description_block=description_block,

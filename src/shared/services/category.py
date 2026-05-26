@@ -7,6 +7,7 @@ CRUD-методы (`create_category`, `update_category`, `delete_category`) по
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from typing import Any
 
@@ -15,11 +16,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..exceptions import (
     CategoryHasEventsError,
+    CategoryInvalidContentError,
     CategoryNotFoundError,
     CategorySlugConflictError,
 )
 from ..models import Category
 from ..repositories import AuditLogRepository, CategoryRepository
+
+# Регулярка для поиска HTML-тегов — любой < или > (защита от XSS/DoS)
+_HTML_CHARS_PATTERN = re.compile(r"[<>]")
 
 __all__ = ["CategoryService"]
 
@@ -57,6 +62,7 @@ class CategoryService:
         is_active: bool = True,
         by_admin_id: int,
     ) -> Category:
+        self._validate_category_name(name)
         try:
             category = await self._categories.create(
                 name=name, slug=slug, sort_order=sort_order, is_active=is_active
@@ -85,6 +91,9 @@ class CategoryService:
         existing = await self._categories.get_by_id(category_id)
         if existing is None:
             raise CategoryNotFoundError(category_id)
+
+        if "name" in fields:
+            self._validate_category_name(fields["name"])
 
         if not fields:
             return
@@ -115,3 +124,14 @@ class CategoryService:
             await self._session.commit()
         except IntegrityError as exc:
             raise CategoryHasEventsError(category_id) from exc
+
+    # -- validation helpers --
+
+    def _validate_category_name(self, name: Any) -> None:
+        """Проверяет name на отсутствие символов < >.
+
+        Raises:
+            CategoryInvalidContentError: если найден запрещённый символ.
+        """
+        if isinstance(name, str) and _HTML_CHARS_PATTERN.search(name):
+            raise CategoryInvalidContentError()
