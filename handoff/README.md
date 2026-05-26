@@ -139,8 +139,8 @@ make backup
 
 | ОС | Дефолтный путь | Утилита зеркала |
 |---|---|---|
-| macOS | `/Users/nmetluk/Library/CloudStorage/GoogleDrive-nm@pinspb.ru/Мой диск/Claude projects/Betting Bot backup` | `rsync -a --delete` |
-| Windows (Git Bash/MSYS) | `G:/Мой диск/Claude projects/Betting Bot backup` | `robocopy /MIR` |
+| macOS | `/Users/nmetluk/Library/CloudStorage/GoogleDrive-nm@pinspb.ru/Мой диск/Claude_projects/Betting Bot backup` | `rsync -a --delete` |
+| Windows (Git Bash/MSYS) | `G:/Мой диск/Claude_projects/Betting Bot backup` | `robocopy /MIR` |
 | Linux | (нет дефолта — задавай вручную) | `rsync -a --delete` |
 
 Drive File Stream сам синхронизирует это в облако (1–60 сек). И `rsync --delete`, и `robocopy /MIR` удаляют в destination то, чего нет в source — это нужно, чтобы старые задачи из inbox после move в archive не оставались висеть в Drive.

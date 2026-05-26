@@ -70,7 +70,7 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 Цель — на удалённом репо `nmetluk/bettgbot` всегда лежит актуальная `main` сразу после каждой задачи. Это позволяет:
 
 - Поднять рабочее место на любой машине (текущая локальная — не единственная).
-- Использовать `nmetluk/bettgbot` + Drive-бэкап `Claude projects/Betting Bot backup` как single source of truth, к которому может подключиться второй экземпляр локального CC.
+- Использовать `nmetluk/bettgbot` + Drive-бэкап `Claude_projects/Betting Bot backup` как single source of truth, к которому может подключиться второй экземпляр локального CC.
 - Откатиться к любой точке без потерь незакоммиченной работы.
 
 Если `git push` падает (auth, network) — это **блокер**, оформить как `outbox/TASK-NNN-question.md`, **не** оставлять локально и идти дальше.

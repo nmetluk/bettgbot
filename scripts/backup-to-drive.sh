@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Переопределяется через env BB_DRIVE_BACKUP (любая ОС).
 case "${OSTYPE:-}" in
     darwin*)
-        : "${BB_DRIVE_BACKUP:=/Users/nmetluk/Library/CloudStorage/GoogleDrive-nm@pinspb.ru/Мой диск/Claude projects/Betting Bot backup}"
+        : "${BB_DRIVE_BACKUP:=/Users/nmetluk/Library/CloudStorage/GoogleDrive-nm@pinspb.ru/Мой диск/Claude_projects/Betting Bot backup}"
         BACKEND=rsync
         ;;
     linux*)
@@ -24,7 +24,7 @@ case "${OSTYPE:-}" in
         BACKEND=rsync
         ;;
     msys*|cygwin*|win32)
-        : "${BB_DRIVE_BACKUP:=G:/Мой диск/Claude projects/Betting Bot backup}"
+        : "${BB_DRIVE_BACKUP:=G:/Мой диск/Claude_projects/Betting Bot backup}"
         BACKEND=robocopy
         ;;
     *)
