@@ -38,5 +38,5 @@ async def test_delete_restricted_by_prediction(session: AsyncSession) -> None:
 
     repo = OutcomeRepository(session)
     with pytest.raises(IntegrityError):
-        await repo.delete(event.id, outcome.id)
+        await repo.delete(outcome.id)
         await session.flush()

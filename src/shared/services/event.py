@@ -191,10 +191,11 @@ class EventService:
         await self._session.commit()
 
     async def delete_outcome(self, outcome_id: int, event_id: int, by_admin_id: int) -> None:
+        outcome = await self._outcomes.get_by_id(outcome_id)
+        if outcome is None or outcome.event_id != event_id:
+            raise OutcomeNotForEventError(event_id, outcome_id)
         try:
-            affected = await self._outcomes.delete(outcome_id, event_id)
-            if affected == 0:
-                raise OutcomeNotForEventError(event_id, outcome_id)
+            await self._outcomes.delete(outcome_id)
             await self._audit.add(
                 admin_id=by_admin_id,
                 action="outcome.delete",
