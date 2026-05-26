@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from src.admin.app import app
-from src.admin.auth.security import SESSION_COOKIE_NAME, create_session_token
+from src.admin.auth.security import CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, create_session_token
 from src.admin.deps import current_admin
 from src.admin.routes.outcomes import _session_dep as outcomes_session_dep
 from src.shared.exceptions import OutcomeInUseError, OutcomeNotForEventError, OutcomeNotFoundError
@@ -291,3 +291,29 @@ def test_delete_outcome_from_wrong_event_returns_404(fake_admin_middleware_sessi
     )
 
     assert response.status_code == 404
+
+
+def test_create_outcome_rotates_csrf_token(fake_admin_middleware_session) -> None:
+    """HTMX POST /events/{id}/outcomes возвращает response с Set-Cookie с новым CSRF токеном."""
+    ev_service = MagicMock()
+    ev_service.add_outcome = AsyncMock(return_value=_make_outcome(id=3, label="Created"))
+    ev_service.get_event = AsyncMock(
+        return_value=_make_event_with_outcomes(
+            id=10, outcomes=[_make_outcome(id=3, label="Created")]
+        )
+    )
+
+    client = _client(event_service=ev_service)
+    # Получаем исходный CSRF токен (GET ставит cookie через CsrfTokenMiddleware)
+    csrf_token = _get_csrf(client, "/events/10/outcomes/new")
+
+    response = client.post(
+        "/events/10/outcomes",
+        data={"csrf_token": csrf_token, "label": "Created", "sort_order": 0},
+    )
+
+    assert response.status_code == 200
+    # Проверяем что в ответе есть Set-Cookie с CSRF токеном
+    set_cookie_headers = response.headers.get_list("set-cookie")
+    csrf_cookies = [h for h in set_cookie_headers if CSRF_COOKIE_NAME in h]
+    assert len(csrf_cookies) > 0, "CSRF cookie должен быть установлен в ответе"

@@ -24,7 +24,14 @@ from src.shared.db import SessionLocal
 from src.shared.logging import get_logger
 from src.shared.models import AdminUser
 
-from .security import SESSION_COOKIE_NAME, create_session_token, verify_session_token
+from .security import (
+    CSRF_COOKIE_NAME,
+    CSRF_COOKIE_NAME_PROD,
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_NAME_PROD,
+    create_session_token,
+    verify_session_token,
+)
 
 __all__ = ["CsrfTokenMiddleware", "RequireAdminMiddleware"]
 
@@ -97,13 +104,19 @@ class RequireAdminMiddleware:
         new_token = create_session_token(admin_id=admin.id)
         s = get_settings()
         expires = datetime.now(tz=UTC) + timedelta(hours=s.admin.session_hours)
+
+        # В prod используем __Host- prefix (browser enforce'ит Secure, Path=/)
+        session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
         cookie_parts = [
-            f"{SESSION_COOKIE_NAME}={new_token}",
+            f"{session_name}={new_token}",
             "HttpOnly",
-            "SameSite=Lax",
-            "Path=/",
+            f"SameSite={s.admin.session_samesite.capitalize()}",
             f"Expires={expires.strftime('%a, %d %b %Y %H:%M:%S GMT')}",
         ]
+        if s.environment == "dev":
+            cookie_parts.append("Path=/")
+        # __Host- cookies не требуют Path (browser подставляет /=/)
+
         if s.environment != "dev":
             cookie_parts.append("Secure")
         cookie_header = "; ".join(cookie_parts)
@@ -155,12 +168,16 @@ class CsrfTokenMiddleware:
         state["csrf_token"] = csrf_token
 
         s = get_settings()
+        csrf_name = CSRF_COOKIE_NAME_PROD if s.environment != "dev" else CSRF_COOKIE_NAME
         cookie_parts = [
-            f"fastapi-csrf-token={signed_token}",
+            f"{csrf_name}={signed_token}",
             "HttpOnly",
-            "SameSite=Lax",
-            "Path=/",
+            f"SameSite={s.admin.session_samesite.capitalize()}",
         ]
+        if s.environment == "dev":
+            cookie_parts.append("Path=/")
+        # __Host- cookies не требуют Path
+
         if s.environment != "dev":
             cookie_parts.append("Secure")
         cookie_header = "; ".join(cookie_parts)

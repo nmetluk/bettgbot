@@ -18,6 +18,7 @@ from src.shared.exceptions import (
 from src.shared.models import AdminUser, Category
 from src.shared.services import CategoryService
 
+from .._helpers import set_fresh_csrf_token
 from ..app import templates
 from ..deps import current_admin
 
@@ -41,10 +42,7 @@ def _render_form(
     error: str | None,
     status_code: int = 200,
 ) -> HTMLResponse:
-    """Re-render формы; для POST-handler'ов с ошибкой генерирует CSRF вручную
-    (CsrfTokenMiddleware покрывает только GET)."""
-    csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-    request.state.csrf_token = csrf_token
+    """Re-render формы; для POST-handler'ов с ошибкой генерирует свежий CSRF."""
     response = templates.TemplateResponse(
         request=request,
         name="categories/form.html",
@@ -56,7 +54,7 @@ def _render_form(
         },
         status_code=status_code,
     )
-    csrf_protect.set_csrf_cookie(signed_token, response)
+    set_fresh_csrf_token(request, response, csrf_protect)
     return response
 
 

@@ -12,13 +12,22 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from src.shared.config import get_settings
 
 __all__ = [
+    "CSRF_COOKIE_NAME",
+    "CSRF_COOKIE_NAME_PROD",
     "SESSION_COOKIE_NAME",
+    "SESSION_COOKIE_NAME_PROD",
     "create_session_token",
     "verify_session_token",
 ]
 
 
+# Dev-имена (без __Host- префикса, с Domain possibile)
 SESSION_COOKIE_NAME = "bb_admin_session"
+CSRF_COOKIE_NAME = "fastapi-csrf-token"
+# Prod-имена с __Host- префиксом (browser enforce'ит Path=/, Secure, без Domain)
+SESSION_COOKIE_NAME_PROD = "__Host-bb_admin_session"
+CSRF_COOKIE_NAME_PROD = "__Host-fastapi-csrf-token"
+
 _SALT = "bb-admin-session-v1"  # version-namespace для будущей ротации secret'а
 
 

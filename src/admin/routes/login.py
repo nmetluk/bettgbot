@@ -18,7 +18,11 @@ from src.shared.logging import get_logger
 from src.shared.services import AdminAuthService
 
 from ..app import templates
-from ..auth.security import SESSION_COOKIE_NAME, create_session_token
+from ..auth.security import (
+    SESSION_COOKIE_NAME,
+    SESSION_COOKIE_NAME_PROD,
+    create_session_token,
+)
 
 __all__ = ["router"]
 
@@ -104,16 +108,33 @@ async def login_submit(
     s = get_settings()
     expires = datetime.now(tz=UTC) + timedelta(hours=s.admin.session_hours)
 
+    session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
     redirect = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    redirect.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        secure=s.environment != "dev",
-        samesite="lax",
-        expires=expires,
-        path="/",
-    )
+    if s.environment == "dev":
+        redirect.set_cookie(
+            key=session_name,
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite=s.admin.session_samesite,
+            expires=expires,
+            path="/",
+        )
+    else:
+        # __Host- cookies: browser подставляет Path=/, Secure
+        redirect.set_cookie(
+            key=session_name,
+            value=token,
+            httponly=True,
+            secure=True,
+            samesite=s.admin.session_samesite,
+            expires=expires,
+        )
+
+    # Fresh CSRF cookie при успешном login
+    _, signed_csrf = csrf_protect.generate_csrf_tokens()
+    csrf_protect.set_csrf_cookie(signed_csrf, redirect)
+
     logger.info("admin.auth.success", admin_id=admin.id, login=admin.login)
     return redirect
 
@@ -124,7 +145,13 @@ async def logout(
     csrf_protect: CsrfProtect = Depends(),
 ) -> RedirectResponse:
     await csrf_protect.validate_csrf(request)
+    s = get_settings()
+    session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
     response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    # __Host- cookies не требуют path (browser подставляет /=/)
+    if s.environment == "dev":
+        response.delete_cookie(session_name, path="/")
+    else:
+        response.delete_cookie(session_name)
     logger.info("admin.auth.logout")
     return response
