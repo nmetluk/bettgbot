@@ -83,3 +83,102 @@ def test_get_settings_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
     third = get_settings()
     assert third.log_level == "ERROR"
     assert third is not first
+
+
+def _set_prod_env(mp: pytest.MonkeyPatch) -> None:
+    """Минимальные env для prod с сильными секретами."""
+    mp.setenv("ENVIRONMENT", "prod")
+    mp.setenv("TELEGRAM_BOT_TOKEN", "real-prod-bot-token-with-more-than-thirty-chars")
+    mp.setenv("DATABASE_URL", "postgresql+asyncpg://alice:secret@db.example:5432/app")
+    mp.setenv("REDIS_URL", "redis://cache.example:6379/3")
+    import secrets
+
+    mp.setenv("ADMIN_SECRET_KEY", secrets.token_urlsafe(64))
+    mp.setenv("ADMIN_CSRF_SECRET", secrets.token_urlsafe(64))
+    mp.setenv("EXTERNAL_REGISTRY_BACKEND", "http")
+    mp.setenv("EXTERNAL_API_BASE_URL", "https://api.example.com")
+    mp.setenv("EXTERNAL_API_TOKEN", "token")
+    mp.setenv("LOG_FORMAT", "json")
+
+
+def test_prod_env_with_strong_secrets_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + сильные секреты → ОК."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    s = Settings()  # type: ignore[call-arg]
+    assert s.environment == "prod"
+    assert s.log_format == "json"
+
+
+def test_prod_env_with_dev_secret_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + dev-секрет → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("ADMIN_SECRET_KEY", "dev-admin-secret")
+    with pytest.raises(ValueError, match=r"admin\.secret_key"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_prod_env_with_weak_secret_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + секрет с 'changeme' → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("ADMIN_CSRF_SECRET", "changeme-csrf-secret")
+    with pytest.raises(ValueError, match=r"admin\.csrf_secret"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_prod_env_with_short_secret_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + секрет короче 32 символов → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("ADMIN_SECRET_KEY", "short")
+    with pytest.raises(ValueError, match=r"admin\.secret_key"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_prod_env_with_dev_bot_token_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + dev-bot-token → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "dev-bot-token")
+    with pytest.raises(ValueError, match=r"telegram_bot_token"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_prod_env_with_short_bot_token_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + токен короче 30 символов → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "short-token")
+    with pytest.raises(ValueError, match=r"telegram_bot_token"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_prod_env_with_mock_backend_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + EXTERNAL_REGISTRY_BACKEND=mock → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("EXTERNAL_REGISTRY_BACKEND", "mock")
+    with pytest.raises(ValueError, match=r"external_registry\.backend"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_prod_env_with_console_log_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=prod + LOG_FORMAT=console → ValueError."""
+    get_settings.cache_clear()
+    _set_prod_env(monkeypatch)
+    monkeypatch.setenv("LOG_FORMAT", "console")
+    with pytest.raises(ValueError, match=r"log_format"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_dev_env_with_weak_secrets_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """environment=dev + слабые секреты → ОК (валидатор отключается)."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("ADMIN_SECRET_KEY", "dev-admin-secret")
+    monkeypatch.setenv("ADMIN_CSRF_SECRET", "changeme")
+    monkeypatch.setenv("EXTERNAL_REGISTRY_BACKEND", "mock")
+    s = Settings()  # type: ignore[call-arg]
+    assert s.environment == "dev"

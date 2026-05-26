@@ -323,7 +323,9 @@ def test_set_result_outcome_not_for_event_redirects_with_error(
     fake_admin_middleware_session,
 ) -> None:
     ev_service = MagicMock()
-    ev_service.set_result = AsyncMock(side_effect=OutcomeNotForEventError("wrong"))
+    ev_service.set_result = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=5, outcome_id=99)
+    )
 
     client = _client(event_service=ev_service)
     csrf_token = _get_csrf(client, "/events/new")

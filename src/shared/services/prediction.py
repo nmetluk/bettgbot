@@ -35,9 +35,7 @@ class PredictionService:
         if datetime.now(tz=UTC) > event.predictions_close_at:
             raise PredictionDeadlinePassedError(f"deadline for event {event_id} has passed")
         if outcome_id not in {o.id for o in event.outcomes}:
-            raise OutcomeNotForEventError(
-                f"outcome {outcome_id} does not belong to event {event_id}"
-            )
+            raise OutcomeNotForEventError(event_id, outcome_id)
 
         prediction = await self._predictions.upsert(
             user_id=user_id, event_id=event_id, outcome_id=outcome_id

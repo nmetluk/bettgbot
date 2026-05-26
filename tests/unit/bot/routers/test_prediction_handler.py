@@ -284,7 +284,7 @@ async def test_predict_confirm_outcome_not_for_event_alerts(
     _patch_prediction_service(
         monkeypatch,
         get_user_prediction=AsyncMock(return_value=None),
-        make_prediction=AsyncMock(side_effect=OutcomeNotForEventError("x")),
+        make_prediction=AsyncMock(side_effect=OutcomeNotForEventError(event_id=42, outcome_id=999)),
     )
     query = _mock_query()
     state = _mock_state()

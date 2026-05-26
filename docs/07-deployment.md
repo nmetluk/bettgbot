@@ -46,31 +46,51 @@ cd /opt/bettgbot
 
 ## Шаг 3. Настройка `.env`
 
-Скопируйте пример и заполните ОБЯЗАТЕЛЬНЫЕ поля:
+Скопируйте prod-пример и заполните ОБЯЗАТЕЛЬНЫЕ поля:
 
 ```bash
-cp infra/.env.example infra/.env
+cp infra/.env.prod.example infra/.env
 nano infra/.env
 ```
 
-**Обязательные переменные:**
+⚠️ **ВАЖНО:** Приложение на старте проверяет, что в prod все секреты являются сильными. Если используете дефолтные значения (`dev-admin-secret`, `changeme`, и т.п.) — старт прервётся с понятной ошибкой.
 
-| Переменная | Описание | Как сгенерировать |
-|---|---|---|
-| `TELEGRAM_BOT_TOKEN` | Token от @BotFather | Через @BotFather |
-| `POSTGRES_PASSWORD` | Пароль БД | `python -c 'import secrets; print(secrets.token_urlsafe(16))'` |
-| `ADMIN_SECRET_KEY` | Секрет сессии админки | `python -c 'import secrets; print(secrets.token_urlsafe(48))'` |
-| `ADMIN_CSRF_SECRET` | Секрет CSRF | `python -c 'import secrets; print(secrets.token_urlsafe(48))'` |
-| `ADMIN_DOMAIN` | Домен админки | `your-domain.com` |
-| `TLS_EMAIL` | Email для Let's Encrypt | `your@email.com` |
-| `LOG_FORMAT` | Формат логов | `json` (prod) или `console` (dev) |
+**Генерация сильных секретов:**
 
-**Для prod:**
+Все секреты генерируйте локально (не на VPS) и копируйте в `.env`:
 
 ```bash
-ENVIRONMENT=prod
-LOG_FORMAT=json
+# Сгенерировать все секреты разом:
+python -c "
+import secrets
+print('TELEGRAM_BOT_TOKEN=<получить у @BotFather>')
+print(f'POSTGRES_PASSWORD={secrets.token_urlsafe(32)}')
+print(f'ADMIN_SECRET_KEY={secrets.token_urlsafe(64)}')
+print(f'ADMIN_CSRF_SECRET={secrets.token_urlsafe(64)}')
+print(f'EXTERNAL_API_TOKEN={secrets.token_urlsafe(32)}')
+"
 ```
+
+**Обязательные переменные для prod:**
+
+| Переменная | Описание | Требования |
+|---|---|---|
+| `ENVIRONMENT` | Окружение | `prod` (обязательно) |
+| `TELEGRAM_BOT_TOKEN` | Token от @BotFather | Реальный токен (≥35 символов) |
+| `POSTGRES_PASSWORD` | Пароль БД | Сгенерированный (≥32 символов) |
+| `ADMIN_SECRET_KEY` | Секрет сессии админки | Сгенерированный (≥32 символов) |
+| `ADMIN_CSRF_SECRET` | Секрет CSRF | Сгенерированный (≥32 символов) |
+| `EXTERNAL_REGISTRY_BACKEND` | Реестр пользователей | `http` (НЕ `mock`) |
+| `EXTERNAL_API_BASE_URL` | URL реестра | Реальный https URL |
+| `EXTERNAL_API_TOKEN` | Токен реестра | Сгенерированный |
+| `LOG_FORMAT` | Формат логов | `json` (обязательно для prod) |
+| `ADMIN_DOMAIN` | Домен админки | `your-domain.com` |
+| `TLS_EMAIL` | Email для Let's Encrypt | `your@email.com` |
+
+**Запрещённые значения в prod:**
+
+Секреты НЕ должны содержать подстроки: `dev-`, `changeme`, `secret`, `test`.
+Длина секретов должна быть ≥32 символов.
 
 ## Шаг 4. Bootstrap certbot (получение TLS сертификата)
 

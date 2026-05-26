@@ -36,6 +36,8 @@ __all__ = [
 
 Environment = Literal["dev", "staging", "prod"]
 
+_WEAK_SECRET_MARKERS = frozenset({"dev-", "changeme", "secret", "test"})
+
 
 def _empty_to_none(value: Any) -> Any:
     """Превращает пустую строку из `.env` в `None` (для опциональных полей)."""
@@ -142,6 +144,48 @@ class Settings(BaseSettings):
 
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
     external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)
+
+    @model_validator(mode="after")
+    def _validate_prod_secrets(self) -> Self:
+        """В prod-окружении проверяет, что секреты не являются дефолтными/слабыми."""
+        if self.environment == "dev":
+            return self
+
+        errors: list[str] = []
+
+        # Проверка admin.secret_key
+        secret_key_value = self.admin.secret_key.get_secret_value()
+        if (
+            any(marker in secret_key_value for marker in _WEAK_SECRET_MARKERS)
+            or len(secret_key_value) < 32
+        ):
+            errors.append("admin.secret_key")
+
+        # Проверка admin.csrf_secret
+        csrf_value = self.admin.csrf_secret.get_secret_value()
+        if any(marker in csrf_value for marker in _WEAK_SECRET_MARKERS) or len(csrf_value) < 32:
+            errors.append("admin.csrf_secret")
+
+        # Проверка telegram_bot_token
+        bot_token = self.telegram_bot_token.get_secret_value()
+        if bot_token == "dev-bot-token" or len(bot_token) < 30:
+            errors.append("telegram_bot_token")
+
+        # Проверка external_registry.backend
+        if self.external_registry.backend == "mock":
+            errors.append("external_registry.backend (mock не допускается в prod)")
+
+        # Проверка log_format
+        if self.log_format == "console":
+            errors.append("log_format (должен быть json в prod)")
+
+        if errors:
+            raise ValueError(
+                f"Невалидные настройки для environment={self.environment}: {', '.join(errors)}. "
+                "Сгенерируйте сильные секреты через python -c 'import secrets; print(secrets.token_urlsafe(64))'"
+            )
+
+        return self
 
 
 @lru_cache(maxsize=1)
