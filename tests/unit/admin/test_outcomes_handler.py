@@ -12,7 +12,7 @@ from src.admin.app import app
 from src.admin.auth.security import SESSION_COOKIE_NAME, create_session_token
 from src.admin.deps import current_admin
 from src.admin.routes.outcomes import _session_dep as outcomes_session_dep
-from src.shared.exceptions import OutcomeInUseError, OutcomeNotFoundError
+from src.shared.exceptions import OutcomeInUseError, OutcomeNotForEventError, OutcomeNotFoundError
 from src.shared.models import AdminUser, Event, Outcome
 
 
@@ -187,6 +187,12 @@ def test_update_outcome_returns_updated_list(fake_admin_middleware_session) -> N
         data={"csrf_token": csrf_token, "label": "Updated", "sort_order": 0},
     )
 
+    # Проверяем что update_outcome был вызван с правильным event_id
+    ev_service.update_outcome.assert_called_once()
+    call_kwargs = ev_service.update_outcome.call_args.kwargs
+    assert call_kwargs["event_id"] == 10
+    assert call_kwargs["outcome_id"] == 5
+
     assert response.status_code == 200
     assert "Updated" in response.text
 
@@ -202,6 +208,12 @@ def test_delete_outcome_success_returns_updated_list(fake_admin_middleware_sessi
         "/events/10/outcomes/5/delete",
         data={"csrf_token": csrf_token},
     )
+
+    # Проверяем что delete_outcome был вызван с правильным event_id
+    ev_service.delete_outcome.assert_called_once()
+    call_kwargs = ev_service.delete_outcome.call_args.kwargs
+    assert call_kwargs["event_id"] == 10
+    assert call_kwargs["outcome_id"] == 5
 
     assert response.status_code == 200
     assert "Исходов ещё нет" in response.text
@@ -230,12 +242,51 @@ def test_delete_outcome_in_use_returns_409_with_alert(fake_admin_middleware_sess
 
 def test_delete_unknown_outcome_404(fake_admin_middleware_session) -> None:
     ev_service = MagicMock()
-    ev_service.delete_outcome = AsyncMock(side_effect=OutcomeNotFoundError("not found"))
+    ev_service.delete_outcome = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=10, outcome_id=999)
+    )
+    ev_service.get_event = AsyncMock(return_value=_make_event_with_outcomes(id=10, outcomes=[]))
 
     client = _client(event_service=ev_service)
     csrf_token = _get_csrf(client, "/events/10/outcomes/new")
     response = client.post(
         "/events/10/outcomes/999/delete",
+        data={"csrf_token": csrf_token},
+    )
+
+    assert response.status_code == 404
+
+
+def test_update_outcome_from_wrong_event_returns_404(fake_admin_middleware_session) -> None:
+    """POST /events/1/outcomes/999 где 999 принадлежит event 2 → 404."""
+    ev_service = MagicMock()
+    ev_service.update_outcome = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=1, outcome_id=999)
+    )
+    ev_service.get_event = AsyncMock(return_value=_make_event_with_outcomes(id=1, outcomes=[]))
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/1/outcomes/new")
+    response = client.post(
+        "/events/1/outcomes/999",
+        data={"csrf_token": csrf_token, "label": "Hacked", "sort_order": 0},
+    )
+
+    assert response.status_code == 404
+
+
+def test_delete_outcome_from_wrong_event_returns_404(fake_admin_middleware_session) -> None:
+    """POST /events/1/outcomes/999/delete где 999 принадлежит event 2 → 404."""
+    ev_service = MagicMock()
+    ev_service.delete_outcome = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=1, outcome_id=999)
+    )
+    ev_service.get_event = AsyncMock(return_value=_make_event_with_outcomes(id=1, outcomes=[]))
+
+    client = _client(event_service=ev_service)
+    csrf_token = _get_csrf(client, "/events/1/outcomes/new")
+    response = client.post(
+        "/events/1/outcomes/999/delete",
         data={"csrf_token": csrf_token},
     )
 
