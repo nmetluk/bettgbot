@@ -22,10 +22,12 @@
                 <form style="display:inline"
                       hx-post="/events/{{ event_id }}/outcomes/{{ outcome.id }}/delete"
                       hx-target="#outcomes-container"
-                      hx-swap="outerHTML"
-                      hx-confirm="Удалить исход «{{ outcome.label }}»?">
+                      hx-swap="outerHTML">
                     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <button type="submit"
+                            class="btn btn-sm btn-outline-danger js-confirm-delete"
+                            data-confirm="Удалить исход"
+                            data-name="{{ outcome.label|e }}">
                         <i class="bi bi-trash"></i>
                     </button>
                 </form>

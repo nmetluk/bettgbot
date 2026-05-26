@@ -44,10 +44,14 @@
                     <a href="/categories/{{ category.id }}" class="btn btn-sm btn-outline-secondary">Изм.</a>
                     {% if events_count == 0 %}
                     <form method="post" action="/categories/{{ category.id }}/delete"
-                          style="display:inline"
-                          onsubmit="return confirm('Удалить категорию «{{ category.name }}»?')">
+                          style="display:inline">
                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Удал.</button>
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-danger js-confirm-delete"
+                                data-confirm="Удалить категорию"
+                                data-name="{{ category.name|e }}">
+                            Удал.
+                        </button>
                     </form>
                     {% endif %}
                 </td>

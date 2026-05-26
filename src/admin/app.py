@@ -26,6 +26,7 @@ from redis.asyncio import Redis
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
 
+from ._security_headers import SecurityHeadersMiddleware
 from .auth.middleware import CsrfTokenMiddleware, RequireAdminMiddleware
 
 __all__ = ["app", "templates"]
@@ -91,8 +92,10 @@ def create_app() -> FastAPI:
     # Порядок: add_middleware добавляет в обратном порядке выполнения.
     # CsrfTokenMiddleware добавляем ПЕРВЫМ → он inner (после Require).
     # RequireAdminMiddleware ВТОРЫМ → он outer, обрабатывает запрос первым.
+    # SecurityHeadersMiddleware ТРЕТЬИМ → outermost, добавляет headers ко всем response.
     app.add_middleware(CsrfTokenMiddleware)
     app.add_middleware(RequireAdminMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     @app.exception_handler(CsrfProtectError)
     async def _csrf_error_handler(request: Request, exc: CsrfProtectError) -> Any:
