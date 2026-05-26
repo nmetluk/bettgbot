@@ -54,7 +54,7 @@ class OutcomeRepository:
             .where(Outcome.id == outcome_id, Outcome.event_id == event_id)
             .values(**fields)
         )
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined,no-any-return]
 
     async def delete(self, outcome_id: int) -> int:
         """Удаляет исход.
@@ -63,4 +63,4 @@ class OutcomeRepository:
             Количество затронутых строк (0 если outcome не найден).
         """
         result = await self._session.execute(delete(Outcome).where(Outcome.id == outcome_id))
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined,no-any-return]
