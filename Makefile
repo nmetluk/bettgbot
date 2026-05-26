@@ -14,7 +14,7 @@ PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
-        admin admin.create admin.create.prod full.up backup \
+        admin admin.create admin.create.prod full.up \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
         prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.smoke \
         prod.nodomain.build prod.nodomain.up prod.nodomain.down prod.nodomain.logs prod.nodomain.ps
@@ -118,9 +118,6 @@ prod.shell.bot: ## Открыть shell в prod bot-контейнере
 
 prod.shell.web: ## Открыть shell в prod web-контейнере
 	$(PROD_COMPOSE) exec web sh
-
-backup: ## Зеркалирование handoff/state/sessions в локально-синкнутую Drive-папку (после git pull main)
-	@./scripts/backup-to-drive.sh
 
 prod.backup.now: ## Однократный pg_dump прямо сейчас
 	@$(PROD_COMPOSE) run --rm db-backup sh -c 'pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists | gzip > /backups/bettgbot-$$(date -u +%FT%H-%M-%SZ).sql.gz'

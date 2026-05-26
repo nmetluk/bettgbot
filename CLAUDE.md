@@ -4,13 +4,15 @@
 
 ## Прежде чем начать любую работу
 
-Прочитай в строгом порядке:
+1. **Сделай `git fetch origin && git pull origin main`** — handoff обновляется только через GitHub, никаких Drive-зеркал.
 
-1. [`README.md`](README.md) — карта репозитория.
-2. [`state/PROJECT_STATUS.md`](state/PROJECT_STATUS.md) — где мы сейчас.
-3. [`state/DECISIONS.md`](state/DECISIONS.md) — что уже решено и почему.
-4. [`docs/08-conventions.md`](docs/08-conventions.md) — кодовые конвенции.
-5. Свежие файлы в [`handoff/inbox/`](handoff/inbox/) — твои задачи.
+2. Прочитай в строгом порядке:
+
+2. [`README.md`](README.md) — карта репозитория.
+3. [`state/PROJECT_STATUS.md`](state/PROJECT_STATUS.md) — где мы сейчас.
+4. [`state/DECISIONS.md`](state/DECISIONS.md) — что уже решено и почему.
+5. [`docs/08-conventions.md`](docs/08-conventions.md) — кодовые конвенции.
+6. Свежие файлы в [`handoff/inbox/`](handoff/inbox/) — твои задачи.
 
 Если задача отсылает к спецификациям (`docs/03-data-model.md`, `docs/04-bot-flows.md` и т. п.) — открой их и опирайся на них, не выдумывай.
 
@@ -64,13 +66,13 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 1. `git push origin <feature-branch>` — выложить ветку до открытия/обновления PR.
 2. `gh pr create ...` или обновить существующий PR; **дождаться** зелёного CI.
 3. `gh pr merge --squash` (если права позволяют) или явно попросить владельца замёрджить.
-4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой). И сразу — `make backup`, см. п. 5.5 ниже.
+4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой).
 5. Только после этого считать задачу закрытой и переходить к следующей.
 
 Цель — на удалённом репо `nmetluk/bettgbot` всегда лежит актуальная `main` сразу после каждой задачи. Это позволяет:
 
 - Поднять рабочее место на любой машине (текущая локальная — не единственная).
-- Использовать `nmetluk/bettgbot` + Drive-бэкап `Claude_projects/Betting Bot backup` как single source of truth, к которому может подключиться второй экземпляр локального CC.
+- Использовать `nmetluk/bettgbot` как single source of truth, к которому может подключиться второй экземпляр локального CC.
 - Откатиться к любой точке без потерь незакоммиченной работы.
 
 Если `git push` падает (auth, network) — это **блокер**, оформить как `outbox/TASK-NNN-question.md`, **не** оставлять локально и идти дальше.
@@ -109,5 +111,4 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 3. Отчёт в `handoff/outbox/TASK-NNN-report.md` написан и закоммичен.
 4. Исходная задача перемещена в `handoff/archive/`, тоже закоммичена.
 5. **PR слит** (squash), **локальная `main` синхронизирована с `origin/main`** (`git checkout main && git pull`).
-5.5. **Сделать `make backup`** — зеркалирование `handoff/`, `state/`, `sessions/` в локально-синкнутую Drive-папку. Без этого шага cowork-агент в следующей сессии может работать со старым handoff. См. [`handoff/README.md`](handoff/README.md) секция «Локальный backup handoff».
 6. Если задача требовала обновления списка готового — пометил в отчёте, что строка для `state/PROJECT_STATUS.md` подготовлена (саму строку добавит проектировщик).
