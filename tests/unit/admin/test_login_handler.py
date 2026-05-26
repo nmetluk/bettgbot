@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 from fastapi_limiter.depends import RateLimiter
 from src.admin.app import app
-from src.admin.auth.security import SESSION_COOKIE_NAME
+from src.admin.auth.security import CSRF_COOKIE_NAME, SESSION_COOKIE_NAME
 from src.admin.routes.login import _session_dep
 from src.shared.exceptions import AdminInvalidCredentialsError
 from src.shared.models import AdminUser
@@ -96,7 +96,12 @@ def test_login_post_success_sets_cookie_and_redirects(monkeypatch) -> None:
     )
     assert response.status_code == 302
     assert response.headers["location"] == "/"
-    assert SESSION_COOKIE_NAME in response.cookies
+    # Проверяем что установлены ОБА cookies: session и CSRF
+    set_cookie_headers = response.headers.get_list("set-cookie")
+    session_cookies = [h for h in set_cookie_headers if SESSION_COOKIE_NAME in h]
+    csrf_cookies = [h for h in set_cookie_headers if CSRF_COOKIE_NAME in h]
+    assert len(session_cookies) > 0, "Session cookie должен быть установлен"
+    assert len(csrf_cookies) > 0, "CSRF cookie должен быть установлен (ротация)"
 
 
 def test_logout_clears_cookie_and_redirects_to_login() -> None:

@@ -22,6 +22,7 @@ from src.shared.exceptions import (
 from src.shared.models import AdminUser
 from src.shared.services import EventService
 
+from .._helpers import set_fresh_csrf_token
 from ..app import templates
 from ..deps import current_admin
 
@@ -42,6 +43,7 @@ async def _list_response(
     request: Request,
     session: AsyncSession,
     event_id: int,
+    csrf_protect: CsrfProtect,
     *,
     error: str | None = None,
     status_code: int = 200,
@@ -50,7 +52,7 @@ async def _list_response(
     event = await EventService(session).get_event(event_id, with_outcomes=True)
     if event is None:
         raise HTTPException(status_code=404)
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="outcomes/_list.html",
         context={
@@ -60,6 +62,8 @@ async def _list_response(
         },
         status_code=status_code,
     )
+    set_fresh_csrf_token(request, response, csrf_protect)
+    return response
 
 
 @router.get("", response_class=HTMLResponse)
@@ -68,8 +72,9 @@ async def list_fragment(
     event_id: int,
     admin: AdminUser = Depends(current_admin),
     session: AsyncSession = Depends(_session_dep),
+    csrf_protect: CsrfProtect = Depends(),
 ) -> HTMLResponse:
-    return await _list_response(request, session, event_id)
+    return await _list_response(request, session, event_id, csrf_protect)
 
 
 @router.get("/new", response_class=HTMLResponse)
@@ -105,7 +110,7 @@ async def create(
         )
     except EventNotFoundError as exc:
         raise HTTPException(status_code=404) from exc
-    return await _list_response(request, session, event_id)
+    return await _list_response(request, session, event_id, csrf_protect)
 
 
 @router.get("/{outcome_id}/edit", response_class=HTMLResponse)
@@ -152,7 +157,7 @@ async def update(
         )
     except OutcomeNotForEventError:
         raise HTTPException(status_code=404) from None
-    return await _list_response(request, session, event_id)
+    return await _list_response(request, session, event_id, csrf_protect)
 
 
 @router.post("/{outcome_id}/delete", response_class=HTMLResponse)
@@ -176,7 +181,8 @@ async def delete(
             request,
             session,
             event_id,
+            csrf_protect,
             error=f"Нельзя удалить исход #{outcome_id}: на него есть прогнозы.",
             status_code=status.HTTP_409_CONFLICT,
         )
-    return await _list_response(request, session, event_id)
+    return await _list_response(request, session, event_id, csrf_protect)

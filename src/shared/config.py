@@ -61,6 +61,8 @@ class AdminSettings(BaseSettings):
     session_hours: PositiveInt = 8
     # Отдельный секрет для CSRF — best practice (не переиспользуем session secret).
     csrf_secret: SecretStr
+    # SameSite для session + CSRF cookies. Strict для admin-only UI (без внешних ссылок).
+    session_samesite: Literal["lax", "strict"] = "strict"
 
 
 class ExternalRegistrySettings(BaseSettings):
