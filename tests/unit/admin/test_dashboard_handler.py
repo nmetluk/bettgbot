@@ -68,7 +68,9 @@ def _clear_overrides() -> Generator[None, None, None]:
 def test_dashboard_renders_counters(fake_admin_middleware_session: None) -> None:
     """Dashboard handler вызывает сервис и передаёт счётчики в шаблон."""
     service = MagicMock()
-    service.get_counters = AsyncMock(return_value={"users": 10, "events": 5, "categories": 3, "predictions": 25})
+    service.get_counters = AsyncMock(
+        return_value={"users": 10, "events": 5, "categories": 3, "predictions": 25}
+    )
 
     client = _client(service)
     response = client.get("/")
@@ -87,7 +89,9 @@ def test_dashboard_renders_counters(fake_admin_middleware_session: None) -> None
 def test_dashboard_with_zero_counters(fake_admin_middleware_session: None) -> None:
     """Dashboard корректно отображает нулевые значения."""
     service = MagicMock()
-    service.get_counters = AsyncMock(return_value={"users": 0, "events": 0, "categories": 0, "predictions": 0})
+    service.get_counters = AsyncMock(
+        return_value={"users": 0, "events": 0, "categories": 0, "predictions": 0}
+    )
 
     client = _client(service)
     response = client.get("/")
