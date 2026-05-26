@@ -242,7 +242,9 @@ def test_delete_outcome_in_use_returns_409_with_alert(fake_admin_middleware_sess
 
 def test_delete_unknown_outcome_404(fake_admin_middleware_session) -> None:
     ev_service = MagicMock()
-    ev_service.delete_outcome = AsyncMock(side_effect=OutcomeNotForEventError(event_id=10, outcome_id=999))
+    ev_service.delete_outcome = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=10, outcome_id=999)
+    )
     ev_service.get_event = AsyncMock(return_value=_make_event_with_outcomes(id=10, outcomes=[]))
 
     client = _client(event_service=ev_service)
@@ -258,7 +260,9 @@ def test_delete_unknown_outcome_404(fake_admin_middleware_session) -> None:
 def test_update_outcome_from_wrong_event_returns_404(fake_admin_middleware_session) -> None:
     """POST /events/1/outcomes/999 где 999 принадлежит event 2 → 404."""
     ev_service = MagicMock()
-    ev_service.update_outcome = AsyncMock(side_effect=OutcomeNotForEventError(event_id=1, outcome_id=999))
+    ev_service.update_outcome = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=1, outcome_id=999)
+    )
     ev_service.get_event = AsyncMock(return_value=_make_event_with_outcomes(id=1, outcomes=[]))
 
     client = _client(event_service=ev_service)
@@ -274,7 +278,9 @@ def test_update_outcome_from_wrong_event_returns_404(fake_admin_middleware_sessi
 def test_delete_outcome_from_wrong_event_returns_404(fake_admin_middleware_session) -> None:
     """POST /events/1/outcomes/999/delete где 999 принадлежит event 2 → 404."""
     ev_service = MagicMock()
-    ev_service.delete_outcome = AsyncMock(side_effect=OutcomeNotForEventError(event_id=1, outcome_id=999))
+    ev_service.delete_outcome = AsyncMock(
+        side_effect=OutcomeNotForEventError(event_id=1, outcome_id=999)
+    )
     ev_service.get_event = AsyncMock(return_value=_make_event_with_outcomes(id=1, outcomes=[]))
 
     client = _client(event_service=ev_service)

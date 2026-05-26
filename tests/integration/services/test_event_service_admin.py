@@ -255,7 +255,9 @@ async def test_delete_outcome_with_wrong_event_id_raises(
 
     service = EventService(nested_session)
     with pytest.raises(OutcomeNotForEventError) as exc_info:
-        await service.delete_outcome(outcome_id=outcome.id, event_id=event2.id, by_admin_id=admin.id)
+        await service.delete_outcome(
+            outcome_id=outcome.id, event_id=event2.id, by_admin_id=admin.id
+        )
 
     assert exc_info.value.event_id == event2.id
     assert exc_info.value.outcome_id == outcome.id

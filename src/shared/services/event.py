@@ -124,9 +124,7 @@ class EventService:
             )
 
         if outcome_id not in {o.id for o in event.outcomes}:
-            raise OutcomeNotForEventError(
-                f"outcome {outcome_id} does not belong to event {event_id}"
-            )
+            raise OutcomeNotForEventError(event_id, outcome_id)
 
         archived_at = datetime.now(tz=UTC)
         await self._events.set_result(event_id, outcome_id, archived_at)
@@ -179,7 +177,9 @@ class EventService:
         await self._session.commit()
         return outcome
 
-    async def update_outcome(self, outcome_id: int, event_id: int, by_admin_id: int, **fields: Any) -> None:
+    async def update_outcome(
+        self, outcome_id: int, event_id: int, by_admin_id: int, **fields: Any
+    ) -> None:
         affected = await self._outcomes.update(outcome_id, event_id, **fields)
         if affected == 0:
             raise OutcomeNotForEventError(event_id, outcome_id)
