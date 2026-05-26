@@ -2,6 +2,8 @@
 
 Папка `handoff/` — канал передачи задач между **cowork-агентом** (проектировщиком) и **локальным Claude Code** (исполнителем). Также — журнал того, что было сделано.
 
+**Перед работой** — обязательно `git pull origin main`. Handoff живёт только в репо, никаких зеркал.
+
 ## Назначение подпапок
 
 | Папка | Кто пишет | Кто читает | Содержимое |
@@ -44,7 +46,7 @@ stateDiagram-v2
 2. **In-progress rename** `inbox/TASK-NNN.in-progress.md` — должен быть **удалён** (`git rm`).
 3. **Только один файл остаётся** — `archive/TASK-NNN-<slug>/task.md` (плюс `report.md` если файлами; в текущей практике report живёт в `outbox/`).
 
-Типичная ошибка (зафиксирована в TASK-028 и TASK-029): CC оставляет оригинал И in-progress в inbox после move в archive. Это создаёт три копии одной задачи и шумит в `git status`/`make backup`. Cowork-агент потом руками их вычищает hotfix-коммитом.
+Типичная ошибка (зафиксирована в TASK-028 и TASK-029): CC оставляет оригинал И in-progress в inbox после move в archive. Это создаёт три копии одной задачи и шумит в `git status`. Cowork-агент потом руками их вычищает hotfix-коммитом.
 
 **Правило для CC:** до коммита `chore(handoff): archive TASK-NNN and add report` — проверь `ls handoff/inbox/ | grep TASK-NNN`. Если что-то нашлось — `git rm` это.
 
@@ -84,7 +86,7 @@ stateDiagram-v2
 
 Перед `Write` нового файла `handoff/inbox/TASK-NNN-<slug>.md` cowork-агент обязан проверить:
 
-1. **`handoff/archive/`** — нет ли там уже папки `TASK-NNN-*`. Если есть — задача уже выполнена (вероятно, параллельным CC-инстансом через Drive backup), не публиковать. Прецедент: TASK-014 был выполнен на удалённой машине раньше, чем cowork положил его в локальный inbox; локальному CC пришлось `git rm` дубликат в Step 0 следующей задачи.
+1. **`handoff/archive/`** — нет ли там уже папки `TASK-NNN-*`. Если есть — задача уже выполнена, не публиковать. Прецедент: TASK-014 был выполнен на удалённой машине раньше, чем cowork положил его в локальный inbox; локальному CC пришлось `git rm` дубликат в Step 0 следующей задачи.
 2. **`handoff/outbox/`** — нет ли там уже `TASK-NNN-report.md`. Аналогично.
 3. **`git log --oneline | grep TASK-NNN`** — нет ли упоминаний в коммитах. Защита от случая, когда `archive/` синхронизирован, а `outbox/` нет.
 4. **Номер монотонно растёт** — никогда не переиспользовать номера закрытых задач, даже если задача отменена.
@@ -119,37 +121,3 @@ handoff/archive/
 Это позволяет в любой момент восстановить контекст: «что просили, что сделали, какие были вопросы».
 
 **Важно.** Файлы в `archive/` — это **снимки на момент закрытия задачи**. Относительные ссылки внутри них (вроде `../../docs/08-conventions.md`) могут сломаться, потому что сам файл переехал в более глубокий каталог. Это нормально и менять архивные файлы не нужно. Если хочется перейти по ссылке из архивного `task.md` — открой текущий аналог в `docs/` напрямую.
-
-## Локальный backup handoff в Google Drive
-
-Чтобы cowork-агент (в десктоп-приложении) и параллельный второй экземпляр локального CC видели актуальный handoff без задержек, после каждого merge задачи (т.е. сразу после `git checkout main && git pull origin main`) **обязательно** запустить:
-
-```bash
-make backup
-```
-
-Это вызовет `scripts/backup-to-drive.sh`, который зеркалирует:
-
-- `handoff/{inbox,outbox,archive,templates,README.md}` — полностью (кроме `.draft/`)
-- `state/*.md`
-- `sessions/*/` — полностью
-- корневой `memory-export.md` — если есть
-
-в локально-синкнутую Drive-папку. **Дефолтный путь зависит от ОС:**
-
-| ОС | Дефолтный путь | Утилита зеркала |
-|---|---|---|
-| macOS | `/Users/nmetluk/Library/CloudStorage/GoogleDrive-nm@pinspb.ru/Мой диск/Claude_projects/Betting Bot backup` | `rsync -a --delete` |
-| Windows (Git Bash/MSYS) | `G:/Мой диск/Claude_projects/Betting Bot backup` | `robocopy /MIR` |
-| Linux | (нет дефолта — задавай вручную) | `rsync -a --delete` |
-
-Drive File Stream сам синхронизирует это в облако (1–60 сек). И `rsync --delete`, и `robocopy /MIR` удаляют в destination то, чего нет в source — это нужно, чтобы старые задачи из inbox после move в archive не оставались висеть в Drive.
-
-Если путь Drive-папки на твоей машине отличается — экспортируй `BB_DRIVE_BACKUP` env:
-
-```bash
-export BB_DRIVE_BACKUP="/path/to/your/drive/Betting Bot backup"
-make backup
-```
-
-**Чего больше нет.** Раньше cowork-агент копировал то же самое через MCP Google Drive коннектор из десктоп-приложения. Этот путь упразднён — он создавал лаг между merge и видимостью + плодил Drive duplicates. Cowork теперь читает свежий handoff либо через `git fetch` (PAT настроен), либо через ту же Drive-папку.
