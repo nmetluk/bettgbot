@@ -85,6 +85,11 @@ class EventNotPredictableError(DomainError):
 class OutcomeNotForEventError(DomainError):
     """`outcome_id` не принадлежит указанному `event_id`."""
 
+    def __init__(self, event_id: int, outcome_id: int) -> None:
+        super().__init__(f"outcome {outcome_id} does not belong to event {event_id}")
+        self.event_id = event_id
+        self.outcome_id = outcome_id
+
 
 # --- События (админ) ---
 

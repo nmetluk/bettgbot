@@ -179,8 +179,10 @@ class EventService:
         await self._session.commit()
         return outcome
 
-    async def update_outcome(self, outcome_id: int, by_admin_id: int, **fields: Any) -> None:
-        await self._outcomes.update(outcome_id, **fields)
+    async def update_outcome(self, outcome_id: int, event_id: int, by_admin_id: int, **fields: Any) -> None:
+        affected = await self._outcomes.update(outcome_id, event_id, **fields)
+        if affected == 0:
+            raise OutcomeNotForEventError(event_id, outcome_id)
         await self._audit.add(
             admin_id=by_admin_id,
             action="outcome.update",
@@ -188,9 +190,11 @@ class EventService:
         )
         await self._session.commit()
 
-    async def delete_outcome(self, outcome_id: int, by_admin_id: int) -> None:
+    async def delete_outcome(self, outcome_id: int, event_id: int, by_admin_id: int) -> None:
         try:
-            await self._outcomes.delete(outcome_id)
+            affected = await self._outcomes.delete(outcome_id, event_id)
+            if affected == 0:
+                raise OutcomeNotForEventError(event_id, outcome_id)
             await self._audit.add(
                 admin_id=by_admin_id,
                 action="outcome.delete",

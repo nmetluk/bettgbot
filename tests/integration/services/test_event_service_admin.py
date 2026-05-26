@@ -180,3 +180,82 @@ async def test_count_admin_matches_list_length(
     total = await service.count_admin(category_id=category.id)
 
     assert total == len(rows)
+
+
+async def test_update_outcome_with_correct_event_id_succeeds(
+    nested_session: AsyncSession,
+) -> None:
+    """update_outcom с правильным event_id успешно обновляет исход."""
+    admin = await make_admin(nested_session)
+    category = await make_category(nested_session)
+    event = await make_event(nested_session, category=category, admin=admin)
+    outcome = await make_outcome(nested_session, event_id=event.id, label="Old Label")
+
+    service = EventService(nested_session)
+    await service.update_outcome(
+        outcome_id=outcome.id, event_id=event.id, by_admin_id=admin.id, label="New Label"
+    )
+
+    await nested_session.flush()
+    updated = await service._outcomes.get_by_id(outcome.id)
+    assert updated is not None
+    assert updated.label == "New Label"
+
+
+async def test_update_outcome_with_wrong_event_id_raises(
+    nested_session: AsyncSession,
+) -> None:
+    """update_outcome с чужим event_id поднимает OutcomeNotForEventError."""
+    from src.shared.exceptions import OutcomeNotForEventError
+
+    admin = await make_admin(nested_session)
+    category = await make_category(nested_session)
+    event1 = await make_event(nested_session, category=category, admin=admin)
+    event2 = await make_event(nested_session, category=category, admin=admin)
+    outcome = await make_outcome(nested_session, event_id=event1.id, label="Outcome 1")
+
+    service = EventService(nested_session)
+    with pytest.raises(OutcomeNotForEventError) as exc_info:
+        await service.update_outcome(
+            outcome_id=outcome.id, event_id=event2.id, by_admin_id=admin.id, label="New Label"
+        )
+
+    assert exc_info.value.event_id == event2.id
+    assert exc_info.value.outcome_id == outcome.id
+
+
+async def test_delete_outcome_with_correct_event_id_succeeds(
+    nested_session: AsyncSession,
+) -> None:
+    """delete_outcome с правильным event_id успешно удаляет исход."""
+    admin = await make_admin(nested_session)
+    category = await make_category(nested_session)
+    event = await make_event(nested_session, category=category, admin=admin)
+    outcome = await make_outcome(nested_session, event_id=event.id, label="ToDelete")
+
+    service = EventService(nested_session)
+    await service.delete_outcome(outcome_id=outcome.id, event_id=event.id, by_admin_id=admin.id)
+
+    await nested_session.flush()
+    deleted = await service._outcomes.get_by_id(outcome.id)
+    assert deleted is None
+
+
+async def test_delete_outcome_with_wrong_event_id_raises(
+    nested_session: AsyncSession,
+) -> None:
+    """delete_outcome с чужим event_id поднимает OutcomeNotForEventError."""
+    from src.shared.exceptions import OutcomeNotForEventError
+
+    admin = await make_admin(nested_session)
+    category = await make_category(nested_session)
+    event1 = await make_event(nested_session, category=category, admin=admin)
+    event2 = await make_event(nested_session, category=category, admin=admin)
+    outcome = await make_outcome(nested_session, event_id=event1.id, label="Outcome 1")
+
+    service = EventService(nested_session)
+    with pytest.raises(OutcomeNotForEventError) as exc_info:
+        await service.delete_outcome(outcome_id=outcome.id, event_id=event2.id, by_admin_id=admin.id)
+
+    assert exc_info.value.event_id == event2.id
+    assert exc_info.value.outcome_id == outcome.id

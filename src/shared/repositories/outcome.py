@@ -41,12 +41,28 @@ class OutcomeRepository:
         await self._session.flush()
         return outcome
 
-    async def update(self, outcome_id: int, **fields: Any) -> None:
-        if not fields:
-            return
-        await self._session.execute(
-            update(Outcome).where(Outcome.id == outcome_id).values(**fields)
-        )
+    async def update(self, outcome_id: int, event_id: int, **fields: Any) -> int:
+        """Обновляет исход, если он принадлежит указанному событию.
 
-    async def delete(self, outcome_id: int) -> None:
-        await self._session.execute(delete(Outcome).where(Outcome.id == outcome_id))
+        Returns:
+            Количество затронутых строк (0 если outcome не найден или не принадлежит event).
+        """
+        if not fields:
+            return 0
+        result = await self._session.execute(
+            update(Outcome)
+            .where(Outcome.id == outcome_id, Outcome.event_id == event_id)
+            .values(**fields)
+        )
+        return result.rowcount
+
+    async def delete(self, outcome_id: int, event_id: int) -> int:
+        """Удаляет исход, если он принадлежит указанному событию.
+
+        Returns:
+            Количество затронутых строк (0 если outcome не найден или не принадлежит event).
+        """
+        result = await self._session.execute(
+            delete(Outcome).where(Outcome.id == outcome_id, Outcome.event_id == event_id)
+        )
+        return result.rowcount

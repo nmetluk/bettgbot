@@ -17,7 +17,7 @@ from src.shared.db import SessionLocal
 from src.shared.exceptions import (
     EventNotFoundError,
     OutcomeInUseError,
-    OutcomeNotFoundError,
+    OutcomeNotForEventError,
 )
 from src.shared.models import AdminUser
 from src.shared.services import EventService
@@ -145,12 +145,13 @@ async def update(
     try:
         await EventService(session).update_outcome(
             outcome_id=outcome_id,
+            event_id=event_id,
             by_admin_id=admin.id,
             label=label,
             sort_order=sort_order,
         )
-    except OutcomeNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
+    except OutcomeNotForEventError:
+        raise HTTPException(status_code=404) from None
     return await _list_response(request, session, event_id)
 
 
@@ -165,7 +166,11 @@ async def delete(
 ) -> HTMLResponse:
     await csrf_protect.validate_csrf(request)
     try:
-        await EventService(session).delete_outcome(outcome_id=outcome_id, by_admin_id=admin.id)
+        await EventService(session).delete_outcome(
+            outcome_id=outcome_id, event_id=event_id, by_admin_id=admin.id
+        )
+    except OutcomeNotForEventError:
+        raise HTTPException(status_code=404) from None
     except OutcomeInUseError:
         return await _list_response(
             request,
@@ -174,6 +179,4 @@ async def delete(
             error=f"Нельзя удалить исход #{outcome_id}: на него есть прогнозы.",
             status_code=status.HTTP_409_CONFLICT,
         )
-    except OutcomeNotFoundError as exc:
-        raise HTTPException(status_code=404) from exc
     return await _list_response(request, session, event_id)
