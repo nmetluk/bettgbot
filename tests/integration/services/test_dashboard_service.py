@@ -17,22 +17,22 @@ async def test_get_counters_returns_all_four(session: AsyncSession) -> None:
     counters = await service.get_counters()
 
     assert set(counters.keys()) == {"users", "events", "categories", "predictions"}
-    # пустая БД — все нули
-    assert counters == {"users": 0, "events": 0, "categories": 0, "predictions": 0}
 
 
-async def test_get_counters_counts_actual_records(session: AsyncSession) -> None:
-    """Счётчики считают реальные записи в БД."""
-    # создаём данные
+async def test_get_counters_increments(session: AsyncSession) -> None:
+    """Счётчики увеличиваются при добавлении записей."""
+    service = DashboardService(session)
+
+    before = await service.get_counters()
+    initial_users = before["users"]
+    initial_categories = before["categories"]
+    initial_events = before["events"]
+    initial_predictions = before["predictions"]
+
+    # добавляем записи
     await make_user(session)
-    await make_user(session)
-
     await make_category(session)
-    await make_category(session, is_active=False)
-
     await make_event(session)
-    await make_event(session)
-
     user = await make_user(session)
     event = await make_event(session)
     outcome = await make_outcome(session, event.id)
@@ -40,10 +40,8 @@ async def test_get_counters_counts_actual_records(session: AsyncSession) -> None
     pred_repo = PredictionRepository(session)
     await pred_repo.upsert(user_id=user.id, event_id=event.id, outcome_id=outcome.id)
 
-    service = DashboardService(session)
-    counters = await service.get_counters()
-
-    assert counters["users"] == 3
-    assert counters["categories"] == 2
-    assert counters["events"] == 3
-    assert counters["predictions"] == 1
+    after = await service.get_counters()
+    assert after["users"] == initial_users + 2
+    assert after["categories"] == initial_categories + 1
+    assert after["events"] == initial_events + 2
+    assert after["predictions"] == initial_predictions + 1

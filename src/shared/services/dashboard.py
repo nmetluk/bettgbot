@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repositories import (
@@ -29,13 +27,15 @@ class DashboardService:
 
         Returns:
             Словарь с ключами: `users`, `events`, `categories`, `predictions`.
+
+        Note:
+            Запросы выполняются последовательно, а не через asyncio.gather,
+            т.к. SQLAlchemy не поддерживает конкурентные операции на одной сессии.
         """
-        users, events, categories, predictions = await asyncio.gather(
-            self._users.count_for_admin(),
-            self._events.count_for_admin(),
-            self._categories.count(),
-            self._predictions.count(),
-        )
+        users = await self._users.count_for_admin()
+        events = await self._events.count_for_admin()
+        categories = await self._categories.count()
+        predictions = await self._predictions.count()
         return {
             "users": users,
             "events": events,
