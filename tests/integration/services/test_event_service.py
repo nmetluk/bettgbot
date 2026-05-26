@@ -145,7 +145,7 @@ async def test_delete_outcome_in_use_raises(
     admin = await make_admin(nested_session)
     service = EventService(nested_session)
     with pytest.raises(OutcomeInUseError):
-        await service.delete_outcome(event.id, outcome.id, admin.id)
+        await service.delete_outcome(outcome.id, event.id, admin.id)
 
 
 async def test_list_categories_with_counts_zero_events_categories_included(
