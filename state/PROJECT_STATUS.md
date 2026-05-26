@@ -173,18 +173,19 @@ TASK-001 — TASK-018 закрыты. Бот функционально полн
 - Deploy README пошагово для Ubuntu 24.04 LTS
 
 **Workflow:**
-- Cowork-агент (проектировщик) + локальный CC (исполнитель) через `handoff/`
+- Cowork-агент (проектировщик) + локальный CC (исполнитель) через `handoff/` в репо
 - Cowork PAT для прямого `git fetch/push` (Contents+PR+Workflows: write)
-- Локально-синкнутая Drive-папка для зеркала handoff/state/sessions (через `make backup`)
+- **Единственный канал обмена — GitHub.** Локальный CC в начале сессии делает `git fetch origin && git pull origin main` — далее забирает задачу из `handoff/inbox/`. Никаких локальных Drive-зеркал и `make backup` (упразднено 2026-05-26, см. DECISIONS).
 - CI-check `handoff-consistency.yml` для server-side enforcement workflow-инвариантов
 
 **Следующий шаг — деплой:** см. `docs/07-deployment.md` пошагово.
 
-## Workflow notes (новое в сессиях 2026-05-25)
+## Workflow notes (актуально на 2026-05-26)
 
 - **Cowork-агент имеет fine-grained PAT (Contents+PR: write) к репо `nmetluk/bettgbot`.** Хранится в `.gh_pat` локально (в `.gitignore`). Через PAT cowork делает `git fetch/push`, видит реальное состояние веток.
 - **Локальный squash + `git push origin main` как фоллбэк** когда api.github.com заблокирован прокси sandbox'a (стандартный случай). Применяется только для изменений в `infra/`, `handoff/`, `state/`, `sessions/`, `Makefile`, `scripts/`, `.gitignore`. Прецедент — hotfix `19552fc` (TASK-027) и `d1c58b9` (TASK-028).
-- **Drive-папка `Betting Bot backup` подключена в cowork-sandbox через mount.** Bulk-rsync через FUSE-mount нестабилен (File Stream deadlock), но точечные одиночные cp работают. Bulk backup делает только CC через `make backup` (через хост-FS, без FUSE-прослойки). Cowork может класть в Drive 1-2 файла за раз для срочной видимости новой задачи второй машиной.
+- **Обмен задачами — GitHub-only (с 2026-05-26).** Локальные Drive-зеркала упразднены (см. DECISIONS 2026-05-26 «Drive-зеркало handoff/state/sessions упразднено»). Локальный CC в начале каждой сессии **обязан** сделать `git fetch origin && git pull origin main` перед заборкой задачи из `handoff/inbox/`. Реализация чистки артефактов Drive-workflow — TASK-046.
+- ~~Drive-папка `Betting Bot backup` подключена в cowork-sandbox через mount...~~ — устарело, см. выше.
 
 ## Блокеры / открытые вопросы
 
