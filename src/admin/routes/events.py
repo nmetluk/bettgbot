@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.db import SessionLocal
 from src.shared.exceptions import (
     EventAlreadyHasResultError,
+    EventInvalidContentError,
     EventNotEnoughOutcomesError,
     EventNotFoundError,
     OutcomeNotForEventError,
@@ -191,16 +192,34 @@ async def create_event(
             error="Неверный формат даты или metadata-JSON.",
         )
 
-    event = await EventService(session).create_event(
-        category_id=category_id,
-        title=title,
-        description=description or None,
-        metadata=metadata_dict,
-        starts_at=starts_at_dt,
-        predictions_close_at=close_at_dt,
-        by_admin_id=admin.id,
-    )
-    return RedirectResponse(url=f"/events/{event.id}", status_code=status.HTTP_302_FOUND)
+    try:
+        event = await EventService(session).create_event(
+            category_id=category_id,
+            title=title,
+            description=description or None,
+            metadata=metadata_dict,
+            starts_at=starts_at_dt,
+            predictions_close_at=close_at_dt,
+            by_admin_id=admin.id,
+        )
+        return RedirectResponse(url=f"/events/{event.id}", status_code=status.HTTP_302_FOUND)
+    except EventInvalidContentError:
+        return _render_form_with_error(
+            request,
+            admin=admin,
+            csrf_protect=csrf_protect,
+            event={
+                "title": title,
+                "description": description,
+                "category_id": category_id,
+                "starts_at": None,
+                "predictions_close_at": None,
+                "metadata_": metadata,
+            },
+            categories=categories,
+            form_action="/events",
+            error="Символы `<` и `>` не допускаются.",
+        )
 
 
 @router.get("/{event_id}", response_class=HTMLResponse)
@@ -268,6 +287,11 @@ async def update_event(
         )
     except EventNotFoundError as exc:
         raise HTTPException(status_code=404) from exc
+    except EventInvalidContentError:
+        return RedirectResponse(
+            url=f"/events/{event_id}?error=html_chars",
+            status_code=status.HTTP_302_FOUND,
+        )
     return RedirectResponse(url=f"/events/{event_id}", status_code=status.HTTP_302_FOUND)
 
 

@@ -24,6 +24,7 @@ from src.shared.models import User
 from src.shared.services import UserService
 
 from .. import keyboards, texts
+from .._text_safety import safe_format
 
 __all__ = ["router"]
 
@@ -145,6 +146,6 @@ async def on_contact(
         user_id=created.id,
     )
     await message.answer(
-        texts.WELCOME_NEW_REGISTERED.format(first_name=created.first_name),
+        safe_format(texts.WELCOME_NEW_REGISTERED, first_name=created.first_name),
         reply_markup=keyboards.main_menu(),
     )

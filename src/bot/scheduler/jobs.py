@@ -13,6 +13,7 @@ from src.shared.repositories import ReminderDispatchLogRepository
 from src.shared.services import EventService, ReminderService
 
 from .. import keyboards, texts
+from .._text_safety import safe_format
 
 __all__ = ["archive_stale_events", "dispatch_reminders"]
 
@@ -46,7 +47,8 @@ async def dispatch_reminders(*, bot: Bot, session_maker: async_sessionmaker[Asyn
             try:
                 await bot.send_message(
                     cand.tg_user_id,
-                    texts.REMINDER_NOTIFICATION.format(
+                    safe_format(
+                        texts.REMINDER_NOTIFICATION,
                         title=cand.event_title,
                         humanized=keyboards.humanize_minutes(cand.offset_minutes),
                         close_at_fmt=cand.predictions_close_at.strftime("%d.%m %H:%M"),
