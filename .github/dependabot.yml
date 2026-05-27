@@ -1,0 +1,54 @@
+version: 2
+updates:
+  # Python dependencies (pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    groups:
+      security:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+        exclude-patterns:
+          - "changelogs/*"  # метапакеты для чейнджelogов
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    reviewers:
+      - nmetluk
+    labels:
+      - dependencies
+
+  # Docker dependencies (base images)
+  - package-ecosystem: "docker"
+    directory: "/infra"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    reviewers:
+      - nmetluk
+    labels:
+      - docker
+      - dependencies
+
+  # GitHub Actions (workflow versions)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    reviewers:
+      - nmetluk
+    labels:
+      - ci
+      - dependencies

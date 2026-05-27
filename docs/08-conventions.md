@@ -175,6 +175,46 @@ def build_dispatcher():
 - `mypy src/shared/`
 - (опционально) `pytest tests/unit -q` — если не сильно тормозит
 
+## Security scanning в CI (TASK-040)
+
+CI запускает 4 parallel security-job'а на каждый push/PR в `main`:
+
+| Job | Инструмент | Что проверяет | Fail при |
+|-----|-----------|---------------|----------|
+| `security-sast` | [bandit](https://bandit.readthedocs.io/) | Python code на инъекции, weak crypto, leaks | HIGH/CRITICAL |
+| `security-deps` | [pip-audit](https://pypi.org/project/pip-audit/) | Зависимости на известные CVE | Любой уязвимости |
+| `security-secrets` | [gitleaks](https://github.com/gitleaks/gitleaks) | Секреты в коде (токены, пароли) | Любой совпадении |
+| `scan-web/bot` | [trivy](https://trivy.dev/) | Docker images на CVE | HIGH/CRITICAL |
+
+Дополнительно раз в неделю (каждое воскресенье 04:00 UTC) запускается `security-image-scan.yml` — глубокий scan Docker-образов.
+
+### Reaction на findings
+
+**SAST (bandit):**
+- Если это **реальная проблема** → фиксим в отдельном PR.
+- Если **false-positive** → добавляем в `pyproject.toml [tool.bandit]` `skips`/`assert_used`.
+
+**Dependencies (pip-audit):**
+- CVE в transitive-зависимости → обновляем пакет (`uv pip add <package>@latest`).
+- Если upstream не пофиксил → открываем TASK с описанием, временно игнорируем через comment.
+
+**Secrets (gitleaks):**
+- **НИКОГДА не игнорировать** реальные секреты. Rotate немедленно.
+- False-positive (тестовые токены) → `.gitleaks.toml` `allowlist`.
+
+**Images (trivy):**
+- HIGH/CRITICAL в base image (`python:3.12-slim`) → ожидаемо, но документируем.
+- HIGH/CRITICAL в runtime deps (`aiogram`, `httpx`, etc.) → обновляем.
+
+### Dependabot
+
+`.github/dependabot.yml` настроен:
+- **pip**: еженедельно (воскресенье), группирует patch/minor обновления в один PR.
+- **docker**: еженедельно, обновляет base images.
+- **github-actions**: еженедельно, обновляет workflow actions.
+
+Обновления зависимостей **блокируют merge** только если они связаны с security (через grouping).
+
 ## Документация в коде
 
 - Каждый модуль начинается с короткого `"""..."""` — назначение в 1–3 строки.

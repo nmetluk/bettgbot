@@ -1,0 +1,19 @@
+# Gitleaks configuration (https://github.com/gitleaks/gitleaks)
+# Allowlist для известных false-positives (тестовые токены, fixture data)
+
+[allowlist]
+description = "Global allowlist for non-secrets"
+paths = [
+  '''tests/''',
+  '''\.git/''',
+  '''\.venv/''',
+  '''node_modules/''',
+  '''build/''',
+  '''dist/''',
+]
+
+# Specific false-positive patterns
+# Add regex patterns below if gitleaks complains about test data
+# [[allowlist.regexes]]
+# regex = '''dummy[_-]?token|test[_-]?secret|fixture[_-]?key'''
+# description = "Test fixture tokens"

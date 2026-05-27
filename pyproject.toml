@@ -37,6 +37,8 @@ dev = [
   "mypy>=1.10,<2",
   "pre-commit>=3.7,<5",
   "types-pyyaml",
+  "bandit>=1.7,<2",
+  "pip-audit>=2.0,<3",
 ]
 
 [tool.uv]
@@ -100,3 +102,10 @@ addopts = "-ra -q"
 markers = [
   "integration: tests requiring a real database (run in separate CI job)",
 ]
+
+[tool.bandit]
+# Базовые проверки для SAST
+skips = ["B101", "B601"]  # B101: assert_used (pytest), B601: paramiko_calls (не используем)
+exclude_dirs = ["tests/", ".venv/", "build/"]
+# Полезно для позже, когда будут найдены конкретные false-positives
+# assert_used в тестах — нормально, B101 пропускаем через skips
