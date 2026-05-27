@@ -56,11 +56,13 @@ class OutcomeRepository:
         )
         return result.rowcount  # type: ignore[attr-defined,no-any-return]
 
-    async def delete(self, outcome_id: int) -> int:
-        """Удаляет исход.
+    async def delete(self, outcome_id: int, event_id: int) -> int:
+        """Удаляет исход, если он принадлежит указанному событию.
 
         Returns:
-            Количество затронутых строк (0 если outcome не найден).
+            Количество затронутых строк (0 если outcome не найден или не принадлежит event).
         """
-        result = await self._session.execute(delete(Outcome).where(Outcome.id == outcome_id))
+        result = await self._session.execute(
+            delete(Outcome).where(Outcome.id == outcome_id, Outcome.event_id == event_id)
+        )
         return result.rowcount  # type: ignore[attr-defined,no-any-return]

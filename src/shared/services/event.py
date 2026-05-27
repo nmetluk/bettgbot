@@ -187,7 +187,7 @@ class EventService:
         if outcome is None or outcome.event_id != event_id:
             raise OutcomeNotForEventError(event_id, outcome_id)
         try:
-            await self._outcomes.delete(outcome_id)
+            await self._outcomes.delete(outcome_id, event_id)
             await self._audit.add(
                 admin_id=by_admin_id,
                 action="outcome.delete",
