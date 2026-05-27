@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.admin.app import app
 
 
@@ -103,10 +102,14 @@ class TestLoginRateLimitIdentifier:
         """The /login route exists (rate limit configured via dependency)."""
         # Find the login_submit route
         for route in app.routes:
-            if hasattr(route, "path") and route.path == "/login" and hasattr(route, "methods"):
-                if "POST" in route.methods:
-                    # Route exists - rate limit is configured via dependency in login.py
-                    return
+            if (
+                hasattr(route, "path")
+                and route.path == "/login"
+                and hasattr(route, "methods")
+                and "POST" in route.methods
+            ):
+                # Route exists - rate limit is configured via dependency in login.py
+                return
 
         pytest.fail("POST /login route not found")
 
