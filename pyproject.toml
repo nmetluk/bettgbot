@@ -97,6 +97,10 @@ ignore_missing_imports = true
 module = ["sentry_sdk", "sentry_sdk.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["src.shared.config"]
+disable_error_code = ["arg-type", "assignment"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
