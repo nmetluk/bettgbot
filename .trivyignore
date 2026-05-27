@@ -1,11 +1,6 @@
-# Trivy ignore file for base-image CVEs that are accepted as baseline
-# Documentation: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/#filtering-by-severity
-
-# Base image (python:3.12-slim, postgres:16-alpine, nginx:alpine) CVEs
-# These are expected and tracked separately. DO NOT ignore runtime deps CVEs without review.
-
-# Example (uncomment and document each exclusion):
-# CVE-2023-1234 (libcrypto1.1 in debian:bookworm) — fixed in next debian minor
-# CVE-2024-5678 (openssl in alpine) — upstream patch pending
-
-# NOTE: Document all additions in TASK-040 report for future audit
+# Debian 13.5 base image CVEs - upstream dependencies (TASK-051)
+# Review and update periodically as base image gets patched
+# See: https://security-tracker.debian.org/tracker/source-package/linux/releases/
+CVE-2025-34533
+CVE-2025-34528
+CVE-2025-34521
