@@ -31,6 +31,22 @@ logger = get_logger(__name__)
 router = APIRouter(tags=["auth"])
 
 
+async def _login_rate_limit_identifier(request: Request) -> str:
+    """Extract login from form for rate limiting.
+
+    Rate limit is per-IP + per-login to prevent credential stuffing
+    while allowing legitimate users to try different accounts.
+    """
+    client_host = request.client.host if request.client else ""
+    # Parse form data to get login field
+    try:
+        form = await request.form()
+        login = form.get("login", "")
+    except Exception:
+        login = ""
+    return f"{client_host}:{login}"
+
+
 async def _session_dep() -> AsyncIterator[AsyncSession]:
     async with SessionLocal() as session:
         yield session
@@ -66,16 +82,20 @@ async def login_form(request: Request) -> HTMLResponse:
     )
 
 
-@router.post(
-    "/login",
-    dependencies=[Depends(RateLimiter(times=5, seconds=60))],
-)
+@router.post("/login")
 async def login_submit(
     request: Request,
     login: str = Form(...),
     password: str = Form(...),
     session: AsyncSession = Depends(_session_dep),
     csrf_protect: CsrfProtect = Depends(),
+    _rate_limit: None = Depends(
+        RateLimiter(
+            times=5,
+            seconds=60,
+            identifier=_login_rate_limit_identifier,
+        )
+    ),
 ) -> Response:
     # CsrfProtectError ловится global exception handler в app.py.
     await csrf_protect.validate_csrf(request)
