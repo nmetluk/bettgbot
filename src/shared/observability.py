@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import SecretStr
 
@@ -37,7 +37,7 @@ def init_sentry(
     import sentry_sdk
 
     # PII-filtering: удаляем phone, first_name из событий
-    def _strip_pii(event: dict, hint: dict | None) -> dict | None:
+    def _strip_pii(event: dict[str, Any], hint: dict[str, Any] | None) -> dict[str, Any] | None:
         """Sentry before_send hook: вырезаем PII."""
         if "user" in event and isinstance(event["user"], dict):
             # Удаляем PII поля, но оставляем id для группировки
