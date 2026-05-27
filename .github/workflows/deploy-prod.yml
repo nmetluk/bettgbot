@@ -1,0 +1,88 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: latest commit SHA)'
+        required: false
+        type: string
+  release:
+    types: [published]  # Optional: auto-deploy on release
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://${{ vars.ADMIN_DOMAIN }}
+    # Required reviewers configured via GitHub UI:
+    # Settings → Environments → production → Required reviewers
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set IMAGE_TAG
+        id: tag
+        run: |
+          # Use provided tag or default to current SHA
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup SSH to VPS
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest code
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd ${{ secrets.REPO_PATH }} && git fetch && git checkout ${{ github.sha }} && git pull'
+
+      - name: Update IMAGE_TAG in .env
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd ${{ secrets.REPO_PATH }} && \
+             sed -i "/^IMAGE_TAG=/c\IMAGE_TAG=${{ steps.tag.outputs.tag }}" infra/.env || \
+             echo "IMAGE_TAG=${{ steps.tag.outputs.tag }}" >> infra/.env'
+
+      - name: Pull images and restart services
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd ${{ secrets.REPO_PATH }} && \
+             docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml pull && \
+             docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d'
+
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd ${{ secrets.REPO_PATH }} && make prod.smoke'
+
+      - name: Rollback on smoke failure
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          echo "Smoke tests failed, initiating rollback..."
+          # Get previous image tag (one before current SHA)
+          PREV_SHA=$(git rev-parse ${{ github.sha }}^)
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd ${{ secrets.REPO_PATH }} && \
+             sed -i "/^IMAGE_TAG=/c\IMAGE_TAG='"$PREV_SHA"'" infra/.env && \
+             docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml pull && \
+             docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d'
+          echo "Rollback to $PREV_SHA completed"
+          exit 1
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ Deploy successful! IMAGE_TAG=${{ steps.tag.outputs.tag }}"
+          echo "🌐 https://${{ vars.ADMIN_DOMAIN }}/admin"

@@ -75,5 +75,19 @@ else
     exit 1
 fi
 
+echo "→ Checking TLS certificate expiry..."
+# Check if cert expires within 7 days (604800 seconds)
+if openssl s_client -connect "${ADMIN_DOMAIN:-127.0.0.1}:443" -checkend 604800 </dev/null 2>/dev/null; then
+    echo "  ✓ TLS certificate OK (valid for >7 days)"
+else
+    # Non-fatal warning for staging/dev
+    if [ "${ENVIRONMENT:-dev}" = "prod" ]; then
+        echo "  ✗ TLS certificate expires within 7 days!"
+        exit 1
+    else
+        echo "  ⚠ TLS certificate warning (non-prod)"
+    fi
+fi
+
 echo ""
 echo "✓ Smoke tests passed"

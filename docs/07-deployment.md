@@ -274,7 +274,7 @@ Workflow `.github/workflows/backup-verify.yml` будет еженедельно
 make prod.backup.restore.offsite FILE=2026-05-27T02-30-00Z/bettgbot-2026-05-27T02-30-00Z.sql.gz.age AGE_KEY_FILE=~/.config/age-backup-key.txt
 ```
 
-**ВНИМАНИЕ:** DR-runbook (детальная инструкция по восстановлению после полного отказа VPS) будет оформлена в TASK-042.
+**ВНИМАНИЕ:** Полный DR-runbook (детальная инструкция по восстановлению после полного отказа VPS) см. в [runbook-dr.md](runbook-dr.md).
 
 ## Шаг 7. Первый локальный бэкап
 
@@ -305,6 +305,28 @@ make prod.logs
 ```
 
 Откройте в браузере `https://your-domain.com/admin` — должен быть логин.
+
+## Шаг 8. Деплой через GitHub Actions (TASK-042)
+
+### Ручной деплой с approval
+
+1. Откройте repo Actions → "Deploy to Production"
+2. Нажмите "Run workflow"
+3. (Опционально) Укажите конкретный `image_tag` (по умолчанию берётся SHA из main)
+4. После прохождения build-images.yml → запрос approval у required reviewers
+5. После approval → deploy на VPS + smoke tests
+6. При ошибке smoke → автоматический rollback
+
+### Локальный деплой через Makefile
+
+```bash
+make prod.deploy IMAGE_TAG=abc1234
+```
+
+Для отката:
+```bash
+make prod.rollback IMAGE_TAG=previous_sha
+```
 
 ## Регулярные операции
 
@@ -360,8 +382,11 @@ make prod.backup.restore FILE=bettgbot-...
 | `make prod.backup.restore FILE=...` | Восстановить из локального дампа |
 | `make prod.backup.verify` | Smoke-restore последнего offsite дампа |
 | `make prod.backup.restore.offsite FILE=...` | Восстановить из offsite дампа |
+| `make prod.deploy IMAGE_TAG=...` | Деплой с указанным тегом образа |
+| `make prod.rollback IMAGE_TAG=...` | Откат к предыдущему тегу образа |
 
 ## Ссылки
 
 - [02-tech-stack.md](02-tech-stack.md) — стек технологий
 - [08-conventions.md](08-conventions.md) — кодовые конвенции
+- [runbook-dr.md](runbook-dr.md) — disaster recovery procedures

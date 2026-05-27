@@ -17,6 +17,7 @@ PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose
         admin admin.create admin.create.prod full.up \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
         prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.backup.verify prod.backup.restore.offsite prod.smoke \
+        prod.deploy prod.rollback \
         prod.nodomain.build prod.nodomain.up prod.nodomain.down prod.nodomain.logs prod.nodomain.ps
 
 help: ## Показать доступные команды
@@ -198,6 +199,34 @@ admin.create.prod: ## Создать админа в prod: make admin.create.pro
 
 prod.smoke: ## Smoke-тесты после деплоя: web healthz, services, alembic
 	@./scripts/smoke_test.sh
+
+prod.deploy: ## Деплой с указанием IMAGE_TAG: make prod.deploy IMAGE_TAG=abc1234
+	@if [ -z "$(IMAGE_TAG)" ]; then \
+		echo "Использование: make prod.deploy IMAGE_TAG=abc1234"; \
+		exit 1; \
+	fi
+	@echo "→ Updating IMAGE_TAG to $(IMAGE_TAG)..."; \
+	sed -i "/^IMAGE_TAG=/c\IMAGE_TAG=$(IMAGE_TAG)" infra/.env || \
+		echo "IMAGE_TAG=$(IMAGE_TAG)" >> infra/.env; \
+	echo "→ Pulling images..."; \
+	$(PROD_COMPOSE) pull; \
+	echo "→ Restarting services..."; \
+	$(PROD_COMPOSE) up -d; \
+	echo "→ Running smoke tests..."; \
+	$(MAKE) prod.smoke
+
+prod.rollback: ## Откат к предыдущему IMAGE_TAG: make prod.rollback IMAGE_TAG=prev_sha
+	@if [ -z "$(IMAGE_TAG)" ]; then \
+		echo "Использование: make prod.rollback IMAGE_TAG=previous_sha"; \
+		echo "Для отмены последнего деплоя используйте: git log -1 --format=%H^"; \
+		exit 1; \
+	fi
+	@echo "→ Rolling back to IMAGE_TAG=$(IMAGE_TAG)..."; \
+	sed -i "/^IMAGE_TAG=/c\IMAGE_TAG=$(IMAGE_TAG)" infra/.env; \
+	$(PROD_COMPOSE) pull; \
+	$(PROD_COMPOSE) up -d; \
+	echo "→ Running smoke tests..."; \
+	$(MAKE) prod.smoke
 
 # ==== Prod БЕЗ домена (порт 8888, без TLS) ====
 
