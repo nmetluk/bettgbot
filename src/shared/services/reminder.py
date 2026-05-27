@@ -55,7 +55,7 @@ class ReminderService:
         return await self._reminders.list_eligible_user_ids(offset_minutes=offset_minutes)
 
     async def find_candidates(
-        self, *, now: datetime, window_minutes: int = 5
+        self, *, now: datetime, window_minutes: int = 10
     ) -> list[ReminderCandidate]:
         """Кандидаты на отправку напоминания в текущем тике scheduler'а.
 

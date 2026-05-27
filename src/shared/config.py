@@ -127,20 +127,6 @@ class ObservabilitySettings(BaseSettings):
     def _empty_to_none(cls, value: Any) -> Any:
         return _empty_to_none(value)
 
-    @model_validator(mode="after")
-    def _check_prod_recommends_sentry(self) -> Self:
-        """В prod/staging рекомендуется включить Sentry (warning, не error)."""
-        if self.environment in ("prod", "staging") and self.sentry_dsn is None:
-            import warnings
-
-            warnings.warn(
-                "SENTRY_DSN не задан — рекомендации для prod/staging: "
-                "https://docs.sentry.io/platforms/python/",
-                UserWarning,
-                stacklevel=2,
-            )
-        return self
-
 
 class ExternalRegistrySettings(BaseSettings):
     """Параметры внешнего реестра пользователей (http-API либо mock).
@@ -217,6 +203,9 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "console"
     reminder_tick_seconds: PositiveInt = 300
+    # Окно в минутах для поиска кандидатов напоминаний (TASK-049).
+    # Должно быть >= tick_interval + safety_margin для catchup при misfire.
+    reminder_window_minutes: PositiveInt = 10
     # Сколько дней хранить записи в reminder_dispatch_log (TASK-048).
     reminder_log_retention_days: PositiveInt = 90
     # `dev` — локальная разработка через http (Secure-cookie отключается).
@@ -268,6 +257,20 @@ class Settings(BaseSettings):
                 "Сгенерируйте сильные секреты через python -c 'import secrets; print(secrets.token_urlsafe(64))'"
             )
 
+        return self
+
+    @model_validator(mode="after")
+    def _check_prod_recommends_sentry(self) -> Self:
+        """В prod/staging рекомендуется включить Sentry (warning, не error)."""
+        if self.environment in ("prod", "staging") and self.observability.sentry_dsn is None:
+            import warnings
+
+            warnings.warn(
+                "SENTRY_DSN не задан — рекомендации для prod/staging: "
+                "https://docs.sentry.io/platforms/python/",
+                UserWarning,
+                stacklevel=2,
+            )
         return self
 
 
