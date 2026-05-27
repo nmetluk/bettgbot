@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-import httpx
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.shared.config import get_settings
 from src.shared.logging import get_logger
 from src.shared.repositories import ReminderDispatchLogRepository
 from src.shared.services import EventService, ReminderService
@@ -17,7 +15,7 @@ from src.shared.services import EventService, ReminderService
 from .. import keyboards, texts
 from .._text_safety import safe_format
 
-__all__ = ["archive_stale_events", "dispatch_reminders"]
+__all__ = ["archive_stale_events", "cleanup_old_dispatch_logs", "dispatch_reminders"]
 
 
 logger = get_logger(__name__)
@@ -85,3 +83,23 @@ async def archive_stale_events(*, session_maker: async_sessionmaker[AsyncSession
         service = EventService(session)
         count = await service.archive_stale_events()
         logger.info("scheduler.archive_stale.done", archived_count=count)
+
+
+async def cleanup_old_dispatch_logs(
+    *, session_maker: async_sessionmaker[AsyncSession], retention_days: int
+) -> None:
+    """Ежедневный job: удаляет старые записи из reminder_dispatch_log (TASK-048).
+
+    Без TG-side-effects — только DELETE в БД. Логирует количество удалённых строк
+    даже при нуле (sysadmin'у нужен sanity check «job отработал»).
+    """
+    cutoff = datetime.now(tz=UTC) - timedelta(days=retention_days)
+    async with session_maker() as session:
+        dispatch_log = ReminderDispatchLogRepository(session)
+        count = await dispatch_log.delete_older_than(cutoff)
+        await session.commit()
+        logger.info(
+            "scheduler.cleanup_dispatch_logs.done",
+            deleted_count=count,
+            retention_days=retention_days,
+        )

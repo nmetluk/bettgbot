@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,3 +46,12 @@ class ReminderDispatchLogRepository:
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+    async def delete_older_than(self, cutoff: datetime) -> int:
+        """Удаляет записи старше cutoff для cleanup job'а (TASK-048).
+
+        Возвращает количество удалённых строк.
+        """
+        stmt = delete(ReminderDispatchLog).where(ReminderDispatchLog.dispatched_at < cutoff)
+        result = await self._session.execute(stmt)
+        return result.rowcount

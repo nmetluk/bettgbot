@@ -217,6 +217,8 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "console"
     reminder_tick_seconds: PositiveInt = 300
+    # Сколько дней хранить записи в reminder_dispatch_log (TASK-048).
+    reminder_log_retention_days: PositiveInt = 90
     # `dev` — локальная разработка через http (Secure-cookie отключается).
     # `staging`/`prod` — за https, Secure обязателен.
     environment: Environment = "dev"
