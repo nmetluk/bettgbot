@@ -209,10 +209,14 @@ class Settings(BaseSettings):
     # `staging`/`prod` — за https, Secure обязателен.
     environment: Environment = "dev"
 
-    admin: AdminSettings = Field(default_factory=AdminSettings)
-    backup: BackupSettings = Field(default_factory=BackupSettings)
-    external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)
-    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
+    admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
+    backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
+    external_registry: ExternalRegistrySettings = Field(  # type: ignore[arg-type]
+        default_factory=ExternalRegistrySettings
+    )
+    observability: ObservabilitySettings = Field(  # type: ignore[arg-type]
+        default_factory=ObservabilitySettings
+    )
 
     @model_validator(mode="after")
     def _validate_prod_secrets(self) -> Self:
