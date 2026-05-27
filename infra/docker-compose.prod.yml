@@ -61,33 +61,85 @@ services:
                          sleep 12h & wait $${!}; done"
 
   db-backup:
-    image: postgres:16-alpine
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.db-backup
     restart: always
     env_file: ../.env
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
+      # Backup-specific env (optional if BACKUP_ENABLED=false).
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-false}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      # Rclone config via env (RCLONE_CONFIG_* takes precedence over file).
+      # Owner: set RCLONE_CONFIG_B2_TYPE=b2, RCLONE_CONFIG_B2_ACCOUNT, RCLONE_CONFIG_B2_KEY.
     volumes:
       - bb-db-backups:/backups
+      # Optional: mount rclone config from secret (mode 0400) for prod.
+      # - ${RCLONE_CONFIG_PATH:-/dev/null}:/config/rclone.conf:ro
     depends_on:
       db: { condition: service_healthy }
     command: >
       sh -c '
-      while true; do
-        current_time=$$(date -u +%H%M);
-        target_time="0230";
-        if [ "$$current_time" -ge "$$target_time" ]; then
-          echo "→ Starting backup at $$(date -u +%FT%H-%M-%SZ)";
-          if pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists | gzip > /backups/bettgbot-$$(date -u +%FT%H-%M-%SZ).sql.gz; then
-            echo "✓ Backup successful";
-            find /backups -name "bettgbot-*.sql.gz" -mtime +14 -delete;
+      if [ "$$BACKUP_ENABLED" != "true" ]; then
+        echo "Offsite backup disabled (BACKUP_ENABLED=false). Running local-only backup loop.";
+        while true; do
+          current_time=$$(date -u +%H%M);
+          target_time="0230";
+          if [ "$$current_time" -ge "$$target_time" ]; then
+            echo "→ Starting local backup at $$(date -u +%FT%H-%M-%SZ)";
+            if pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists | gzip > /backups/bettgbot-$$(date -u +%FT%H-%M-%SZ).sql.gz; then
+              echo "✓ Local backup successful";
+              find /backups -name "bettgbot-*.sql.gz" -mtime +14 -delete;
+            else
+              echo "[backup-error] pg_dump failed, keeping old backups";
+            fi;
+            sleep 86400;
           else
-            echo "[backup-error] pg_dump failed, keeping old backups";
+            sleep 300;
           fi;
-          sleep 86400;
-        else
-          sleep 300;
+        done;
+      else
+        echo "Offsite backup enabled (BACKUP_ENABLED=true). Starting encrypted offsite backup loop.";
+        if [ -z "$$BACKUP_AGE_RECIPIENT" ] || [ -z "$$BACKUP_RCLONE_REMOTE" ]; then
+          echo "[backup-error] BACKUP_ENABLED=true but BACKUP_AGE_RECIPIENT or BACKUP_RCLONE_REMOTE not set";
+          exit 1;
         fi;
-      done
+        while true; do
+          current_time=$$(date -u +%H%M);
+          target_time="0230";
+          if [ "$$current_time" -ge "$$target_time" ]; then
+            timestamp=$$(date -u +%FT%H-%M-%SZ);
+            echo "→ Starting offsite backup at $$timestamp";
+            if pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB --no-owner --clean --if-exists \
+              | gzip \
+              | age -r "$$BACKUP_AGE_RECIPIENT" > /tmp/bettgbot-$$timestamp.sql.gz.age; then
+              echo "✓ Dump + encryption successful";
+              remote_path=$$BACKUP_RCLONE_REMOTE/$$timestamp/bettgbot-$$timestamp.sql.gz.age;
+              if rclone copy /tmp/bettgbot-$$timestamp.sql.gz.age "$$remote_path"; then
+                echo "✓ Offsite copy successful";
+                # Local copy (optional, keeps recent dump for quick restore).
+                cp /tmp/bettgbot-$$timestamp.sql.gz.age /backups/;
+                # Cleanup old offsite backups (rclone --min-age uses days, not dates).
+                rclone delete --min-age $$BACKUP_RETENTION_DAYSd "$$BACKUP_RCLONE_REMOTE/";
+                # Cleanup local volume.
+                find /backups -name "bettgbot-*.sql.gz.age" -mtime +$${BACKUP_RETENTION_DAYS:-30} -delete;
+                rm /tmp/bettgbot-$$timestamp.sql.gz.age;
+              else
+                echo "[backup-error] rclone copy failed, keeping encrypted dump locally";
+                cp /tmp/bettgbot-$$timestamp.sql.gz.age /backups/;
+              fi;
+            else
+              echo "[backup-error] pg_dump/gzip/age failed";
+            fi;
+            sleep 86400;
+          else
+            sleep 300;
+          fi;
+        done;
+      fi
       '
 
 volumes:

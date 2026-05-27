@@ -26,6 +26,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 __all__ = [
     "AdminSettings",
+    "BackupSettings",
     "Environment",
     "ExternalRegistrySettings",
     "Settings",
@@ -63,6 +64,44 @@ class AdminSettings(BaseSettings):
     csrf_secret: SecretStr
     # SameSite для session + CSRF cookies. Strict для admin-only UI (без внешних ссылок).
     session_samesite: Literal["lax", "strict"] = "strict"
+
+
+class BackupSettings(BaseSettings):
+    """Параметры offsite backup: age шифрование + rclone.
+
+    В dev по умолчанию выключено; в prod требует явного BACKUP_ENABLED=true
+    и настройки age_recipient + rclone_remote.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="BACKUP_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    enabled: bool = False
+    # Публичный ключ age для шифрования (private хранится у владельца вне VPS).
+    age_recipient: str | None = None
+    # rclone remote (например `b2:bettgbot-backups` или `s3:bucket/path`).
+    rclone_remote: str | None = None
+    # Сколько дней хранить бэкапы в offside (local volume через find -mtime).
+    retention_days: PositiveInt = 30
+
+    @field_validator("age_recipient", "rclone_remote", mode="before")
+    @classmethod
+    def _empty_to_none(cls, value: Any) -> Any:
+        return _empty_to_none(value)
+
+    @model_validator(mode="after")
+    def _check_enabled_has_required_fields(self) -> Self:
+        if self.enabled:
+            if not self.age_recipient:
+                raise ValueError("BACKUP_ENABLED=true требует BACKUP_AGE_RECIPIENT")
+            if not self.rclone_remote:
+                raise ValueError("BACKUP_ENABLED=true требует BACKUP_RCLONE_REMOTE")
+        return self
 
 
 class ExternalRegistrySettings(BaseSettings):
@@ -145,6 +184,7 @@ class Settings(BaseSettings):
     environment: Environment = "dev"
 
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
+    backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
     external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)
 
     @model_validator(mode="after")

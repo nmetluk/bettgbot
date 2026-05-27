@@ -16,7 +16,7 @@ PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose
         migrate rollback rollback.all migration.new migration.current migration.history \
         admin admin.create admin.create.prod full.up \
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
-        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.smoke \
+        prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.backup.verify prod.backup.restore.offsite prod.smoke \
         prod.nodomain.build prod.nodomain.up prod.nodomain.down prod.nodomain.logs prod.nodomain.ps
 
 help: ## Показать доступные команды
@@ -125,7 +125,7 @@ prod.backup.now: ## Однократный pg_dump прямо сейчас
 prod.backup.ls: ## Список бэкапов в volume
 	@$(PROD_COMPOSE) exec db-backup ls -lah /backups
 
-prod.backup.restore: ## Восстановить дамп: make prod.backup.restore FILE=bettgbot-2026-05-25T02-30-00Z.sql.gz
+prod.backup.restore: ## Восстановить локальный дамп: make prod.backup.restore FILE=bettgbot-2026-05-25T02-30-00Z.sql.gz
 	@if [ -z "$(FILE)" ]; then \
 		echo "Использование: make prod.backup.restore FILE=bettgbot-YYYY-MM-DDTHH-MM-SSZ.sql.gz"; \
 		exit 1; \
@@ -133,8 +133,47 @@ prod.backup.restore: ## Восстановить дамп: make prod.backup.rest
 	@printf "ВСЕ ТЕКУЩИЕ ДАННЫЕ В БД БУДУТ ЗАМЕНЕНЫ дампом '$(FILE)'. Введите 'RESTORE' для подтверждения: "; \
 	read ans; \
 	if [ "$$ans" = "RESTORE" ]; then \
-		$(PROD_COMPOSE) exec -T db-backup sh -c 'gunzip -c /backups/$(FILE)' | $(PROD_COMPOSE) exec -T db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'; \
+		$(PROD_COMPOSE) exec -T db-backup sh -c 'gunzip -c /backups/$(FILE)' | $(PROD_COMPOSE) exec -T db sh -c 'psql -U $$POSTGRES_USER $$POSTGRES_DB'; \
 		echo "✓ Restore завершён"; \
+	else \
+		echo "Отмена."; \
+		exit 1; \
+	fi
+
+prod.backup.verify: ## Smoke-restore последнего offsite дампа (требует BACKUP_RCLONE_REMOTE и age-ключ)
+	@echo "→ Fetching latest offsite backup timestamp..."
+	@latest=$$($(PROD_COMPOSE) exec -T db-backup sh -c "rclone lsd $$BACKUP_RCLONE_REMOTE 2>/dev/null | tail -1 | awk '{print \$$NF}'"); \
+	if [ -z "$$latest" ]; then \
+		echo "[backup-error] No offsite backups found (BACKUP_RCLONE_REMOTE=$$BACKUP_RCLONE_REMOTE)"; \
+		exit 1; \
+	fi; \
+	echo "→ Latest backup folder: $$latest"; \
+	$(PROD_COMPOSE) exec -T db-backup sh -c "rclone copy $$BACKUP_RCLONE_REMOTE/$$latest/ /tmp/verify/" || exit 1; \
+	age_file=$$(ls /tmp/verify/*.age 2>/dev/null | head -1); \
+	if [ -z "$$age_file" ]; then \
+		echo "[backup-error] No .age file in backup"; \
+		exit 1; \
+	fi; \
+	echo "→ Decrypting $$age_file..."; \
+	$(PROD_COMPOSE) exec -T db-backup sh -c "age -d $$age_file | gunzip | psql -h db -U $$POSTGRES_USER $$POSTGRES_DB" < ~/.config/age-backup-key.txt || exit 1; \
+	$(PROD_COMPOSE) exec -T db-backup sh -c "rm -rf /tmp/verify"; \
+	echo "✓ Offsite smoke-restore successful"
+
+prod.backup.restore.offsite: ## Восстановить offsite дамп: FILE=2026-05-25T02-30-00Z/bettgbot-timestamp.sql.gz.age AGE_KEY_FILE=path/to/key.txt
+	@if [ -z "$(FILE)" ]; then \
+		echo "Использование: make prod.backup.restore.offsite FILE=timestamp/bettgbot-timestamp.sql.gz.age AGE_KEY_FILE=path/to/key.txt"; \
+		exit 1; \
+	fi
+	@printf "ВСЕ ТЕКУЩИЕ ДАННЫЕ В БД БУДУТ ЗАМЕНЕНЫ offsite дампом '$(FILE)'. Введите 'RESTORE' для подтверждения: "; \
+	read ans; \
+	if [ "$$ans" = "RESTORE" ]; then \
+		echo "→ Pulling from offsite..."; \
+		$(PROD_COMPOSE) exec -T db-backup sh -c "rclone copy $$BACKUP_RCLONE_REMOTE/$(FILE) /tmp/offsite-restore/"; \
+		echo "→ Decrypting and restoring..."; \
+		age_file=$$(basename "$(FILE)" .age); \
+		$(PROD_COMPOSE) exec -T db-backup sh -c "age -d /tmp/offsite-restore/$$age_file | gunzip | psql -h db -U $$POSTGRES_USER $$POSTGRES_DB" < "$(AGE_KEY_FILE:-~/.config/age-backup-key.txt)" || exit 1; \
+		$(PROD_COMPOSE) exec -T db-backup sh -c "rm -rf /tmp/offsite-restore"; \
+		echo "✓ Offsite restore завершён"; \
 	else \
 		echo "Отмена."; \
 		exit 1; \

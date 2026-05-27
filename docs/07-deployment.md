@@ -162,21 +162,135 @@ make prod.up
 docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml ps
 ```
 
-## Шаг 6. Первый бэкап
+## Шаг 6. Настройка offsite backup (TASK-039)
 
-Важно: cron делает бэкап раз в сутки, первый — через 24 часа. Сделайте вручную сейчас:
+Offsite encrypted backup — критически важен для prod. Следуйте инструкциям:
+
+### 6.1. Генерация age ключевой пары
+
+**ЛОКАЛЬНО** (не на VPS!) сгенерируйте пару ключей:
+
+```bash
+age-keygen -o age-backup-key.txt
+```
+
+Файл содержит две секции:
+- `# public key:` → копируйте в `BACKUP_AGE_RECIPIENT` в `.env`
+- `# secret key:` → **НЕ КОММИТЬТЕ**, храните только у себя!
+
+```bash
+cat age-backup-key.txt
+# Вывод будет примерно таким:
+# created: 2026-05-27T12:34:56Z
+# public key: age1xyz...abc
+# secret key: AGE-SECRET-KEY-1XYZ...
+```
+
+**ВАЖНО:** Сохраните `age-backup-key.txt` в надёжном месте (парольный менеджер, encrypted USB). Без этого ключа восстановить бэкап будет **НЕВОЗМОЖНО**.
+
+### 6.2. Настройка rclone
+
+На VPS установите и настройте rclone:
+
+```bash
+# Установка (если не установлена)
+curl https://rclone.org/install.sh | sudo bash
+
+# Настройка выбранного провайдера (Backblaze B2 показан)
+rclone config
+# Follow prompts:
+# - name: b2 (или s3, gdrive, etc.)
+# - type: choose b2 / s3 / etc.
+# - account/key: из панели провайдера
+# - leave other options default
+```
+
+**Рекомендуемые провайдеры** (выбор за владельцем):
+- **Backblaze B2** — ~$6/TB/month, простой в настройке
+- **AWS S3** — если уже есть AWS аккаунт
+- **Google Drive** — rclone "gdrive" type
+- **S3-совместимые** — Wasabi, DigitalOcean Spaces, etc.
+
+### 6.3. Настройка `.env`
+
+Добавьте в `infra/.env`:
+
+```bash
+# Включить offsite backup
+BACKUP_ENABLED=true
+# Публичный ключ из age-backup-key.txt (начинается с "age1...")
+BACKUP_AGE_RECIPIENT=age1xyz...abc
+# rclone remote (соответствует имени из `rclone config`)
+BACKUP_RCLONE_REMOTE=b2:bettgbot-prod-backups
+# Или для S3: s3:my-bucket/backups
+# BACKUP_RCLONE_REMOTE=s3:my-bucket/backups
+BACKUP_RETENTION_DAYS=30
+```
+
+### 6.4. Первый offsite backup
+
+После настройки перезапустите db-backup сервис:
+
+```bash
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d db-backup
+```
+
+Запустите первый бэкап вручную:
 
 ```bash
 make prod.backup.now
 ```
 
-## Шаг 7. Создание первого админа
+Проверьте, что файл появился в offsite хранилище:
+
+```bash
+# На VPS:
+docker exec -it $(docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml ps -q db-backup) sh
+rclone lsd b2:bettgbot-prod-backups
+# Должна появиться папка с timestamp
+```
+
+### 6.5. Weekly verify (GitHub Actions)
+
+Откройте repo Settings → Secrets and variables → Actions, добавьте:
+
+| Secret | Значение |
+|--------|----------|
+| `VPS_HOST` | IP или hostname VPS |
+| `VPS_USER` | SSH user (обычно root или username) |
+| `VPS_SSH_KEY` | SSH private key (для подключения к VPS) |
+| `REPO_PATH` | Путь к репо на VPS (например `/opt/bettgbot`) |
+
+Workflow `.github/workflows/backup-verify.yml` будет еженедельно (каждое воскресенье в 03:00 UTC) запускать `make prod.backup.verify` через SSH.
+
+### 6.6. Восстановление в DR-сценарии
+
+Если VPS потерян, восстановление на новом сервере:
+
+```bash
+# 1. На новом VPS: клонируйте репо, настройте .env (кроме BACKUP_*)
+# 2. Скопируйте age-backup-key.txt на новый VPS в ~/.config/age-backup-key.txt
+# 3. Восстановите последний бэкап:
+make prod.backup.restore.offsite FILE=2026-05-27T02-30-00Z/bettgbot-2026-05-27T02-30-00Z.sql.gz.age AGE_KEY_FILE=~/.config/age-backup-key.txt
+```
+
+**ВНИМАНИЕ:** DR-runbook (детальная инструкция по восстановлению после полного отказа VPS) будет оформлена в TASK-042.
+
+## Шаг 7. Первый локальный бэкап
+
+Если offsite backup ещё не настроен, сделайте хотя бы локальный бэкап:
+
+```bash
+make prod.backup.now
+```
+
+## Шаг 8. Создание первого админа
 
 ```bash
 docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml exec web python scripts/create_admin.py --login admin --password "YourSecurePassword" --full-name "Admin"
 ```
 
-## Шаг 8. Проверка
+## Шаг 9. Проверка
 
 ```bash
 make prod.smoke
@@ -241,9 +355,11 @@ make prod.backup.restore FILE=bettgbot-...
 | `make prod.logs` | Логи всех сервисов |
 | `make prod.ps` | Статус сервисов |
 | `make prod.smoke` | Smoke-тесты: web healthz, сервисы, alembic |
-| `make prod.backup.now` | Однократный бэкап |
-| `make prod.backup.ls` | Список бэкапов |
-| `make prod.backup.restore FILE=...` | Восстановить из дампа |
+| `make prod.backup.now` | Однократный локальный бэкап |
+| `make prod.backup.ls` | Список локальных бэкапов |
+| `make prod.backup.restore FILE=...` | Восстановить из локального дампа |
+| `make prod.backup.verify` | Smoke-restore последнего offsite дампа |
+| `make prod.backup.restore.offsite FILE=...` | Восстановить из offsite дампа |
 
 ## Ссылки
 

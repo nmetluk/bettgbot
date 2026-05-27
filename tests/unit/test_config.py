@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
-from src.shared.config import ExternalRegistrySettings, Settings, get_settings
+from src.shared.config import BackupSettings, ExternalRegistrySettings, Settings, get_settings
 
 
 def _set_minimum_env(mp: pytest.MonkeyPatch) -> None:
@@ -182,3 +182,81 @@ def test_dev_env_with_weak_secrets_allowed(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setenv("EXTERNAL_REGISTRY_BACKEND", "mock")
     s = Settings()  # type: ignore[call-arg]
     assert s.environment == "dev"
+
+
+# ==== BackupSettings тесты (TASK-039) ====
+
+
+def test_backup_settings_disabled_is_valid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BACKUP_ENABLED=false (или не задан) — валиден."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_ENABLED", "false")
+    s = Settings()  # type: ignore[call-arg]
+    assert s.backup.enabled is False
+    assert s.backup.age_recipient is None
+    assert s.backup.rclone_remote is None
+    assert s.backup.retention_days == 30
+
+
+def test_backup_settings_enabled_without_age_recipient_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BACKUP_ENABLED=true без BACKUP_AGE_RECIPIENT → ValidationError."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_ENABLED", "true")
+    with pytest.raises(ValidationError, match="BACKUP_AGE_RECIPIENT"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_backup_settings_enabled_without_rclone_remote_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BACKUP_ENABLED=true без BACKUP_RCLONE_REMOTE → ValidationError."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_ENABLED", "true")
+    monkeypatch.setenv("BACKUP_AGE_RECIPIENT", "age1test123")
+    with pytest.raises(ValidationError, match="BACKUP_RCLONE_REMOTE"):
+        Settings()  # type: ignore[call-arg]
+
+
+def test_backup_settings_enabled_with_all_fields_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BACKUP_ENABLED=true + все обязательные поля → валиден."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_ENABLED", "true")
+    monkeypatch.setenv("BACKUP_AGE_RECIPIENT", "age1test123abc")
+    monkeypatch.setenv("BACKUP_RCLONE_REMOTE", "b2:bettgbot-backups")
+    s = Settings()  # type: ignore[call-arg]
+    assert s.backup.enabled is True
+    assert s.backup.age_recipient == "age1test123abc"
+    assert s.backup.rclone_remote == "b2:bettgbot-backups"
+
+
+def test_backup_settings_custom_retention_days(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BACKUP_RETENTION_DAYS применяется."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_RETENTION_DAYS", "90")
+    s = Settings()  # type: ignore[call-arg]
+    assert s.backup.retention_days == 90
+
+
+def test_backup_settings_empty_strings_to_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Пустые строки в age_recipient и rclone_remote → None."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_AGE_RECIPIENT", "")
+    monkeypatch.setenv("BACKUP_RCLONE_REMOTE", "")
+    s = Settings()  # type: ignore[call-arg]
+    assert s.backup.age_recipient is None
+    assert s.backup.rclone_remote is None
+
+
+def test_backup_settings_s3_remote(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S3-совместимый rclone remote работает."""
+    get_settings.cache_clear()
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("BACKUP_ENABLED", "true")
+    monkeypatch.setenv("BACKUP_AGE_RECIPIENT", "age1s3test")
+    monkeypatch.setenv("BACKUP_RCLONE_REMOTE", "s3:my-bucket/backups")
+    s = Settings()  # type: ignore[call-arg]
+    assert s.backup.rclone_remote == "s3:my-bucket/backups"

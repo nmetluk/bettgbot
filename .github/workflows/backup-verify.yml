@@ -1,0 +1,39 @@
+name: Backup Verify (Weekly)
+
+on:
+  schedule:
+    # Каждое воскресенье в 03:00 UTC (по расписанию 3-2-1 backup rule)
+    - cron: '0 3 * * 0'
+  workflow_dispatch:  # Ручной запуск через GitHub UI
+
+jobs:
+  backup-smoke-verify:
+    name: Offsite backup smoke-restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup SSH to VPS
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run backup verify via SSH
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            'cd ${{ secrets.REPO_PATH }} && make prod.backup.verify'
+
+      - name: Report success
+        if: success()
+        run: echo "✅ Backup verification passed!"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ Backup verification failed! Check VPS logs."
+          exit 1
