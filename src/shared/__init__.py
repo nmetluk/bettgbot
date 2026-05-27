@@ -8,6 +8,7 @@ from .config import (
     settings,
 )
 from .logging import configure_logging, get_logger
+from .observability import init_sentry
 
 __all__ = [
     "AdminSettings",
@@ -17,4 +18,5 @@ __all__ = [
     "get_logger",
     "get_settings",
     "settings",
+    "init_sentry",
 ]

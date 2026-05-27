@@ -29,6 +29,7 @@ __all__ = [
     "BackupSettings",
     "Environment",
     "ExternalRegistrySettings",
+    "ObservabilitySettings",
     "Settings",
     "get_settings",
     "settings",
@@ -101,6 +102,43 @@ class BackupSettings(BaseSettings):
                 raise ValueError("BACKUP_ENABLED=true требует BACKUP_AGE_RECIPIENT")
             if not self.rclone_remote:
                 raise ValueError("BACKUP_ENABLED=true требует BACKUP_RCLONE_REMOTE")
+        return self
+
+
+class ObservabilitySettings(BaseSettings):
+    """Параметры observability: Sentry для ошибок, Healthchecks.io для uptime."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    # Sentry DSN (Data Source Name) — если None, Sentry отключён.
+    sentry_dsn: SecretStr | None = None
+    # Процент транзакций для tracing perf (0.1 = 10%).
+    sentry_traces_sample_rate: float = 0.1
+    # Healthchecks.io ping URL — если None, пинг отключён.
+    healthchecks_ping_url: HttpUrl | None = None
+
+    @field_validator("healthchecks_ping_url", mode="before")
+    @classmethod
+    def _empty_to_none(cls, value: Any) -> Any:
+        return _empty_to_none(value)
+
+    @model_validator(mode="after")
+    def _check_prod_recommends_sentry(self) -> Self:
+        """В prod/staging рекомендуется включить Sentry (warning, не error)."""
+        if self.environment in ("prod", "staging") and self.sentry_dsn is None:
+            import warnings
+
+            warnings.warn(
+                "SENTRY_DSN не задан — рекомендации для prod/staging: "
+                "https://docs.sentry.io/platforms/python/",
+                UserWarning,
+                stacklevel=2,
+            )
         return self
 
 
@@ -186,6 +224,7 @@ class Settings(BaseSettings):
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
     backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
     external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)
+    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)  # type: ignore[arg-type]
 
     @model_validator(mode="after")
     def _validate_prod_secrets(self) -> Self:

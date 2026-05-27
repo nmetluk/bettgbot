@@ -25,6 +25,7 @@ from redis.asyncio import Redis
 
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
+from src.shared.observability import init_sentry
 
 from ._security_headers import SecurityHeadersMiddleware
 from .auth.middleware import CsrfTokenMiddleware, RequireAdminMiddleware
@@ -58,6 +59,15 @@ def _csrf_config() -> LoadConfig:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
+
+    # Инициализируем Sentry (если SENTRY_DSN задан)
+    init_sentry(
+        dsn=s.observability.sentry_dsn,
+        environment=s.environment,
+        service="admin",
+        traces_sample_rate=s.observability.sentry_traces_sample_rate,
+    )
+
     redis_client: Redis = Redis.from_url(str(s.redis_url), decode_responses=True)
     await FastAPILimiter.init(redis_client)
     logger.info("admin.startup", redis=str(s.redis_url))

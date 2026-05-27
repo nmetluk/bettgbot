@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import httpx
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.shared.config import get_settings
 from src.shared.logging import get_logger
 from src.shared.repositories import ReminderDispatchLogRepository
 from src.shared.services import EventService, ReminderService

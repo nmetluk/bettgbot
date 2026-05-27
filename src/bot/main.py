@@ -18,6 +18,7 @@ from src.shared.config import get_settings
 from src.shared.db import SessionLocal
 from src.shared.external import get_registry_client
 from src.shared.logging import configure_logging, get_logger
+from src.shared.observability import init_sentry
 
 from .middlewares import LoggingMiddleware, SessionMiddleware, UserMiddleware
 from .routers import all_routers
@@ -60,6 +61,15 @@ def build_dispatcher() -> tuple[Bot, Dispatcher]:
 async def main() -> None:
     s = get_settings()
     configure_logging(s.log_level, s.log_format)
+
+    # Инициализируем Sentry (если SENTRY_DSN задан)
+    init_sentry(
+        dsn=s.observability.sentry_dsn,
+        environment=s.environment,
+        service="bot",
+        traces_sample_rate=s.observability.sentry_traces_sample_rate,
+    )
+
     logger.info("bot.startup", log_format=s.log_format)
 
     bot, dp = build_dispatcher()
