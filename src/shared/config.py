@@ -212,7 +212,7 @@ class Settings(BaseSettings):
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
     backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
     external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)
-    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)  # type: ignore[arg-type]
+    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     @model_validator(mode="after")
     def _validate_prod_secrets(self) -> Self:

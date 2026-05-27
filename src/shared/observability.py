@@ -61,8 +61,12 @@ def init_sentry(
         )
     elif service == "admin":
         # Для админки: FastAPI + Starlette
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.starlette import StarletteIntegration
+        from sentry_sdk.integrations.fastapi import (
+            FastApiIntegration,
+        )
+        from sentry_sdk.integrations.starlette import (
+            StarletteIntegration,
+        )
 
         integrations.extend([FastApiIntegration(), StarletteIntegration()])
 
