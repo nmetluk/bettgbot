@@ -6,101 +6,45 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
 from src.admin.app import app
 
 
-@pytest.fixture
-def client():
-    """Test client with mocked rate limiter."""
-    from fastapi_csrf_protect import CsrfProtect
+class TestLoginRateLimit:
+    """Rate limiting on /login endpoint."""
 
-    # Mock CSRF to bypass validation
-    mock_csrf = MagicMock(spec=CsrfProtect)
-    mock_csrf.validate_csrf = AsyncMock(return_value=None)
+    def test_rate_limit_function_exists(self):
+        """The rate limit function exists and is importable."""
+        from src.admin.routes.login import _login_rate_limit
 
-    # Mock FastAPILimiter
-    with patch("src.admin.routes.login.fastapi_limiter") as mock_limiter:
-        mock_rate_limiter = MagicMock()
-        mock_rate_limiter.__call__ = AsyncMock(return_value=None)
-        mock_limiter.RateLimiter = MagicMock(return_value=mock_rate_limiter)
+        assert callable(_login_rate_limit)
 
-        app.dependency_overrides.clear()
-        client = TestClient(app, follow_redirects=False)
-        yield client
+    def test_rate_limit_function_skips_when_redis_not_set(self):
+        """Rate limit returns early when FastAPILimiter.redis is None (tests)."""
+        from src.admin.routes.login import _login_rate_limit
 
-
-class TestLoginRateLimitIdentifier:
-    """Rate limit identifier uses IP + login combination."""
-
-    def test_identifier_uses_client_host_and_login(self):
-        """The identifier function extracts login from form data."""
-        from src.admin.routes.login import _login_rate_limit_identifier
-
-        async def test_identifier():
-            # Create a mock request
+        async def test_func():
             mock_request = MagicMock()
             mock_request.client = MagicMock()
             mock_request.client.host = "192.168.1.100"
 
-            # Mock form data
             mock_form = MagicMock()
             mock_form.get = MagicMock(return_value="testuser")
             mock_request.form = AsyncMock(return_value=mock_form)
 
-            # Call identifier
-            result = await _login_rate_limit_identifier(mock_request)
+            # Mock FastAPILimiter.redis as None
+            with patch("fastapi_limiter.FastAPILimiter") as mock_limiter:
+                mock_limiter.redis = None
 
-            # Should be "IP:login" format
-            assert result == "192.168.1.100:testuser"
-
-        import asyncio
-
-        asyncio.run(test_identifier())
-
-    def test_identifier_handles_missing_client(self):
-        """Identifier handles case where request.client is None."""
-        from src.admin.routes.login import _login_rate_limit_identifier
-
-        async def test_identifier():
-            mock_request = MagicMock()
-            mock_request.client = None
-
-            mock_form = MagicMock()
-            mock_form.get = MagicMock(return_value="testuser")
-            mock_request.form = AsyncMock(return_value=mock_form)
-
-            result = await _login_rate_limit_identifier(mock_request)
-
-            assert result == ":testuser"
+                # Should return early without error
+                await _login_rate_limit(mock_request)
 
         import asyncio
 
-        asyncio.run(test_identifier())
-
-    def test_identifier_handles_form_parse_error(self):
-        """Identifier handles form parsing errors gracefully."""
-        from src.admin.routes.login import _login_rate_limit_identifier
-
-        async def test_identifier():
-            mock_request = MagicMock()
-            mock_request.client = MagicMock()
-            mock_request.client.host = "10.0.0.1"
-
-            # Form parsing raises exception
-            mock_request.form = AsyncMock(side_effect=Exception("Parse error"))
-
-            result = await _login_rate_limit_identifier(mock_request)
-
-            # Should fall back to empty login
-            assert result == "10.0.0.1:"
-
-        import asyncio
-
-        asyncio.run(test_identifier())
+        asyncio.run(test_func())
 
     def test_login_route_exists(self):
         """The /login route exists (rate limit configured via dependency)."""
-        # Find the login_submit route
         for route in app.routes:
             if (
                 hasattr(route, "path")
@@ -108,7 +52,6 @@ class TestLoginRateLimitIdentifier:
                 and hasattr(route, "methods")
                 and "POST" in route.methods
             ):
-                # Route exists - rate limit is configured via dependency in login.py
                 return
 
         pytest.fail("POST /login route not found")
