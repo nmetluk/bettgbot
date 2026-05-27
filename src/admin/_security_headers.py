@@ -34,9 +34,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # CSP: allow self, cdn.jsdelivr.net for Bootstrap/HTMX, unsafe-inline for styles
-        response.headers[
-            "Content-Security-Policy"
-        ] = (
+        response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' https://cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
@@ -49,8 +47,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers[
-            "Permissions-Policy"
-        ] = "geolocation=(), camera=(), microphone=(), interest-cohort=()"
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), camera=(), microphone=(), interest-cohort=()"
+        )
 
         return response
