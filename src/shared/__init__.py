@@ -17,6 +17,6 @@ __all__ = [
     "configure_logging",
     "get_logger",
     "get_settings",
-    "settings",
     "init_sentry",
+    "settings",
 ]

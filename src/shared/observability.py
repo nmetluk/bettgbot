@@ -11,8 +11,6 @@ from typing import Literal
 
 from pydantic import SecretStr
 
-from .config import Settings
-
 __all__ = ["init_sentry"]
 
 

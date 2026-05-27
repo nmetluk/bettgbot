@@ -127,20 +127,6 @@ class ObservabilitySettings(BaseSettings):
     def _empty_to_none(cls, value: Any) -> Any:
         return _empty_to_none(value)
 
-    @model_validator(mode="after")
-    def _check_prod_recommends_sentry(self) -> Self:
-        """В prod/staging рекомендуется включить Sentry (warning, не error)."""
-        if self.environment in ("prod", "staging") and self.sentry_dsn is None:
-            import warnings
-
-            warnings.warn(
-                "SENTRY_DSN не задан — рекомендации для prod/staging: "
-                "https://docs.sentry.io/platforms/python/",
-                UserWarning,
-                stacklevel=2,
-            )
-        return self
-
 
 class ExternalRegistrySettings(BaseSettings):
     """Параметры внешнего реестра пользователей (http-API либо mock).
@@ -266,6 +252,17 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"Невалидные настройки для environment={self.environment}: {', '.join(errors)}. "
                 "Сгенерируйте сильные секреты через python -c 'import secrets; print(secrets.token_urlsafe(64))'"
+            )
+
+        # Prod/staging рекомендует включить Sentry (warning, не error).
+        if self.environment in ("prod", "staging") and self.observability.sentry_dsn is None:
+            import warnings
+
+            warnings.warn(
+                "SENTRY_DSN не задан — рекомендации для prod/staging: "
+                "https://docs.sentry.io/platforms/python/",
+                UserWarning,
+                stacklevel=2,
             )
 
         return self

@@ -209,7 +209,9 @@ async def test_0004_creates_dispatch_log_indexes(fresh_db: None) -> None:
         "ix_reminder_dispatch_log_user_id",
         "uq_reminder_dispatch_log_user_event_offset",  # из 0002
     }
-    assert set(indexes) == expected, f"unexpected: {set(indexes) - expected}, missing: {expected - set(indexes)}"
+    assert set(indexes) == expected, (
+        f"unexpected: {set(indexes) - expected}, missing: {expected - set(indexes)}"
+    )
 
 
 async def test_0004_roundtrip(fresh_db: None) -> None:

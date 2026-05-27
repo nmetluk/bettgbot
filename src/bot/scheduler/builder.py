@@ -47,7 +47,10 @@ def build_scheduler(
     scheduler.add_job(
         cleanup_old_dispatch_logs,
         trigger=CronTrigger(hour=3, minute=30),
-        kwargs={"session_maker": session_maker, "retention_days": settings.reminder_log_retention_days},
+        kwargs={
+            "session_maker": session_maker,
+            "retention_days": settings.reminder_log_retention_days,
+        },
         id="cleanup_old_dispatch_logs",
         replace_existing=True,
         misfire_grace_time=300,

@@ -54,4 +54,4 @@ class ReminderDispatchLogRepository:
         """
         stmt = delete(ReminderDispatchLog).where(ReminderDispatchLog.dispatched_at < cutoff)
         result = await self._session.execute(stmt)
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined, no-any-return]
