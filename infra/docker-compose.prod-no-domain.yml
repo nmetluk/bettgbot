@@ -1,6 +1,8 @@
-# Prod-конфигурация БЕЗ домена и TLS.
-# Использует порт 8888 вместо 80/443, без certbot.
-# Подходит для первичного деплоя или тестирования на VPS по IP.
+# ⚠️ DANGER: Prod-конфигурация БЕЗ домена и TLS.
+# Использует порт 8888 на localhost (НЕ на 0.0.0.0!) без certbot.
+# ПРЕДНАЗНАЧЕН ТОЛЬКО для доступа через ssh-tunnel (ssh -L 8888:127.0.0.1:8888).
+# НЕБЕЗОПАСНО для публичного интернета — логин/пароль передаются в открытом виде!
+# Для продакшена ОБЯЗАТЕЛЬНО используйте docker-compose.prod.yml с HTTPS.
 services:
   db:
     restart: always
@@ -32,7 +34,7 @@ services:
     image: nginx:1.27-alpine
     restart: always
     ports:
-      - "8888:80"
+      - "127.0.0.1:8888:80"  # localhost only — доступ через ssh-tunnel
     volumes:
       - ./nginx/admin-no-domain.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:

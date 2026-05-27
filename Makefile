@@ -229,11 +229,17 @@ prod.rollback: ## Откат к предыдущему IMAGE_TAG: make prod.roll
 	$(MAKE) prod.smoke
 
 # ==== Prod БЕЗ домена (порт 8888, без TLS) ====
+# ⚠️ DANGER: Этот режим НЕБЕЗОПАСЕН для публичного интернета!
+# Используйте ТОЛЬКО с ssh-tunnel (ssh -L 8888:127.0.0.1:8888 user@vps).
+# Для продакшена с доменом используйте prod.* цели вместо prod.nodomain.*.
 
 prod.nodomain.build: ## Собрать prod-образы для no-domain (порт 8888)
 	$(PROD_NO_DOMAIN_COMPOSE) build
 
-prod.nodomain.up: ## Поднять prod-stack без домена (порт 8888)
+prod.nodomain.up: ## Поднять prod-stack без домена (порт 8888) — ⚠️ DANGER: HTTP only!
+	@echo "⚠️  WARNING: Starting HTTP-only admin on 127.0.0.1:8888 (ssh-tunnel access only!)"; \
+	echo "⚠️  Для продакшена ОБЯЗАТЕЛЬНО настройте HTTPS (см. docs/07-deployment.md)"; \
+	sleep 2;
 	$(PROD_NO_DOMAIN_COMPOSE) up -d
 	$(PROD_NO_DOMAIN_COMPOSE) ps
 
