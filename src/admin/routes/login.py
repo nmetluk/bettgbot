@@ -8,7 +8,6 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi_csrf_protect import CsrfProtect
-from fastapi_limiter.depends import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.shared.config import get_settings
@@ -34,6 +33,44 @@ router = APIRouter(tags=["auth"])
 async def _session_dep() -> AsyncIterator[AsyncSession]:
     async with SessionLocal() as session:
         yield session
+
+
+async def _login_rate_limit(request: Request) -> None:
+    """Rate limit for /login endpoint: 5 attempts per minute per IP+login.
+
+    Extracts login from form data to create a combined key.
+    This prevents credential stuffing while allowing legitimate users
+    to try different accounts.
+    """
+    from fastapi_limiter import FastAPILimiter
+
+    # Skip rate limiting if FastAPILimiter.redis is not set (tests)
+    if not FastAPILimiter.redis:
+        return
+
+    client_host = request.client.host if request.client else ""
+    try:
+        form = await request.form()
+        login = form.get("login", "")
+    except Exception:
+        login = ""
+
+    key = f"{client_host}:{login}"
+
+    # Check rate limit: 5 requests per 60 seconds
+    redis = FastAPILimiter.redis
+    rate_key = f"fastapi-limiter:login:{key}"
+    current = await redis.incr(rate_key)
+    if current == 1:
+        await redis.expire(rate_key, 60)
+
+    if current > 5:
+        from fastapi.responses import JSONResponse
+
+        raise JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Please try again later."},
+        )
 
 
 def _render_login_error(
@@ -66,16 +103,14 @@ async def login_form(request: Request) -> HTMLResponse:
     )
 
 
-@router.post(
-    "/login",
-    dependencies=[Depends(RateLimiter(times=5, seconds=60))],
-)
+@router.post("/login")
 async def login_submit(
     request: Request,
     login: str = Form(...),
     password: str = Form(...),
     session: AsyncSession = Depends(_session_dep),
     csrf_protect: CsrfProtect = Depends(),
+    _rate_limit: None = Depends(_login_rate_limit),
 ) -> Response:
     # CsrfProtectError ловится global exception handler в app.py.
     await csrf_protect.validate_csrf(request)
