@@ -1,6 +1,6 @@
 """Add indexes on reminder_dispatch_log for retention and cascade performance.
 
-Revision ID: 0004_reminder_dispatch_log_indexes
+Revision ID: 0004_dispatch_log_indexes
 Revises: 0003_relax_event_archive
 Create Date: 2026-05-27
 
@@ -14,7 +14,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "0004_reminder_dispatch_log_indexes"
+revision: str = "0004_dispatch_log_indexes"
 down_revision: str | Sequence[str] | None = "0003_relax_event_archive"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
