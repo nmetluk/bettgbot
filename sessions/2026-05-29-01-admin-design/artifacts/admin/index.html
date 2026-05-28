@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Прогнозы — админка</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  /* ── Нейтральный знак (без логотипа компании, проект OSS) ── */
+  .bg-mark {
+    width: 30px; height: 30px; border-radius: var(--pv-r-8);
+    background: var(--pv-fg); color: var(--pv-panel);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .bg-mark.lg { width: 44px; height: 44px; border-radius: var(--pv-r-10); }
+
+  /* ── Экран входа ── */
+  .login-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--pv-bg); padding: 24px;
+  }
+  .login-card {
+    width: 100%; max-width: 380px;
+    background: var(--pv-panel); border: 1px solid var(--pv-border);
+    border-radius: var(--pv-r-12); box-shadow: var(--pv-shadow-lg);
+    padding: 28px;
+  }
+  .login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .login-brand b { display: block; font-size: 16px; color: var(--pv-fg); line-height: 1.1; }
+  .login-brand span { font-size: 12px; color: var(--pv-fg-muted); }
+  .login-foot {
+    margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--pv-divider);
+    font-size: 12px; color: var(--pv-fg-muted); text-align: center;
+  }
+
+  /* ── Радио итогового исхода ── */
+  .result-opt {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border: 1px solid var(--pv-border);
+    border-radius: var(--pv-r-8); cursor: pointer; transition: 0.12s;
+  }
+  .result-opt input { accent-color: var(--pv-cta); width: 16px; height: 16px; }
+
+  /* ── Медальон идеи (roadmap) ── */
+  .idea-medallion {
+    width: 40px; height: 40px; border-radius: var(--pv-r-8);
+    background: var(--pv-accent-soft); color: var(--pv-accent);
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+</style>
+<template id="__bundler_thumbnail">
+  <div style="width:100%;height:100%;background:#e6403a;display:flex;align-items:center;justify-content:center;">
+    <div style="width:40%;height:40%;background:#0d0d12;border-radius:18%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;font-size:48px;">📈</div>
+  </div>
+</template>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  // Suppress the benign "ResizeObserver loop" notification (not a real error).
+  window.addEventListener("error", function (e) {
+    if (e.message && e.message.indexOf("ResizeObserver loop") !== -1) {
+      e.stopImmediatePropagation();
+    }
+  });
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="shell.jsx"></script>
+<script type="text/babel" src="page-login.jsx"></script>
+<script type="text/babel" src="page-dashboard.jsx"></script>
+<script type="text/babel" src="page-categories.jsx"></script>
+<script type="text/babel" src="page-events-list.jsx"></script>
+<script type="text/babel" src="page-event-detail.jsx"></script>
+<script type="text/babel" src="page-users.jsx"></script>
+<script type="text/babel" src="page-audit.jsx"></script>
+<script type="text/babel" src="page-roadmap.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
