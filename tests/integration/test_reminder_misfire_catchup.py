@@ -111,9 +111,7 @@ async def test_second_run_with_same_now_skips_already_recorded(
     """
     now = datetime.now(tz=UTC)
     user = await make_user(nested_session)
-    await _make_published_event(
-        nested_session, predictions_close_at=now + timedelta(minutes=62)
-    )
+    await _make_published_event(nested_session, predictions_close_at=now + timedelta(minutes=62))
     await _set_reminder(nested_session, user_id=user.id, offsets=[60])
 
     service = ReminderService(nested_session)
@@ -149,9 +147,7 @@ async def test_misfire_simulation_two_consecutive_dispatches(
     """
     now = datetime.now(tz=UTC)
     user = await make_user(nested_session)
-    await _make_published_event(
-        nested_session, predictions_close_at=now + timedelta(minutes=62)
-    )
+    await _make_published_event(nested_session, predictions_close_at=now + timedelta(minutes=62))
     await _set_reminder(nested_session, user_id=user.id, offsets=[60])
 
     bot = MagicMock(spec=Bot)
@@ -182,9 +178,7 @@ async def test_window_boundary_upper_exclusive(
     """
     now = datetime.now(tz=UTC)
     user = await make_user(nested_session)
-    await _make_published_event(
-        nested_session, predictions_close_at=now + timedelta(minutes=70)
-    )
+    await _make_published_event(nested_session, predictions_close_at=now + timedelta(minutes=70))
     await _set_reminder(nested_session, user_id=user.id, offsets=[60])
 
     candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=10)

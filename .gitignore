@@ -42,6 +42,9 @@ coverage.xml
 .env.*
 !.env.example
 !.env.prod.example
+!.env.bot.example
+!.env.web.example
+!.env.db.example
 
 # логи и временные файлы
 *.log

@@ -67,8 +67,10 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.db-backup
     restart: always
-    env_file: ../.env
     environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
       PGPASSWORD: ${POSTGRES_PASSWORD}
       # Backup-specific env (optional if BACKUP_ENABLED=false).
       BACKUP_ENABLED: ${BACKUP_ENABLED:-false}
