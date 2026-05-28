@@ -34,7 +34,21 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.bot
     restart: unless-stopped
-    env_file: ../.env
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      EXTERNAL_REGISTRY_BACKEND: ${EXTERNAL_REGISTRY_BACKEND:-mock}
+      EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
+      EXTERNAL_API_TOKEN: ${EXTERNAL_API_TOKEN:-}
+      EXTERNAL_API_TIMEOUT_CONNECT: ${EXTERNAL_API_TIMEOUT_CONNECT:-2.0}
+      EXTERNAL_API_TIMEOUT_READ: ${EXTERNAL_API_TIMEOUT_READ:-5.0}
+      MOCK_REGISTRY_FILE: ${MOCK_REGISTRY_FILE:-infra/mock-registry.yml}
+      MOCK_REGISTRY_ALLOWED: ${MOCK_REGISTRY_ALLOWED:-}
+      REMINDER_TICK_SECONDS: ${REMINDER_TICK_SECONDS:-300}
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -48,7 +62,15 @@ services:
       context: ..
       dockerfile: infra/Dockerfile.web
     restart: unless-stopped
-    env_file: ../.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
+      ADMIN_SESSION_HOURS: ${ADMIN_SESSION_HOURS:-8}
+      ADMIN_CSRF_SECRET: ${ADMIN_CSRF_SECRET}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
     depends_on:
       db: { condition: service_healthy }
     command: >

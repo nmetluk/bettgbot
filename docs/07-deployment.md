@@ -55,6 +55,16 @@ nano infra/.env
 
 ⚠️ **ВАЖНО:** Приложение на старте проверяет, что в prod все секреты являются сильными. Если используете дефолтные значения (`dev-admin-secret`, `changeme`, и т.п.) — старт прервётся с понятной ошибкой.
 
+### Сегрегация секретов по сервисам
+
+Каждый контейнер получает только те переменные, которые ему нужны. Это достигается через явные `environment:` блоки в `docker-compose.yml` (и его prod-вариантах) вместо общего `env_file:`.
+
+- `bot` → получает `TELEGRAM_BOT_TOKEN`, `DATABASE_URL`, `REDIS_URL`, переменные external registry
+- `web` → получает `DATABASE_URL`, `REDIS_URL`, `ADMIN_SECRET_KEY`, `ADMIN_CSRF_SECRET`
+- `db-backup` → получает только `POSTGRES_*` и `BACKUP_*` переменные
+
+См. `infra/.env.bot.example`, `infra/.env.web.example`, `infra/.env.db.example` для справки по минимальным наборам.
+
 **Генерация сильных секретов:**
 
 Все секреты генерируйте локально (не на VPS) и копируйте в `.env`:

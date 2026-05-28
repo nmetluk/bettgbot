@@ -34,7 +34,11 @@ def build_scheduler(
     scheduler.add_job(
         dispatch_reminders,
         trigger=IntervalTrigger(minutes=5),
-        kwargs={"bot": bot, "session_maker": session_maker, "window_minutes": settings.reminder_window_minutes},
+        kwargs={
+            "bot": bot,
+            "session_maker": session_maker,
+            "window_minutes": settings.reminder_window_minutes,
+        },
         id="dispatch_reminders",
         replace_existing=True,
         misfire_grace_time=3600,
@@ -52,7 +56,10 @@ def build_scheduler(
     scheduler.add_job(
         cleanup_old_dispatch_logs,
         trigger=CronTrigger(hour=3, minute=30),
-        kwargs={"session_maker": session_maker, "retention_days": settings.reminder_log_retention_days},
+        kwargs={
+            "session_maker": session_maker,
+            "retention_days": settings.reminder_log_retention_days,
+        },
         id="cleanup_old_dispatch_logs",
         replace_existing=True,
         misfire_grace_time=300,
