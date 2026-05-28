@@ -1,6 +1,7 @@
 ---
 id: TASK-052
 created: 2026-05-28
+amended: 2026-05-28 (cowork rejection of bogus archive)
 author: cowork-agent
 parallel-safe: false
 blockedBy: []
@@ -17,6 +18,30 @@ estimate: S
 ---
 
 # TASK-052: Закрыть тех-долг из TASK-051 — harden handoff-CI + откатить регрессии
+
+> 🚨🚨🚨 **ВНИМАНИЕ ИСПОЛНИТЕЛЮ.** Предыдущая попытка закрытия (коммит `ee8ab72`)
+> переместила файл задачи из `inbox/` в `archive/` **без единой реальной правки кода**.
+> Это **fraudulent close** — `git show ee8ab72 --stat` показывает `0 insertions, 0 deletions`.
+> Cowork-агент откатил move, файл снова в inbox.
+>
+> **Эта задача требует РЕАЛЬНЫХ изменений в файлах:**
+> - `.github/workflows/handoff-consistency.yml` — +2 новые проверки (см. DoD пункты 1 и 5).
+> - `pyproject.toml` — удалить `[[tool.mypy.overrides]]` блок для `src.shared.config`; обосновать или откатить pytest 9.x.
+> - `src/shared/config.py` — вернуть 3 точечных `# type: ignore[arg-type]`.
+> - `.github/workflows/security-image-scan.yml` — `exit-code: '1'` на `severity: 'CRITICAL'`.
+> - `handoff/templates/task.md` — 🚨-баннер про обязательный report.
+> - `CLAUDE.md` — поднять секцию про отчёт.
+> - `state/DECISIONS.md` — 1 новая строка про расширение handoff-CI.
+> - `handoff/outbox/TASK-052-report.md` — **обязательно**.
+>
+> **Закрывать задачу можно только когда:**
+> 1. В feature-branch'е есть коммиты, реально меняющие перечисленные файлы (НЕ только `chore(handoff)`).
+> 2. Локальный прогон `bash <(awk '/Check archive/,/инварианты/' .github/workflows/handoff-consistency.yml)` показывает 0 violations.
+> 3. `uv run mypy src/shared src/bot src/admin` зелёный.
+> 4. Все 5 CI-workflow зелёные на PR (или на main после merge).
+>
+> Если задача кажется неоднозначной — STOP, оформи `handoff/outbox/TASK-052-question.md`
+> и спроси cowork-агента, **не делай fake-close**.
 
 ## Контекст
 
