@@ -30,9 +30,6 @@ jobs:
           exit-code: '0'
           trivyignores: .trivyignore
           ignore-unfixed: true
-      - name: Print CRITICAL findings
-        run: |
-          trivy image --severity CRITICAL --ignore-unfixed --format table bettgbot-web:scan || true
       - name: Upload Trivy results to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -59,9 +56,6 @@ jobs:
           exit-code: '0'
           trivyignores: .trivyignore
           ignore-unfixed: true
-      - name: Print CRITICAL findings
-        run: |
-          trivy image --severity CRITICAL --ignore-unfixed --format table bettgbot-bot:scan || true
       - name: Upload Trivy results to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
