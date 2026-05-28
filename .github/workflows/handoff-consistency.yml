@@ -6,11 +6,13 @@ name: handoff-consistency
 #     файлов с тем же TASK-NNN.
 # (2) handoff/archive/ должна содержать только директории вида TASK-NNN-<slug>/
 #     с task.md/report.md/amendments/ внутри — не TASK-NNN.md прямо в archive/.
+# (3) В каждой archive-директории должен быть файл task.md.
+# (4) У каждой архивной задачи должен быть report.md (в outbox или в archive).
 #
 # Контекст: 5 случаев подряд (TASK-028..032) CC нарушал move-семантику.
 # В TASK-032 дополнительно сломалась convention (положил файл вместо
-# директории), что обошло первую версию этого CI-check'a. Расширили обе
-# проверки в одном workflow.
+# директории), что обошло первую версию этого CI-check'a. Расширили до 4
+# проверок в TASK-052 после 9 случаев подряд отсутствия report.md.
 
 on:
   pull_request:
@@ -61,6 +63,30 @@ jobs:
             if [ -n "$orphans" ]; then
               echo "❌ Workflow violation: $task_id уже в handoff/archive/, но в handoff/inbox/ остались:"
               echo "$orphans" | sed 's/^/   /'
+              violations=$((violations + 1))
+            fi
+          done
+
+          # (3) В каждой handoff/archive/TASK-NNN-<slug>/ должен быть файл task.md
+          echo "→ Проверка task.md в archive-директориях..."
+          for dir in handoff/archive/TASK-*/; do
+            [ -d "$dir" ] || continue
+            if [ ! -f "${dir}task.md" ]; then
+              echo "❌ Archive directory без task.md: $dir"
+              echo "   Внутри должен быть файл task.md (не TASK-NNN-<slug>.md)."
+              violations=$((violations + 1))
+            fi
+          done
+
+          # (4) У каждой архивной задачи должен быть report (в outbox или в archive)
+          echo "→ Проверка отчётов..."
+          for dir in handoff/archive/TASK-*/; do
+            task_id=$(basename "$dir" | grep -oE '^TASK-[0-9]+')
+            [ -z "$task_id" ] && continue
+            outbox="handoff/outbox/${task_id}-report.md"
+            archive_report="${dir}report.md"
+            if [ ! -f "$outbox" ] && [ ! -f "$archive_report" ]; then
+              echo "❌ $task_id: нет ни ${outbox}, ни ${archive_report}"
               violations=$((violations + 1))
             fi
           done
