@@ -28,6 +28,7 @@ jobs:
           output: 'trivy-web-results.sarif'
           severity: 'CRITICAL'
           exit-code: '1'
+          trivyignores: .trivyignore
       - name: Upload Trivy results to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -52,6 +53,7 @@ jobs:
           output: 'trivy-bot-results.sarif'
           severity: 'CRITICAL'
           exit-code: '1'
+          trivyignores: .trivyignore
       - name: Upload Trivy results to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
