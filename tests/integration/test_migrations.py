@@ -197,7 +197,11 @@ async def test_downgrade_drops_everything(fresh_db: None) -> None:
 
 
 async def test_0004_creates_dispatch_log_indexes(fresh_db: None) -> None:
-    """После 0004 на reminder_dispatch_log есть индексы на FK и dispatched_at (TASK-048)."""
+    """После 0004 на reminder_dispatch_log есть индексы на FK и dispatched_at (TASK-048).
+
+    TASK-049: добавилась промежуточная миграция 0003b для исправления типа
+    alembic_version.version_num, поэтому теперь head = 0004.
+    """
     _alembic("upgrade", "head")
     indexes = await _fetch_scalars(
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' "
@@ -208,13 +212,18 @@ async def test_0004_creates_dispatch_log_indexes(fresh_db: None) -> None:
         "ix_reminder_dispatch_log_event_id",
         "ix_reminder_dispatch_log_user_id",
         "uq_reminder_dispatch_log_user_event_offset",  # из 0002
+        "pk_reminder_dispatch_log",  # PRIMARY KEY
     }
     assert set(indexes) == expected, f"unexpected: {set(indexes) - expected}, missing: {expected - set(indexes)}"
 
 
 async def test_0004_roundtrip(fresh_db: None) -> None:
-    """Upgrade+downgrade 0004 оставляют схему валидной (TASK-048)."""
+    """Upgrade+downgrade 0004 оставляют схему валидной (TASK-048).
+
+    TASK-049: chain обновлён — теперь через 0003b_fix_alembic_version_type.
+    """
     _alembic("upgrade", "0003_relax_event_archive")
+    _alembic("upgrade", "0003b_fix_alembic_version_type")
     _alembic("upgrade", "0004_reminder_dispatch_log_indexes")
     _alembic("downgrade", "0003_relax_event_archive")
 
@@ -223,5 +232,8 @@ async def test_0004_roundtrip(fresh_db: None) -> None:
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' "
         "AND tablename='reminder_dispatch_log' ORDER BY indexname"
     )
-    # Остался только unique constraint из 0002 (он реализован через индекс).
-    assert indexes == ["uq_reminder_dispatch_log_user_event_offset"]
+    # Остались индексы из 0002: unique constraint + primary key.
+    assert set(indexes) == {
+        "uq_reminder_dispatch_log_user_event_offset",
+        "pk_reminder_dispatch_log",
+    }

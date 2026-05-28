@@ -24,11 +24,12 @@ async def test_delete_older_than_removes_old_entries(session: AsyncSession) -> N
     now = datetime.now(tz=UTC)
 
     # Создаём записи с разным возрастом: 100, 50, 10 дней назад.
-    for days_ago in [100, 50, 10]:
+    # Разные offset_minutes чтобы не violate unique constraint.
+    for i, days_ago in enumerate([100, 50, 10]):
         entry = ReminderDispatchLog(
             user_id=user.id,
             event_id=event.id,
-            offset_minutes=60,
+            offset_minutes=60 + i,  # разные значения для unique
             dispatched_at=now - timedelta(days=days_ago),
         )
         session.add(entry)

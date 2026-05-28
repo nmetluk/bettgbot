@@ -24,7 +24,8 @@ def test_build_scheduler_registers_dispatch_reminders_job() -> None:
     assert isinstance(job.trigger, IntervalTrigger)
     # IntervalTrigger хранит interval как datetime.timedelta(minutes=5).
     assert job.trigger.interval.total_seconds() == 5 * 60
-    assert job.misfire_grace_time == 60
+    # TASK-049: misfire_grace_time повышен до 3600 для catchup при restart.
+    assert job.misfire_grace_time == 3600
 
 
 def test_build_scheduler_registers_archive_stale_events_job() -> None:
