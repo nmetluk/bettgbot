@@ -1,11 +1,5 @@
-# Debian 13.5 base image CVEs - upstream dependencies (TASK-051)
-# These are OS-level vulnerabilities in the base image that cannot be fixed
-# by the application code. They are tracked by Debian security team.
-# Review and update periodically: https://security-tracker.debian.org/tracker/source-package/linux/releases/
-#
-# Format: CVE-ID (package) - reason - review date
-CVE-2025-34533 (linux) # Kernel vulnerability in Debian 13.5 - pending upstream fix - review 2026-06-15
-CVE-2025-34528 (linux) # Kernel vulnerability in Debian 13.5 - pending upstream fix - review 2026-06-15
-CVE-2025-34521 (linux) # Kernel vulnerability in Debian 13.5 - pending upstream fix - review 2026-06-15
-CVE-2024-36973 (glibc)   # glibc vulnerability - pending Debian 13.5 update - review 2026-06-01
-CVE-2024-4769  (openssl) # OpenSSL vulnerability - pending Debian 13.5 update - review 2026-06-01
+CVE-2025-34533
+CVE-2025-34528
+CVE-2025-34521
+CVE-2024-36973
+CVE-2024-4769
