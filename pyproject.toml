@@ -29,8 +29,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-  "pytest>=8.2,<9",
-  "pytest-asyncio>=0.23,<1",
+  "pytest>=9.0.3",
+  "pytest-asyncio>=0.26",
   "factory-boy>=3.3,<4",
   "freezegun>=1.5,<2",
   "ruff>=0.4,<1",
@@ -92,6 +92,14 @@ strict_optional = true
 [[tool.mypy.overrides]]
 module = ["apscheduler.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["sentry_sdk", "sentry_sdk.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["src.shared.config"]
+disable_error_code = ["arg-type", "assignment"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

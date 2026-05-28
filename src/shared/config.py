@@ -127,20 +127,6 @@ class ObservabilitySettings(BaseSettings):
     def _empty_to_none(cls, value: Any) -> Any:
         return _empty_to_none(value)
 
-    @model_validator(mode="after")
-    def _check_prod_recommends_sentry(self) -> Self:
-        """В prod/staging рекомендуется включить Sentry (warning, не error)."""
-        if self.environment in ("prod", "staging") and self.sentry_dsn is None:
-            import warnings
-
-            warnings.warn(
-                "SENTRY_DSN не задан — рекомендации для prod/staging: "
-                "https://docs.sentry.io/platforms/python/",
-                UserWarning,
-                stacklevel=2,
-            )
-        return self
-
 
 class ExternalRegistrySettings(BaseSettings):
     """Параметры внешнего реестра пользователей (http-API либо mock).
@@ -223,10 +209,10 @@ class Settings(BaseSettings):
     # `staging`/`prod` — за https, Secure обязателен.
     environment: Environment = "dev"
 
-    admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
-    backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
+    admin: AdminSettings = Field(default_factory=AdminSettings)
+    backup: BackupSettings = Field(default_factory=BackupSettings)
     external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)
-    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)  # type: ignore[arg-type]
+    observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)
 
     @model_validator(mode="after")
     def _validate_prod_secrets(self) -> Self:
@@ -266,6 +252,17 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"Невалидные настройки для environment={self.environment}: {', '.join(errors)}. "
                 "Сгенерируйте сильные секреты через python -c 'import secrets; print(secrets.token_urlsafe(64))'"
+            )
+
+        # Prod/staging рекомендует включить Sentry (warning, не error).
+        if self.environment in ("prod", "staging") and self.observability.sentry_dsn is None:
+            import warnings
+
+            warnings.warn(
+                "SENTRY_DSN не задан — рекомендации для prod/staging: "
+                "https://docs.sentry.io/platforms/python/",
+                UserWarning,
+                stacklevel=2,
             )
 
         return self

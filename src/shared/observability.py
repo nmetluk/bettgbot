@@ -7,11 +7,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import SecretStr
-
-from .config import Settings
 
 __all__ = ["init_sentry"]
 
@@ -39,7 +37,7 @@ def init_sentry(
     import sentry_sdk
 
     # PII-filtering: удаляем phone, first_name из событий
-    def _strip_pii(event: dict, hint: dict | None) -> dict | None:
+    def _strip_pii(event: dict[str, Any], hint: dict[str, Any] | None) -> dict[str, Any] | None:
         """Sentry before_send hook: вырезаем PII."""
         if "user" in event and isinstance(event["user"], dict):
             # Удаляем PII поля, но оставляем id для группировки
@@ -63,8 +61,12 @@ def init_sentry(
         )
     elif service == "admin":
         # Для админки: FastAPI + Starlette
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.starlette import StarletteIntegration
+        from sentry_sdk.integrations.fastapi import (
+            FastApiIntegration,
+        )
+        from sentry_sdk.integrations.starlette import (
+            StarletteIntegration,
+        )
 
         integrations.extend([FastApiIntegration(), StarletteIntegration()])
 

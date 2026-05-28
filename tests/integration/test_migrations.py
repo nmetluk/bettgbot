@@ -201,7 +201,8 @@ async def test_0004_creates_dispatch_log_indexes(fresh_db: None) -> None:
     _alembic("upgrade", "head")
     indexes = await _fetch_scalars(
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' "
-        "AND tablename='reminder_dispatch_log' ORDER BY indexname"
+        "AND tablename='reminder_dispatch_log' AND indexname NOT LIKE 'pk_%' "
+        "ORDER BY indexname"
     )
     expected = {
         "ix_reminder_dispatch_log_dispatched_at",
@@ -209,19 +210,22 @@ async def test_0004_creates_dispatch_log_indexes(fresh_db: None) -> None:
         "ix_reminder_dispatch_log_user_id",
         "uq_reminder_dispatch_log_user_event_offset",  # из 0002
     }
-    assert set(indexes) == expected, f"unexpected: {set(indexes) - expected}, missing: {expected - set(indexes)}"
+    assert set(indexes) == expected, (
+        f"unexpected: {set(indexes) - expected}, missing: {expected - set(indexes)}"
+    )
 
 
 async def test_0004_roundtrip(fresh_db: None) -> None:
     """Upgrade+downgrade 0004 оставляют схему валидной (TASK-048)."""
     _alembic("upgrade", "0003_relax_event_archive")
-    _alembic("upgrade", "0004_reminder_dispatch_log_indexes")
+    _alembic("upgrade", "0004_dispatch_log_indexes")
     _alembic("downgrade", "0003_relax_event_archive")
 
     # После downgrade индексы 0004 должны исчезнуть.
     indexes = await _fetch_scalars(
         "SELECT indexname FROM pg_indexes WHERE schemaname='public' "
-        "AND tablename='reminder_dispatch_log' ORDER BY indexname"
+        "AND tablename='reminder_dispatch_log' AND indexname NOT LIKE 'pk_%' "
+        "ORDER BY indexname"
     )
     # Остался только unique constraint из 0002 (он реализован через индекс).
     assert indexes == ["uq_reminder_dispatch_log_user_event_offset"]

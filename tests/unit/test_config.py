@@ -199,7 +199,9 @@ def test_backup_settings_disabled_is_valid(monkeypatch: pytest.MonkeyPatch) -> N
     assert s.backup.retention_days == 30
 
 
-def test_backup_settings_enabled_without_age_recipient_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_backup_settings_enabled_without_age_recipient_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """BACKUP_ENABLED=true без BACKUP_AGE_RECIPIENT → ValidationError."""
     get_settings.cache_clear()
     _set_minimum_env(monkeypatch)
@@ -208,7 +210,9 @@ def test_backup_settings_enabled_without_age_recipient_fails(monkeypatch: pytest
         Settings()  # type: ignore[call-arg]
 
 
-def test_backup_settings_enabled_without_rclone_remote_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_backup_settings_enabled_without_rclone_remote_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """BACKUP_ENABLED=true без BACKUP_RCLONE_REMOTE → ValidationError."""
     get_settings.cache_clear()
     _set_minimum_env(monkeypatch)
