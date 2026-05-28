@@ -216,10 +216,11 @@ async def test_0004_creates_dispatch_log_indexes(fresh_db: None) -> None:
 
 
 async def test_0004_roundtrip(fresh_db: None) -> None:
-    """Upgrade+downgrade 0004 оставляют схему валидной (TASK-048)."""
+    """Upgrade+downgrade 0004 оставляют схему валидной (TASK-048, TASK-049 chain через 0003b)."""
     _alembic("upgrade", "0003_relax_event_archive")
+    _alembic("upgrade", "0003b_fix_alembic_version_type")
     _alembic("upgrade", "0004_dispatch_log_indexes")
-    _alembic("downgrade", "0003_relax_event_archive")
+    _alembic("downgrade", "0003b_fix_alembic_version_type")
 
     # После downgrade индексы 0004 должны исчезнуть.
     indexes = await _fetch_scalars(

@@ -18,7 +18,10 @@ def build_scheduler(
 ) -> AsyncIOScheduler:
     """Собирает scheduler с job'ами проекта.
 
-    - `dispatch_reminders`: каждые 5 минут UTC, `misfire_grace_time=60`.
+    - `dispatch_reminders`: каждые 5 минут UTC, `misfire_grace_time=3600`
+      (TASK-049 — extended для catchup при restart/misfire), `coalesce=True`,
+      `max_instances=1`. Окно поиска кандидатов — `reminder_window_minutes` из
+      settings (default 10 минут = tick + запас).
     - `archive_stale_events`: ежедневно в 03:00 UTC, `misfire_grace_time=300`
       (cron-job менее чувствителен ко времени).
     - `cleanup_old_dispatch_logs`: ежедневно в 03:30 UTC, `misfire_grace_time=300`
@@ -31,10 +34,12 @@ def build_scheduler(
     scheduler.add_job(
         dispatch_reminders,
         trigger=IntervalTrigger(minutes=5),
-        kwargs={"bot": bot, "session_maker": session_maker},
+        kwargs={"bot": bot, "session_maker": session_maker, "window_minutes": settings.reminder_window_minutes},
         id="dispatch_reminders",
         replace_existing=True,
-        misfire_grace_time=60,
+        misfire_grace_time=3600,
+        coalesce=True,
+        max_instances=1,
     )
     scheduler.add_job(
         archive_stale_events,
@@ -47,10 +52,7 @@ def build_scheduler(
     scheduler.add_job(
         cleanup_old_dispatch_logs,
         trigger=CronTrigger(hour=3, minute=30),
-        kwargs={
-            "session_maker": session_maker,
-            "retention_days": settings.reminder_log_retention_days,
-        },
+        kwargs={"session_maker": session_maker, "retention_days": settings.reminder_log_retention_days},
         id="cleanup_old_dispatch_logs",
         replace_existing=True,
         misfire_grace_time=300,

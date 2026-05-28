@@ -70,7 +70,7 @@ async def test_find_candidates_user_with_matching_offset_returns_candidate(
     )
     await _set_reminder(nested_session, user_id=user.id, offsets=[60])
 
-    candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=5)
+    candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=10)
 
     assert len(candidates) == 1
     cand = candidates[0]
@@ -97,13 +97,13 @@ async def test_find_candidates_disabled_setting_excluded(
 async def test_find_candidates_offset_outside_window_excluded(
     nested_session: AsyncSession,
 ) -> None:
-    # offset=60, window=[60, 65); событие до дедлайна за 70 минут → не попадает.
+    # offset=60, window=[60, 70); событие до дедлайна за 70 минут → не попадает (верхняя граница эксклюзивна).
     now = datetime.now(tz=UTC)
     user = await make_user(nested_session)
     await _make_published_event(nested_session, predictions_close_at=now + timedelta(minutes=70))
     await _set_reminder(nested_session, user_id=user.id, offsets=[60])
 
-    candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=5)
+    candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=10)
 
     assert candidates == []
 
@@ -196,7 +196,7 @@ async def test_find_candidates_multiple_offsets_returns_only_matching(
     await _make_published_event(nested_session, predictions_close_at=now + timedelta(minutes=62))
     await _set_reminder(nested_session, user_id=user.id, offsets=[60, 1440])
 
-    candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=5)
+    candidates = await ReminderService(nested_session).find_candidates(now=now, window_minutes=10)
 
     assert len(candidates) == 1
     assert candidates[0].offset_minutes == 60

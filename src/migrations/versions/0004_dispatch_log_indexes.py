@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "0004_dispatch_log_indexes"
-down_revision: str | Sequence[str] | None = "0003_relax_event_archive"
+down_revision: str | Sequence[str] | None = "0003b_fix_alembic_version_type"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

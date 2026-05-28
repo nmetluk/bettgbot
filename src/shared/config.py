@@ -203,6 +203,9 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "console"
     reminder_tick_seconds: PositiveInt = 300
+    # Окно в минутах для поиска кандидатов напоминаний (TASK-049).
+    # Должно быть >= tick_interval + safety_margin для catchup при misfire.
+    reminder_window_minutes: PositiveInt = 10
     # Сколько дней хранить записи в reminder_dispatch_log (TASK-048).
     reminder_log_retention_days: PositiveInt = 90
     # `dev` — локальная разработка через http (Secure-cookie отключается).

@@ -21,18 +21,23 @@ __all__ = ["archive_stale_events", "cleanup_old_dispatch_logs", "dispatch_remind
 logger = get_logger(__name__)
 
 
-async def dispatch_reminders(*, bot: Bot, session_maker: async_sessionmaker[AsyncSession]) -> None:
+async def dispatch_reminders(
+    *, bot: Bot, session_maker: async_sessionmaker[AsyncSession], window_minutes: int = 10
+) -> None:
     """Один тик scheduler'а: найти кандидатов и отправить им сообщения.
 
     Идемпотентность: `dispatch_log.record(...)` зовётся ДО `send_message`.
     Если запись не прошла (гонка) — пропускаем. Если send_message упал
     (TelegramAPIError, юзер заблокировал бота) — лог не откатываем:
     повторно слать уже бессмысленно, момент прошёл.
+
+    Параметр `window_minutes` передаётся из scheduler (TASK-049), default
+    обеспечивает совместимость при прямом вызове в тестах.
     """
     now = datetime.now(tz=UTC)
     async with session_maker() as session:
         service = ReminderService(session)
-        candidates = await service.find_candidates(now=now, window_minutes=5)
+        candidates = await service.find_candidates(now=now, window_minutes=window_minutes)
         dispatch_log = ReminderDispatchLogRepository(session)
 
         for cand in candidates:
