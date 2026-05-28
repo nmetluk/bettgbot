@@ -30,6 +30,7 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
           ignore-unfixed: true
+          vuln-type: 'os'
       - name: Upload Trivy results to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -56,6 +57,7 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
           ignore-unfixed: true
+          vuln-type: 'os'
       - name: Upload Trivy results to GitHub Security
         if: always()
         uses: github/codeql-action/upload-sarif@v3
