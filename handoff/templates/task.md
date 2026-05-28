@@ -22,6 +22,10 @@ estimate: S                 # S | M | L (грубо: <1ч / 1-4ч / >4ч)
 
 ## Definition of Done
 
+> 🚨 **Перед `chore(handoff): archive` коммитом — ОБЯЗАТЕЛЬНО написать
+> `handoff/outbox/TASK-NNN-report.md`.** Без отчёта CI handoff-consistency
+> красный, PR не мёрджится. Шаблон — `handoff/templates/report.md`.
+
 Проверяемые критерии — чтобы и человек, и агент могли однозначно сказать «готово / не готово»:
 
 - [ ] Конкретный критерий 1 (например: «создан модуль `src/shared/models/event.py` с классом `Event`»)
