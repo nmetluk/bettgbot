@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.shared.models import User
 from src.shared.repositories import BroadcastRepository
 from tests.integration.conftest import make_admin, make_category, make_event, make_user
@@ -18,12 +17,6 @@ pytestmark = pytest.mark.integration
 
 async def test_recipients_for_all_returns_unblocked_users(session: AsyncSession) -> None:
     """Сегмент `all` возвращает всех неблокированных пользователей."""
-    # Получаем existing count
-    existing_result = await session.execute(
-        select(func.count(User.id)).where(User.is_blocked.is_(False))
-    )
-    existing_count = existing_result.scalar_one() or 0
-
     blocked = await make_user(session, is_blocked=True)
     active = await make_user(session, is_blocked=False)
     inactive = await make_user(session, is_blocked=False)
@@ -40,8 +33,6 @@ async def test_recipients_for_all_returns_unblocked_users(session: AsyncSession)
 
 async def test_recipients_for_active_filters_by_last_seen(session: AsyncSession) -> None:
     """Сегмент `active` возвращает только пользователей с last_seen_at >= 30 дней."""
-    cutoff = datetime.now(tz=UTC) - timedelta(days=30)
-
     # Активный: заходил 25 дней назад
     active = await make_user(session, is_blocked=False, last_seen_at=datetime.now(tz=UTC) - timedelta(days=25))
     # Неактивный: заходил 35 дней назад
@@ -219,7 +210,7 @@ async def test_count_recipients_for_all(session: AsyncSession) -> None:
     existing_count = existing_result.scalar_one() or 0
 
     user1 = await make_user(session, is_blocked=False)
-    user2 = await make_user(session, is_blocked=False)
+    await make_user(session, is_blocked=False)  # второй пользователь
     blocked = await make_user(session, is_blocked=True)  # Не считается
 
     # Проверяем, что is_blocked применился

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.bot.scheduler.jobs import dispatch_broadcasts
 from src.shared.models import Broadcast
 from src.shared.repositories import BroadcastRepository
@@ -64,8 +63,9 @@ async def test_dispatch_broadcasts_handles_send_errors(clean_session: AsyncSessi
     from aiogram.exceptions import TelegramAPIError
 
     admin = await make_admin(clean_session)
-    user1 = await make_user(clean_session, is_blocked=False)
-    user2 = await make_user(clean_session, is_blocked=False)
+    # Создаём двух пользователей для рассылки
+    await make_user(clean_session, is_blocked=False)
+    await make_user(clean_session, is_blocked=False)
 
     repo = BroadcastRepository(clean_session)
 
@@ -156,7 +156,8 @@ async def test_dispatch_broadcasts_commits_in_batches(clean_session: AsyncSessio
     admin = await make_admin(clean_session)
 
     # Создаём 5 пользователей
-    users = [await make_user(clean_session, is_blocked=False) for _ in range(5)]
+    for _ in range(5):
+        await make_user(clean_session, is_blocked=False)
 
     repo = BroadcastRepository(clean_session)
 

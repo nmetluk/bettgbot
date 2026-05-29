@@ -13,16 +13,16 @@ import pytest
 def test_preview_char_count_logic() -> None:
     """Логика подсчёта байт работает корректно."""
     # ASCII — 1 байт на символ
-    assert len("hello".encode("utf-8")) == 5
+    assert len(b"hello") == 5
 
     # Кириллица — 2 байта на символ
-    assert len("тест".encode("utf-8")) == 8
+    assert len("тест".encode()) == 8
 
     # Пустая строка
-    assert len("".encode("utf-8")) == 0
+    assert len(b"") == 0
 
     # Смешанный текст
-    assert len("hello мир".encode("utf-8")) == 12  # hello(5) + space(1) + мир(6)
+    assert len("hello мир".encode()) == 12  # hello(5) + space(1) + мир(6)
 
 
 def test_create_broadcast_dto_validation() -> None:
