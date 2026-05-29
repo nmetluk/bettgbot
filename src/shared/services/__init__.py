@@ -12,7 +12,7 @@ from .dashboard import DashboardService
 from .event import EventService
 from .prediction import PredictionService
 from .reminder import ReminderCandidate, ReminderService
-from .stats import StatsService
+from .stats import LeaderboardRow, StatsService
 from .user import UserService
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "CategoryService",
     "DashboardService",
     "EventService",
+    "LeaderboardRow",
     "PredictionService",
     "ReminderCandidate",
     "ReminderService",

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Рейтинг — Betting Bot Admin{% endblock %}
+
+{% block body %}
+{% include "_layout_shell.html" %}
+
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">Рейтинг пользователей</h1>
+            <p class="pv-page-sub">Точность прогнозов (минимум 5 разрешённых)</p>
+        </div>
+        <div class="pv-page-actions">
+            <div class="pv-toolbar-toggle">
+                <a href="/leaderboard?period=all"
+                   class="pv-btn {{ 'pv-btn-primary' if period == 'all' else 'pv-btn-ghost' }} pv-btn-sm">
+                    За всё время
+                </a>
+                <a href="/leaderboard?period=30d"
+                   class="pv-btn {{ 'pv-btn-primary' if period == '30d' else 'pv-btn-ghost' }} pv-btn-sm">
+                    30 дней
+                </a>
+                <a href="/leaderboard?period=90d"
+                   class="pv-btn {{ 'pv-btn-primary' if period == '90d' else 'pv-btn-ghost' }} pv-btn-sm">
+                    90 дней
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if rows %}
+    <div class="pv-card pv-card-flush">
+        <table class="pv-table">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Место</th>
+                    <th>Пользователь</th>
+                    <th class="pv-c-num">Точность</th>
+                    <th class="pv-c-num">Верных</th>
+                    <th class="pv-c-num">Разрешено</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr style="cursor: pointer;" onclick="window.location='/users/{{ row.user_id }}'">
+                    <td>
+                        {% if row.rank == 1 %}
+                        <span class="pv-badge" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #000;">
+                            <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle;">emoji_events</span>
+                            1
+                        </span>
+                        {% elif row.rank == 2 %}
+                        <span class="pv-badge" style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #000;">
+                            <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle;">emoji_events</span>
+                            2
+                        </span>
+                        {% elif row.rank == 3 %}
+                        <span class="pv-badge" style="background: linear-gradient(135deg, #CD7F32, #A0522D); color: #000;">
+                            <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle;">emoji_events</span>
+                            3
+                        </span>
+                        {% else %}
+                        <span class="pv-mono pv-muted">{{ row.rank }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="pv-row" style="gap: 10px;">
+                            <div class="pv-avatar">{{ row.display_name[0]|upper }}</div>
+                            <span class="pv-row-strong">{{ row.display_name }}</span>
+                        </div>
+                    </td>
+                    <td class="pv-c-num">
+                        <span class="pv-badge {{ 'success' if row.accuracy >= 70 else ('warning' if row.accuracy >= 50 else 'secondary') }}">
+                            {{ row.accuracy }}%
+                        </span>
+                    </td>
+                    <td class="pv-c-num pv-mono">{{ row.correct }}</td>
+                    <td class="pv-c-num pv-mono">{{ row.resolved }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="pv-empty" data-icon="leaderboard">
+        <p>В рейтинге пока никто не участвует — нужно минимум 5 разрешённых прогнозов.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% endblock %}

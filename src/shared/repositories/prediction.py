@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, case, func, not_, select, update
+from sqlalchemy import and_, case, cast, func, not_, select, update
+from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -147,3 +148,66 @@ class PredictionRepository:
         stmt = select(func.count()).select_from(Prediction).where(Prediction.created_at >= cutoff)
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
+
+    async def leaderboard(
+        self,
+        *,
+        min_resolved: int = 5,
+        limit: int = 100,
+        period_days: int | None = None,
+    ) -> Sequence[tuple[int, int, int, str, float]]:
+        """Рейтинг пользователей по точности прогнозов.
+
+        Возвращает список кортежей ``(user_id, correct, resolved, display_name, accuracy)``.
+        Сортировка: по точности ↓, затем ``correct`` ↓, затем ``resolved`` ↓.
+        Пользователи с ``resolved < min_resolved`` исключены (``HAVING``).
+        Заблокированные (``is_blocked``) исключены.
+
+        Args:
+            min_resolved: Минимальное количество разрешённых прогнозов для попадания в рейтинг.
+            limit: Максимальное количество строк в результате.
+            period_days: Фильтр по количеству дней (``None`` = all-time).
+        """
+        correct = func.count().filter(Prediction.is_correct.is_(True))
+        resolved = func.count().filter(Prediction.is_correct.isnot(None))
+        accuracy = func.round(
+            cast(correct, NUMERIC) / cast(resolved, NUMERIC) * 100,
+            1,
+        )
+
+        stmt = (
+            select(
+                Prediction.user_id,
+                correct.label("correct"),
+                resolved.label("resolved"),
+                (User.first_name + " " + func.coalesce(User.last_name, "")).label("display_name"),
+                accuracy.label("accuracy"),
+            )
+            .join(User, Prediction.user_id == User.id)
+            .where(User.is_blocked.is_(False))
+        )
+
+        if period_days is not None:
+            cutoff = datetime.now(tz=UTC) - timedelta(days=period_days)
+            stmt = stmt.where(Prediction.created_at >= cutoff)
+
+        stmt = (
+            stmt.group_by(Prediction.user_id, User.first_name, User.last_name)
+            .having(resolved >= min_resolved)
+            .order_by(accuracy.desc(), correct.desc(), resolved.desc())
+            .limit(limit)
+        )
+
+        result = await self._session.execute(stmt)
+        rows: list[tuple[int, int, int, str, float]] = []
+        for row in result:
+            rows.append(
+                (
+                    int(row.user_id),
+                    int(row.correct),
+                    int(row.resolved),
+                    str(row.display_name),
+                    float(row.accuracy),
+                )
+            )
+        return rows
