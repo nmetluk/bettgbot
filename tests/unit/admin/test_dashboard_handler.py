@@ -67,8 +67,9 @@ def _clear_overrides() -> Generator[None, None, None]:
 
 def test_dashboard_renders_counters(fake_admin_middleware_session: None) -> None:
     """Dashboard handler вызывает сервис и передаёт счётчики в шаблон."""
+    from datetime import UTC, datetime
+
     from src.shared.services.dashboard import ActiveEventInfo, AuditLogInfo
-    from datetime import datetime, UTC
 
     service = MagicMock()
     service.get_counters = AsyncMock(
