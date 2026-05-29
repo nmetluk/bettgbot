@@ -1,72 +1,115 @@
 {% extends "base.html" %}
 
-{% block title %}Аудит — Admin{% endblock %}
+{% block title %}Аудит-лог — Betting Bot Admin{% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <h1>Журнал аудита</h1>
+{% block body %}
+{% include "_layout_shell.html" %}
 
-    <form method="get" class="row g-2 mb-4">
-        <div class="col-md-3">
-            <label class="form-label">Админ</label>
-            <select name="admin_id" class="form-select">
-                <option value="">— все —</option>
-                {% for a in admins %}
-                <option value="{{ a.id }}" {% if a.id == selected_admin_id %}selected{% endif %}>
-                    {{ a.login }}
-                </option>
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">Аудит-лог</h1>
+            <p class="pv-page-sub">Журнал значимых действий в админке</p>
+        </div>
+        <button class="pv-btn pv-btn-sm">
+            <span class="material-symbols-rounded">download</span>
+            Экспорт CSV
+        </button>
+    </div>
+
+    <div class="pv-card pv-card-flush">
+        <div class="pv-toolbar">
+            <form method="get" style="display: flex; gap: var(--pv-s-8); flex: 1;">
+                <select name="admin_id" class="pv-select" style="width: auto; height: 32px;">
+                    <option value="">Все администраторы</option>
+                    {% for a in admins %}
+                    <option value="{{ a.id }}" {% if a.id == selected_admin_id %}selected{% endif %}>
+                        {{ a.login }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <select name="action" class="pv-select" style="width: auto; height: 32px;">
+                    <option value="">Все действия</option>
+                    <option value="category.create" {% if selected_action == 'category.create' %}selected{% endif %}>category.create</option>
+                    <option value="category.update" {% if selected_action == 'category.update' %}selected{% endif %}>category.update</option>
+                    <option value="category.delete" {% if selected_action == 'category.delete' %}selected{% endif %}>category.delete</option>
+                    <option value="event.create" {% if selected_action == 'event.create' %}selected{% endif %}>event.create</option>
+                    <option value="event.update" {% if selected_action == 'event.update' %}selected{% endif %}>event.update</option>
+                    <option value="event.delete" {% if selected_action == 'event.delete' %}selected{% endif %}>event.delete</option>
+                    <option value="event.publish" {% if selected_action == 'event.publish' %}selected{% endif %}>event.publish</option>
+                    <option value="event.archive" {% if selected_action == 'event.archive' %}selected{% endif %}>event.archive</option>
+                    <option value="outcome.create" {% if selected_action == 'outcome.create' %}selected{% endif %}>outcome.create</option>
+                    <option value="outcome.update" {% if selected_action == 'outcome.update' %}selected{% endif %}>outcome.update</option>
+                    <option value="outcome.delete" {% if selected_action == 'outcome.delete' %}selected{% endif %}>outcome.delete</option>
+                    <option value="user.block" {% if selected_action == 'user.block' %}selected{% endif %}>user.block</option>
+                    <option value="user.unblock" {% if selected_action == 'user.unblock' %}selected{% endif %}>user.unblock</option>
+                </select>
+                <input type="datetime-local" name="since" class="pv-input" style="height: 32px; padding: 4px 8px;" value="{{ selected_since }}">
+                <input type="datetime-local" name="until" class="pv-input" style="height: 32px; padding: 4px 8px;" value="{{ selected_until }}">
+                <button type="submit" class="pv-btn pv-btn-ghost pv-btn-sm">
+                    <span class="material-symbols-rounded">search</span>
+                </button>
+            </form>
+            <div style="display: flex; gap: var(--pv-s-8); align-items: center;">
+                <span class="pv-chip">
+                    <span class="material-symbols-rounded">calendar_today</span>
+                    Период
+                </span>
+            </div>
+        </div>
+        <table class="pv-table">
+            <thead>
+                <tr>
+                    <th style="width: 150px;">Время</th>
+                    <th style="width: 160px;">Администратор</th>
+                    <th>Действие</th>
+                    <th>Описание</th>
+                    <th class="pv-c-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in rows %}
+                <tr>
+                    <td class="pv-mono pv-muted">{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>
+                        <div class="pv-row" style="gap: 8px;">
+                            <div class="pv-avatar">{{ (entry.admin.full_name or entry.admin.login)[0]|upper }}</div>
+                            <span>{{ entry.admin.full_name or entry.admin.login }}</span>
+                        </div>
+                    </td>
+                    <td><code>{{ entry.action }}</code></td>
+                    <td class="pv-muted" style="font-size: 12px;">
+                        {% if entry.action == 'category.create' %}Создание категории{% endif %}
+                        {% if entry.action == 'category.update' %}Обновление категории{% endif %}
+                        {% if entry.action == 'category.delete' %}Удаление категории{% endif %}
+                        {% if entry.action == 'event.create' %}Создание события{% endif %}
+                        {% if entry.action == 'event.update' %}Обновление события{% endif %}
+                        {% if entry.action == 'event.delete' %}Удаление события{% endif %}
+                        {% if entry.action == 'event.publish' %}Публикация события{% endif %}
+                        {% if entry.action == 'event.archive' %}Архивация события{% endif %}
+                        {% if entry.action == 'outcome.create' %}Создание исхода{% endif %}
+                        {% if entry.action == 'outcome.update' %}Обновление исхода{% endif %}
+                        {% if entry.action == 'outcome.delete' %}Удаление исхода{% endif %}
+                        {% if entry.action == 'user.block' %}Блокировка пользователя{% endif %}
+                        {% if entry.action == 'user.unblock' %}Разблокировка пользователя{% endif %}
+                    </td>
+                    <td class="pv-c-actions">
+                        <button type="button"
+                                hx-get="/audit/{{ entry.id }}/details"
+                                hx-target="#audit-row-{{ entry.id }}"
+                                hx-swap="outerHTML"
+                                class="pv-btn pv-btn-ghost pv-btn-icon"
+                                title="Развернуть">
+                            <span class="material-symbols-rounded">expand_more</span>
+                        </button>
+                    </td>
+                </tr>
                 {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Action</label>
-            <input type="text" name="action" class="form-control"
-                   placeholder="напр. event.create"
-                   value="{{ selected_action }}">
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">С (UTC)</label>
-            <input type="datetime-local" name="since" class="form-control"
-                   value="{{ selected_since }}">
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">По (UTC)</label>
-            <input type="datetime-local" name="until" class="form-control"
-                   value="{{ selected_until }}">
-        </div>
-        <div class="col-md-1 d-flex align-items-end">
-            <button type="submit" class="btn btn-outline-primary w-100">
-                <i class="bi bi-search"></i>
-            </button>
-        </div>
-    </form>
-
-    {% if rows %}
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>Когда</th><th>Админ</th><th>Action</th><th>Payload (preview)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in rows %}
-            <tr id="audit-row-{{ entry.id }}">
-                <td>
-                    <small>{{ entry.created_at.strftime("%d.%m.%Y %H:%M:%S") }}</small>
-                </td>
-                <td>{{ entry.admin.full_name or entry.admin.login }}</td>
-                <td><code>{{ entry.action }}</code></td>
-                <td>
-                    {% include "audit/_preview.html" %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    {% if total > page_size %}
-    <nav>
-        <ul class="pagination">
+            </tbody>
+        </table>
+        {% if total > page_size %}
+        <div class="pv-pagination">
             {% set qs_parts = [] %}
             {% if selected_admin_id %}{% set _ = qs_parts.append("admin_id=" ~ selected_admin_id) %}{% endif %}
             {% if selected_action %}{% set _ = qs_parts.append("action=" ~ selected_action) %}{% endif %}
@@ -75,19 +118,21 @@
             {% set qs_extra = ("&" ~ (qs_parts | join("&"))) if qs_parts else "" %}
 
             {% if page > 0 %}
-            <li class="page-item"><a class="page-link" href="?page={{ page - 1 }}{{ qs_extra }}">‹</a></li>
+            <a href="?page={{ page - 1 }}{{ qs_extra }}" class="pv-btn pv-btn-ghost pv-btn-sm">‹</a>
             {% endif %}
-            <li class="page-item active"><span class="page-link">{{ page + 1 }}</span></li>
+            <span class="pv-pagination-current">{{ page + 1 }}</span>
             {% if (page + 1) * page_size < total %}
-            <li class="page-item"><a class="page-link" href="?page={{ page + 1 }}{{ qs_extra }}">›</a></li>
+            <a href="?page={{ page + 1 }}{{ qs_extra }}" class="pv-btn pv-btn-ghost pv-btn-sm">›</a>
             {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+        </div>
+        {% endif %}
+    </div>
 
-    <p class="text-muted">Всего записей: {{ total }}.</p>
+    {% if rows %}
+    <p class="pv-muted">Всего записей: {{ total }}.</p>
     {% else %}
-    <p class="text-muted">Записей по выбранным фильтрам нет.</p>
+    <div class="pv-empty" data-icon="receipt_long">Записей по выбранным фильтрам нет.</div>
     {% endif %}
 </div>
+{% endblock %}
 {% endblock %}
