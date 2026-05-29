@@ -314,7 +314,6 @@ async def test_0005_roundtrip(fresh_db: None) -> None:
 
     # После downgrade таблицы broadcast должны исчезнуть.
     tables = await _fetch_scalars(
-        "SELECT tablename FROM pg_tables WHERE schemaname='public' "
-        "AND tablename LIKE 'broadcast%'"
+        "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'broadcast%'"
     )
     assert set(tables) == set()
