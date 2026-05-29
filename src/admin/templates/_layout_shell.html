@@ -1,0 +1,131 @@
+<!-- ============================================================
+   Layout shell for authenticated pages (v2)
+   ============================================================ -->
+
+<div class="pv-app" :data-rail="rail ? 'collapsed' : null">
+    <!-- Sidebar -->
+    <aside class="pv-sidebar">
+        <div class="pv-sb-brand">
+            <span class="bg-mark">
+                <span class="material-symbols-rounded">insights</span>
+            </span>
+            <div class="pv-sb-brand-text">
+                <b>Прогнозы</b>
+                <span>панель управления</span>
+            </div>
+        </div>
+        <nav class="pv-sb-nav">
+            <div class="pv-sb-section">Управление</div>
+            <a href="/" class="pv-sb-item {{ 'active' if request.path == '/' else '' }}">
+                <span class="material-symbols-rounded">dashboard</span>
+                <span class="pv-sb-label">Главная</span>
+            </a>
+            <a href="/categories" class="pv-sb-item {{ 'active' if '/categories' in request.path else '' }}">
+                <span class="material-symbols-rounded">folder</span>
+                <span class="pv-sb-label">Категории</span>
+            </a>
+            <a href="/events" class="pv-sb-item {{ 'active' if '/events' in request.path else '' }}">
+                <span class="material-symbols-rounded">event</span>
+                <span class="pv-sb-label">События</span>
+            </a>
+            <a href="/users" class="pv-sb-item {{ 'active' if '/users' in request.path else '' }}">
+                <span class="material-symbols-rounded">groups</span>
+                <span class="pv-sb-label">Пользователи</span>
+            </a>
+            <div class="pv-sb-section">Журнал</div>
+            <a href="/audit" class="pv-sb-item {{ 'active' if '/audit' in request.path else '' }}">
+                <span class="material-symbols-rounded">receipt_long</span>
+                <span class="pv-sb-label">Аудит-лог</span>
+            </a>
+            <div class="pv-sb-foot">
+                <div class="pv-sb-foot-card">
+                    <div class="pv-sb-foot-text">
+                        <span class="pv-status-dot"></span>
+                        <b>Бот подключён</b>
+                    </div>
+                    <div class="pv-sb-foot-bar"><i style="width: 100%"></i></div>
+                    <div class="pv-sb-foot-text" style="opacity: 0.75">@predictions_bot · webhook OK</div>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Topbar -->
+    <header class="pv-topbar">
+        <button @click="toggleRail()" class="pv-tb-iconbtn" title="Свернуть меню">
+            <span class="material-symbols-rounded">menu</span>
+        </button>
+        <div class="pv-tb-search">
+            <span class="material-symbols-rounded ms">search</span>
+            <input type="text" placeholder="Поиск событий, пользователей, категорий…" disabled>
+        </div>
+        <div class="pv-tb-grow"></div>
+        <div class="pv-tb-actions">
+            <!-- Density controls -->
+            <div class="pv-density-controls">
+                <button @click="setDensity('compact')"
+                        class="pv-density-btn {{ 'active' if density == 'compact' else '' }}"
+                        title="Компактная">C</button>
+                <button @click="setDensity('regular')"
+                        class="pv-density-btn {{ 'active' if density == 'regular' else '' }}"
+                        title="Обычная">R</button>
+                <button @click="setDensity('comfortable')"
+                        class="pv-density-btn {{ 'active' if density == 'comfortable' else '' }}"
+                        title="Комфорт">K</button>
+            </div>
+            <!-- Accent controls -->
+            <div class="pv-accent-controls">
+                <template x-for="acc in accents" :key="acc">
+                    <button @click="setAccent(acc)"
+                            class="pv-accent-swatch"
+                            :style="{ backgroundColor: acc }"
+                            :class="{ 'active': accent === acc }"
+                            :title="'Акцент ' + acc"></button>
+                </template>
+            </div>
+            <!-- Dark mode toggle -->
+            <button @click="toggleDark()" class="pv-tb-iconbtn" :title="dark ? 'Светлая тема' : 'Тёмная тема'">
+                <span class="material-symbols-rounded" x-text="dark ? 'light_mode' : 'dark_mode'"></span>
+            </button>
+            <div class="pv-tb-divider"></div>
+            <!-- User info -->
+            <div style="display: flex; align-items: center; gap: 10px; padding: 4px 10px; border-radius: var(--pv-r-6);">
+                {% set _adm = admin or (request.state.admin if request.state and hasattr(request.state, 'admin') else None) %}
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--pv-purple); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
+                    {% if _adm and _adm.full_name %}{{ _adm.full_name[0] }}
+                    {% elif _adm and _adm.login %}{{ _adm.login[0]|upper }}
+                    {% else %}A{% endif %}
+                </div>
+                <div style="display: flex; flex-direction: column; line-height: 1.15;">
+                    <b style="font-weight: 700; font-size: var(--pv-fs-13); color: var(--pv-fg);">
+                        {% if _adm %}{{ _adm.full_name or _adm.login }}{% else %}Admin{% endif %}
+                    </b>
+                    <span style="font-size: var(--pv-fs-11); color: var(--pv-fg-muted);">Администратор</span>
+                </div>
+            </div>
+            <!-- Logout -->
+            <form method="post" action="/logout" style="display: contents;">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
+                <button type="submit" class="pv-tb-iconbtn" title="Выйти">
+                    <span class="material-symbols-rounded">logout</span>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <!-- Main content area -->
+    <main class="pv-main">
+        {% block pv_content %}{% endblock %}
+    </main>
+</div>
+
+<!-- UI state script -->
+<script src="{{ url_for('static', path='js/ui.js') }}"></script>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('ui', {
+            dark: false
+        });
+    });
+</script>
