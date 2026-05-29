@@ -8,7 +8,12 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from .jobs import archive_stale_events, cleanup_old_dispatch_logs, dispatch_reminders
+from .jobs import (
+    archive_stale_events,
+    cleanup_old_dispatch_logs,
+    dispatch_broadcasts,
+    dispatch_reminders,
+)
 
 __all__ = ["build_scheduler"]
 
@@ -22,6 +27,9 @@ def build_scheduler(
       (TASK-049 — extended для catchup при restart/misfire), `coalesce=True`,
       `max_instances=1`. Окно поиска кандидатов — `reminder_window_minutes` из
       settings (default 10 минут = tick + запас).
+    - `dispatch_broadcasts`: каждую минуту UTC, `misfire_grace_time=300`,
+      `coalesce=True`, `max_instances=1`. Забирает одну queued рассылку
+      и отправляет с пейсингом (TASK-061).
     - `archive_stale_events`: ежедневно в 03:00 UTC, `misfire_grace_time=300`
       (cron-job менее чувствителен ко времени).
     - `cleanup_old_dispatch_logs`: ежедневно в 03:30 UTC, `misfire_grace_time=300`
@@ -42,6 +50,16 @@ def build_scheduler(
         id="dispatch_reminders",
         replace_existing=True,
         misfire_grace_time=3600,
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        dispatch_broadcasts,
+        trigger=IntervalTrigger(minutes=1),
+        kwargs={"bot": bot, "session_maker": session_maker},
+        id="dispatch_broadcasts",
+        replace_existing=True,
+        misfire_grace_time=300,
         coalesce=True,
         max_instances=1,
     )

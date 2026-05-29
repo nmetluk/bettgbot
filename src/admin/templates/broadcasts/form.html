@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Новая рассылка — Betting Bot Admin{% endblock %}
+
+{% block body %}
+{% include "_layout_shell.html" %}
+
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">Новая рассылка</h1>
+            <p class="pv-page-sub">Составьте сообщение и выберите получателей</p>
+        </div>
+        <div class="pv-page-actions">
+            <a href="/broadcasts" class="pv-btn pv-btn-ghost">Отмена</a>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="pv-alert pv-alert-danger" role="alert">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="pv-card">
+        <form method="POST" action="/broadcasts" hx-post="/broadcasts" hx-target="#pv-main" hx-swap="innerHTML">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="pv-form-group">
+                <label class="pv-form-label">Сегмент получателей</label>
+
+                <div class="pv-segment-choices">
+                    {% for seg in segments %}
+                    <label class="pv-segment-choice">
+                        <input type="radio" name="segment" value="{{ seg.value }}"
+                               {% if form_data.segment == seg.value or (not form_data and loop.first) %}checked{% endif %}
+                               hx-get="/broadcasts/preview-count?segment={{ seg.value }}"
+                               hx-target="#preview-count"
+                               hx-swap="innerHTML">
+                        <div class="pv-segment-label">
+                            <div class="pv-segment-title">{{ seg.label }}</div>
+                            <div class="pv-segment-desc">{{ seg.description }}</div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if categories %}
+            <div class="pv-form-group" id="category-group" style="{% if not form_data or form_data.segment != 'category' %}display: none;{% endif %}">
+                <label class="pv-form-label">Категория</label>
+                <select name="category_id" class="pv-form-control">
+                    <option value="">— выберите категорию —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if form_data.category_id == cat.id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="pv-form-group">
+                <label class="pv-form-label">Текст сообщения</label>
+                <textarea name="message_text" class="pv-form-control" rows="6"
+                          placeholder="Введите текст сообщения..."
+                          maxlength="4096"
+                          hx-trigger="keyup changed delay:300ms"
+                          hx-get="/broadcasts/preview-char-count?message={this.value}"
+                          hx-target="#char-counter"
+                          hx-swap="innerHTML">{{ form_data.message_text or '' }}</textarea>
+                <div class="pv-form-help">
+                    <span id="char-counter">{{ (form_data.message_text|length if form_data.message_text else 0) }}</span> / 4096 байт
+                </div>
+            </div>
+
+            <div class="pv-form-group">
+                <label class="pv-form-label">Предпросмотр</label>
+                <div class="pv-broadcast-preview">
+                    <div class="pv-bubble">{{ form_data.message_text or 'Текст сообщения...' }}</div>
+                </div>
+            </div>
+
+            <div class="pv-form-group">
+                <label class="pv-form-label">Получателей</label>
+                <div id="preview-count">
+                    <span class="pv-muted">Выберите сегмент</span>
+                </div>
+            </div>
+
+            <div class="pv-form-actions">
+                <button type="submit" class="pv-btn pv-btn-primary">Отправить рассылку</button>
+                <a href="/broadcasts" class="pv-btn pv-btn-ghost">Отмена</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Показываем/скрываем выбор категории в зависимости от сегмента
+        document.addEventListener('DOMContentLoaded', function() {
+            const segmentInputs = document.querySelectorAll('input[name="segment"]');
+            const categoryGroup = document.getElementById('category-group');
+
+            function toggleCategory() {
+                const selected = document.querySelector('input[name="segment"]:checked');
+                if (selected && selected.value === 'category') {
+                    categoryGroup.style.display = 'block';
+                } else {
+                    categoryGroup.style.display = 'none';
+                }
+            }
+
+            segmentInputs.forEach(input => {
+                input.addEventListener('change', toggleCategory);
+            });
+
+            // Инициализация
+            toggleCategory();
+        });
+    </script>
+
+    <style>
+    .pv-segment-choices {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .pv-segment-choice {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 4px;
+    }
+    .pv-segment-choice:hover {
+        background: var(--pv-surface-hover);
+    }
+    .pv-segment-choice input[type="radio"] {
+        margin-top: 4px;
+    }
+    .pv-segment-label {
+        flex: 1;
+    }
+    .pv-segment-title {
+        font-weight: 500;
+    }
+    .pv-segment-desc {
+        font-size: 13px;
+        color: var(--pv-muted);
+    }
+    .pv-broadcast-preview {
+        padding: 16px;
+        background: var(--pv-surface);
+        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+    }
+    .pv-bubble {
+        background: var(--pv-bg-tertiary);
+        padding: 12px 16px;
+        border-radius: 16px 16px 4px 16px;
+        max-width: 400px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    </style>
+</div>
+{% endblock %}
+{% endblock %}

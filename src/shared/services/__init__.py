@@ -7,6 +7,7 @@
 
 from .admin_auth import AdminAuthService
 from .audit import AuditService
+from .broadcast import BroadcastSegment, BroadcastService, CreateBroadcastDraft
 from .category import CategoryService
 from .dashboard import DashboardService
 from .event import EventService
@@ -28,8 +29,11 @@ __all__ = [
     "AnalyticsFunnelMetrics",
     "AnalyticsTopEventRow",
     "AuditService",
+    "BroadcastSegment",
+    "BroadcastService",
     "CategoryAccuracyRow",
     "CategoryService",
+    "CreateBroadcastDraft",
     "DashboardService",
     "EventService",
     "LeaderboardRow",

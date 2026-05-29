@@ -36,6 +36,10 @@
                 <span class="material-symbols-rounded">leaderboard</span>
                 <span class="pv-sb-label">Рейтинг</span>
             </a>
+            <a href="/broadcasts" class="pv-sb-item {{ 'active' if '/broadcasts' in request.path else '' }}">
+                <span class="material-symbols-rounded">campaign</span>
+                <span class="pv-sb-label">Рассылки</span>
+            </a>
             <a href="/analytics" class="pv-sb-item {{ 'active' if '/analytics' in request.path else '' }}">
                 <span class="material-symbols-rounded">monitoring</span>
                 <span class="pv-sb-label">Аналитика</span>

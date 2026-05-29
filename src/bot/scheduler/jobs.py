@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 from aiogram import Bot
@@ -9,13 +10,18 @@ from aiogram.exceptions import TelegramAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.shared.logging import get_logger
-from src.shared.repositories import ReminderDispatchLogRepository
+from src.shared.repositories import BroadcastRepository, ReminderDispatchLogRepository
 from src.shared.services import EventService, ReminderService
 
 from .. import keyboards, texts
 from .._text_safety import safe_format
 
-__all__ = ["archive_stale_events", "cleanup_old_dispatch_logs", "dispatch_reminders"]
+__all__ = [
+    "archive_stale_events",
+    "cleanup_old_dispatch_logs",
+    "dispatch_broadcasts",
+    "dispatch_reminders",
+]
 
 
 logger = get_logger(__name__)
@@ -107,4 +113,98 @@ async def cleanup_old_dispatch_logs(
             "scheduler.cleanup_dispatch_logs.done",
             deleted_count=count,
             retention_days=retention_days,
+        )
+
+
+async def dispatch_broadcasts(*, bot: Bot, session_maker: async_sessionmaker[AsyncSession]) -> None:
+    """Один тик scheduler'а: отправить одну queued-рассылку.
+
+    Идемпотентность: `broadcast_delivery.record(...)` зовётся ДО `send_message`.
+    Если запись не прошла (уже отправлено) — пропускаем.
+    Если send_message упал (TelegramAPIError, юзер заблокировал бота) —
+    инкрементим failed_count, но продолжаем (остальные получат сообщение).
+
+    Пейсинг: ~0.05s между сообщениями (~20 msg/s), что ниже лимита Telegram (~30 msg/s).
+
+    Безопасность: `parse_mode=None` (плоский текст), никакого HTML —
+    исключает инъекцию при отправке пользовательского контента.
+    """
+    async with session_maker() as session:
+        repo = BroadcastRepository(session)
+
+        # Атомарно забираем одну queued-рассылку
+        broadcast = await repo.claim_next_queued()
+        if broadcast is None:
+            return
+
+        # Гард: пустой сегмент (должен был быть обработан при enqueue,
+        # но на всякий случай)
+        if broadcast.total_recipients == 0:
+            await repo.mark_done(broadcast.id)
+            await session.commit()
+            logger.info(
+                "scheduler.broadcast.empty",
+                broadcast_id=broadcast.id,
+            )
+            return
+
+        logger.info(
+            "scheduler.broadcast.started",
+            broadcast_id=broadcast.id,
+            segment=broadcast.segment,
+            total_recipients=broadcast.total_recipients,
+        )
+
+        # Получаем список получателей
+        recipients = await repo.recipients_for(
+            segment=broadcast.segment, category_id=broadcast.category_id
+        )
+
+        for user_id in recipients:
+            # Идемпотентность: записываем факт доставки ДО отправки
+            recorded = await repo.record_delivery(broadcast.id, user_id)
+            if not recorded:
+                # Уже отправлено (возможно при предыдущем тике после рестарта)
+                continue
+
+            # Получаем tg_user_id для отправки
+            # (нужен отдельный запрос, так как recipients_for возвращает только user_id)
+            from src.shared.repositories import UserRepository
+
+            user_repo = UserRepository(session)
+            user = await user_repo.get_by_id(user_id)
+            if user is None or user.is_blocked:
+                # Пользователь удалён или заблокирован после подсчёта recipients
+                await repo.increment_failed(broadcast.id)
+                continue
+
+            try:
+                await bot.send_message(user.tg_user_id, broadcast.message_text)
+                await repo.increment_sent(broadcast.id)
+                logger.debug(
+                    "scheduler.broadcast.sent",
+                    broadcast_id=broadcast.id,
+                    user_id=user_id,
+                )
+            except TelegramAPIError as exc:
+                await repo.increment_failed(broadcast.id)
+                logger.warning(
+                    "scheduler.broadcast.send_failed",
+                    broadcast_id=broadcast.id,
+                    user_id=user_id,
+                    error=str(exc),
+                )
+
+            # Пейсинг: ~20 msg/s (0.05s = 50ms между сообщениями)
+            await asyncio.sleep(0.05)
+
+        # Завершаем рассылку
+        await repo.mark_done(broadcast.id)
+        await session.commit()
+
+        logger.info(
+            "scheduler.broadcast.done",
+            broadcast_id=broadcast.id,
+            sent_count=broadcast.sent_count,
+            failed_count=broadcast.failed_count,
         )

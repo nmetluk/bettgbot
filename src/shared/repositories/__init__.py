@@ -12,6 +12,7 @@
 
 from .admin_user import AdminUserRepository
 from .audit_log import AuditLogRepository
+from .broadcast import BroadcastRepository
 from .category import CategoryRepository
 from .event import EventRepository
 from .outcome import OutcomeRepository
@@ -23,6 +24,7 @@ from .user import UserRepository
 __all__ = [
     "AdminUserRepository",
     "AuditLogRepository",
+    "BroadcastRepository",
     "CategoryRepository",
     "EventRepository",
     "OutcomeRepository",

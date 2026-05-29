@@ -1,0 +1,5 @@
+{% if count == 0 %}
+<span class="pv-badge warning">Нет получателей</span>
+{% else %}
+<span class="pv-mono">{{ count }} {{ 'получитель' if count == 1 else ('получателя' if count < 5 else 'получителей') }}</span>
+{% endif %}
