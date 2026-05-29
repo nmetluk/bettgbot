@@ -1,35 +1,143 @@
 {% extends "base_v2.html" %}
 
-{% block title %}Дашборд — Betting Bot Admin{% endblock %}
+{% block title %}Главная — Betting Bot Admin{% endblock %}
 
 {% block head_extra %}
 <style>
-    .kpi-grid {
+    .pv-grid.c4 {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: var(--pv-s-16);
-        margin-bottom: var(--pv-s-24);
+        margin-bottom: var(--pv-s-20);
     }
-    .kpi-tile {
+    .pv-grid.c-2-1 {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: var(--pv-s-16);
+        align-items: start;
+    }
+    @media (max-width: 1200px) {
+        .pv-grid.c-2-1 { grid-template-columns: 1fr; }
+    }
+    .pv-kpi {
         background: var(--pv-panel);
         border: 1px solid var(--pv-border);
         border-radius: var(--pv-r-8);
-        padding: var(--pv-card-pad);
+        padding: var(--pv-card-pad, 16px);
         display: flex; flex-direction: column; gap: var(--pv-s-8);
     }
-    .kpi-label {
+    .pv-kpi-label {
         font-size: var(--pv-fs-12);
         color: var(--pv-fg-muted);
         text-transform: uppercase;
         letter-spacing: var(--pv-tracking-caps);
         font-weight: 700;
+        display: flex; align-items: center; gap: 6px;
     }
-    .kpi-value {
-        font-size: 32px;
+    .pv-kpi-label .material-symbols-rounded { font-size: 14px; }
+    .pv-kpi-value {
+        font-size: 28px;
         font-weight: 700;
         color: var(--pv-fg);
         font-variant-numeric: tabular-nums;
-        line-height: 1;
+        line-height: 1.1;
+    }
+    .pv-kpi-value small {
+        font-size: var(--pv-fs-13);
+        color: var(--pv-fg-muted);
+        font-weight: 400;
+        margin-left: 4px;
+    }
+    .pv-kpi-foot {
+        font-size: var(--pv-fs-12);
+        color: var(--pv-fg-muted);
+        padding-top: 4px;
+    }
+    .pv-kpi-delta {
+        display: inline-flex; align-items: center; gap: 2px;
+        font-weight: 700;
+    }
+    .pv-kpi-delta.up { color: var(--pv-green); }
+    .pv-kpi-delta.down { color: var(--pv-red); }
+    .pv-kpi-delta .material-symbols-rounded { font-size: 14px; }
+
+    .pv-card {
+        background: var(--pv-panel);
+        border: 1px solid var(--pv-border);
+        border-radius: var(--pv-r-8);
+        overflow: hidden;
+    }
+    .pv-card-flush { background: transparent; border: none; }
+    .pv-card-head {
+        padding: var(--pv-s-16) var(--pv-s-20);
+        border-bottom: 1px solid var(--pv-divider);
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    }
+    .pv-card-head h3 {
+        margin: 0; font-size: var(--pv-fs-15); font-weight: 700; color: var(--pv-fg);
+    }
+    .pv-card-meta {
+        font-size: var(--pv-fs-12); color: var(--pv-fg-muted); margin-top: 2px;
+    }
+    .pv-card-body { padding: var(--pv-s-20); }
+
+    .pv-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--pv-fs-13);
+    }
+    .pv-table th, .pv-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--pv-divider);
+    }
+    .pv-table th {
+        font-weight: 700;
+        color: var(--pv-fg-muted);
+        text-transform: uppercase;
+        font-size: var(--pv-fs-11);
+        letter-spacing: var(--pv-tracking-caps);
+        background: var(--pv-muted);
+    }
+    .pv-table tbody tr:hover { background: var(--pv-hover); }
+    .pv-table tbody tr:last-child td { border-bottom: none; }
+    .pv-c-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pv-row-strong { font-weight: 700; color: var(--pv-fg); }
+    .pv-mono { font-family: ui-monospace, monospace; font-size: var(--pv-fs-12); }
+    .pv-muted { color: var(--pv-fg-muted); }
+
+    .pv-list-row {
+        display: flex; align-items: center; gap: 12px;
+        transition: background 0.12s;
+    }
+    .pv-list-row:hover { background: var(--pv-hover); }
+
+    .pv-avatar {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: var(--pv-accent-soft, var(--pv-bg));
+        color: var(--pv-accent);
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: var(--pv-fs-13);
+        flex-shrink: 0;
+    }
+
+    .pv-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 2px 8px;
+        border-radius: var(--pv-r-6);
+        font-size: var(--pv-fs-11);
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .pv-badge.open { background: rgba(41,180,115,0.12); color: var(--pv-green); }
+    .pv-badge.closed { background: rgba(230,64,58,0.12); color: var(--pv-red); }
+
+    .pv-empty {
+        padding: var(--pv-s-32);
+        text-align: center;
+        color: var(--pv-fg-muted);
+        font-size: var(--pv-fs-13);
     }
 </style>
 {% endblock %}
@@ -37,31 +145,155 @@
 {% block body %}
 {% include "_layout_shell.html" %}
 
-{% block content %}{% endblock %}
-
 {% block pv_content %}
 <div class="pv-page">
     <div class="pv-page-header">
         <div>
-            <h1 class="pv-page-title">Дашборд</h1>
-            <p class="pv-page-sub">Обзор состояния системы</p>
+            <h1 class="pv-page-title">Главная</h1>
+            <p class="pv-page-sub">Сводка по событиям, прогнозам и пользователям</p>
+        </div>
+        <div style="display: flex; gap: var(--pv-s-8);">
+            <button class="pv-btn pv-btn-sm">
+                <span class="material-symbols-rounded">download</span>
+                Экспорт
+            </button>
+            <a href="/events/new" class="pv-btn pv-btn-primary pv-btn-sm">
+                <span class="material-symbols-rounded">add</span>
+                Новое событие
+            </a>
         </div>
     </div>
 
-    <div class="kpi-grid">
-        {% for key, value in counters.items() %}
-        <div class="kpi-tile">
-            <div class="kpi-label">{{ key }}</div>
-            <div class="kpi-value">{{ value }}</div>
+    <div class="pv-grid c4">
+        <div class="pv-kpi">
+            <div class="pv-kpi-label">
+                <span class="material-symbols-rounded">groups</span>
+                Пользователей
+            </div>
+            <div class="pv-kpi-value">
+                {{ counters.users_total }}
+                <small>{{ counters.users_active_30d }} активных / 30 дн.</small>
+            </div>
+            <div class="pv-kpi-foot">
+                <span class="pv-kpi-delta up">
+                    <span class="material-symbols-rounded">trending_up</span>
+                    {{ counters.users_active_30d }} активных / 30 дн.
+                </span>
+            </div>
         </div>
-        {% endfor %}
+
+        <div class="pv-kpi">
+            <div class="pv-kpi-label">
+                <span class="material-symbols-rounded">checklist</span>
+                Прогнозов всего
+            </div>
+            <div class="pv-kpi-value">
+                {{ counters.predictions_total }}
+            </div>
+            <div class="pv-kpi-foot">
+                <span class="pv-kpi-delta up">
+                    <span class="material-symbols-rounded">trending_up</span>
+                    +{{ counters.predictions_24h }} за сутки
+                </span>
+            </div>
+        </div>
+
+        <div class="pv-kpi">
+            <div class="pv-kpi-label">
+                <span class="material-symbols-rounded">event</span>
+                События
+            </div>
+            <div class="pv-kpi-value">{{ counters.events_total }}</div>
+            <div class="pv-kpi-foot">
+                <span class="pv-muted">{{ counters.events_published }} опубл. · {{ counters.events_archived }} архив</span>
+            </div>
+        </div>
+
+        <div class="pv-kpi">
+            <div class="pv-kpi-label">
+                <span class="material-symbols-rounded">folder</span>
+                Категорий
+            </div>
+            <div class="pv-kpi-value">{{ counters.categories }}</div>
+            <div class="pv-kpi-foot">
+                <span class="pv-muted">{{ counters.categories_hidden }} скрыты от бота</span>
+            </div>
+        </div>
     </div>
 
-    <div class="pv-card">
-        <div class="pv-card-body">
-            <p style="color: var(--pv-fg-muted);">
-                Дашборд в разработке. Здесь будут сводки по событиям, прогнозам и активности пользователей.
-            </p>
+    <div class="pv-grid c-2-1">
+        <div class="pv-card pv-card-flush">
+            <div class="pv-card-head">
+                <div>
+                    <h3>Активные события</h3>
+                    <span class="pv-card-meta">приём прогнозов открыт или только что закрыт</span>
+                </div>
+                <a href="/events" class="pv-btn pv-btn-ghost pv-btn-sm">
+                    <span class="material-symbols-rounded">open_in_new</span>
+                    Все
+                </a>
+            </div>
+            {% if active_events %}
+            <table class="pv-table">
+                <thead>
+                    <tr>
+                        <th>Событие</th>
+                        <th>Категория</th>
+                        <th>Старт</th>
+                        <th class="pv-c-num">Прогнозов</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in active_events %}
+                    <tr style="cursor: pointer;" onclick="window.location='/events/{{ event.id }}'">
+                        <td class="pv-row-strong">{{ event.title }}</td>
+                        <td>{{ event.category_name or '—' }}</td>
+                        <td class="pv-mono">{{ event.starts_at.strftime('%d.%m %H:%M') if event.starts_at else '—' }}</td>
+                        <td class="pv-c-num">{{ event.predictions_count }}</td>
+                        <td>
+                            <span class="pv-badge {{ event.status }}">
+                                {% if event.status == 'open' %}Открыт{% else %}Закрыт{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="pv-empty">Нет активных событий</div>
+            {% endif %}
+        </div>
+
+        <div class="pv-card pv-card-flush">
+            <div class="pv-card-head">
+                <div>
+                    <h3>Последние действия</h3>
+                </div>
+                <a href="/audit" class="pv-btn pv-btn-ghost pv-btn-sm">
+                    <span class="material-symbols-rounded">open_in_new</span>
+                    Журнал
+                </a>
+            </div>
+            <div style="padding: 6px 0;">
+                {% if audit_logs %}
+                {% for log in audit_logs %}
+                <div class="pv-list-row" style="padding: 9px 20px;">
+                    <div class="pv-avatar">{{ log.admin_username[0]|upper }}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="color: var(--pv-fg); font-weight: 700; font-size: 13px;">
+                            {{ log.action }}
+                        </div>
+                        <div class="pv-muted" style="font-size: 12px;">
+                            {{ log.admin_username }} · {{ log.created_at.strftime('%d.%m %H:%M') if log.created_at else '—' }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="pv-empty">Нет записей аудита</div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

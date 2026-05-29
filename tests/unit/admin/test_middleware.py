@@ -64,7 +64,7 @@ def test_valid_cookie_passes_through_with_mocked_session_maker() -> None:
         response = client.get("/")
 
     assert response.status_code == 200
-    assert "Дашборд" in response.text
+    assert "Главная" in response.text  # заголовок дашборда в v2
 
 
 def test_stale_cookie_admin_deleted_redirects_and_clears_cookie() -> None:

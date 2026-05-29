@@ -4,7 +4,7 @@
 
 {% block head_extra %}
 <style>
-    .login-page {
+    .login-wrap {
         min-height: 100vh;
         display: flex;
         align-items: center;
@@ -14,7 +14,7 @@
     }
     .login-card {
         width: 100%;
-        max-width: 400px;
+        max-width: 360px;
         background: var(--pv-panel);
         border: 1px solid var(--pv-border);
         border-radius: var(--pv-r-12);
@@ -22,38 +22,55 @@
         box-shadow: var(--pv-shadow-lg);
     }
     .login-brand {
-        text-align: center;
+        display: flex;
+        align-items: center;
+        gap: var(--pv-s-12);
+        justify-content: center;
         margin-bottom: var(--pv-s-24);
     }
-    .login-brand .logo {
-        width: 48px; height: 48px;
+    .login-brand .bg-mark {
+        width: 40px; height: 40px;
         border-radius: var(--pv-r-8);
         background: var(--pv-fg);
         color: var(--pv-panel);
         display: inline-flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 20px;
+        font-weight: 700; font-size: 18px;
         position: relative;
+        flex-shrink: 0;
     }
-    .login-brand .logo::after {
+    .login-brand .bg-mark.lg {
+        width: 48px; height: 48px;
+        font-size: 22px;
+    }
+    .login-brand .bg-mark::after {
         content: ""; position: absolute; right: -4px; top: -4px;
-        width: 12px; height: 12px; border-radius: 50%;
+        width: 10px; height: 10px; border-radius: 50%;
         background: var(--pv-accent);
     }
+    .login-brand-text {
+        display: flex; flex-direction: column; line-height: 1.2;
+    }
+    .login-brand-text b {
+        font-weight: 700; font-size: var(--pv-fs-16); color: var(--pv-fg);
+    }
+    .login-brand-text span {
+        font-size: var(--pv-fs-12); color: var(--pv-fg-muted);
+    }
     .login-title {
-        font-size: var(--pv-fs-18);
+        font-size: 20px;
         font-weight: 700;
         color: var(--pv-fg);
         text-align: center;
-        margin: var(--pv-s-16) 0 var(--pv-s-8);
+        margin: 0 0 4px;
     }
     .login-sub {
         font-size: var(--pv-fs-13);
         color: var(--pv-fg-muted);
         text-align: center;
-        margin-bottom: var(--pv-s-24);
+        margin-bottom: var(--pv-s-20);
     }
-    .login-field {
-        margin-bottom: var(--pv-s-16);
+    .login-stack {
+        display: flex; flex-direction: column; gap: var(--pv-s-16);
     }
     .login-field label {
         display: block;
@@ -66,7 +83,7 @@
         width: 100%;
         height: 40px;
         padding: 0 12px;
-        background: var(--pv-panel);
+        background: var(--pv-panel-2, var(--pv-bg));
         border: 1px solid var(--pv-border);
         border-radius: var(--pv-r-6);
         color: var(--pv-fg);
@@ -77,11 +94,12 @@
     .login-input:focus {
         border-color: var(--pv-cta);
         box-shadow: var(--pv-focus);
+        background: var(--pv-panel);
     }
     .login-btn {
         width: 100%;
-        height: 40px;
-        margin-top: var(--pv-s-8);
+        height: 44px;
+        margin-top: var(--pv-s-4);
         background: var(--pv-cta);
         border: 1px solid var(--pv-cta);
         color: #fff;
@@ -89,118 +107,79 @@
         border-radius: var(--pv-r-6);
         cursor: pointer;
         transition: 0.12s;
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     }
     .login-btn:hover {
         background: var(--pv-cta-2);
         border-color: var(--pv-cta-2);
     }
-    .login-alert {
-        padding: 12px;
-        background: rgba(230, 64, 58, 0.12);
-        border: 1px solid var(--pv-red);
-        border-radius: var(--pv-r-6);
-        color: var(--pv-red);
-        font-size: var(--pv-fs-13);
-        margin-bottom: var(--pv-s-20);
-    }
-    .login-controls {
-        margin-top: var(--pv-s-32);
-        padding-top: var(--pv-s-20);
-        border-top: 1px solid var(--pv-divider);
-    }
-    .login-controls-title {
-        font-size: var(--pv-fs-11);
-        text-transform: uppercase;
-        letter-spacing: var(--pv-tracking-caps);
+    .login-field-help {
+        font-size: var(--pv-fs-12);
         color: var(--pv-fg-muted);
-        font-weight: 700;
-        margin-bottom: var(--pv-s-12);
-        text-align: center;
+        margin-top: 4px;
     }
-    .login-controls-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--pv-s-16);
-        flex-wrap: wrap;
+    .login-foot {
+        margin-top: var(--pv-s-24);
+        padding-top: var(--pv-s-16);
+        border-top: 1px solid var(--pv-divider);
+        font-size: var(--pv-fs-11);
+        color: var(--pv-fg-subtle);
+        text-align: center;
+        display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .login-foot .material-symbols-rounded {
+        font-size: 14px; vertical-align: -2px;
     }
 </style>
 {% endblock %}
 
 {% block body %}
-<div class="login-page">
+<div class="login-wrap">
     <div class="login-card">
         <div class="login-brand">
-            <div class="logo">B</div>
+            <span class="bg-mark lg">
+                <span class="material-symbols-rounded" style="font-size: 22px;">insights</span>
+            </span>
+            <div class="login-brand-text">
+                <b>Прогнозы</b>
+                <span>панель управления</span>
+            </div>
         </div>
-        <h1 class="login-title">Панель управления</h1>
-        <p class="login-sub">Войдите для администрирования бота прогнозов</p>
+
+        <h1 class="login-title">Вход в админку</h1>
+        <p class="login-sub">Доступ только для администраторов</p>
 
         {% if error %}
-        <div class="login-alert">{{ error }}</div>
+        <div class="login-field-help" style="color: var(--pv-red); margin-bottom: var(--pv-s-16);">
+            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;">error</span>
+            Неверный логин или пароль
+        </div>
         {% endif %}
 
         <form method="post" action="/login">
             <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
-            <div class="login-field">
-                <label for="login">Логин</label>
-                <input type="text" id="login" name="login" class="login-input" required autofocus>
+            <div class="login-stack">
+                <div class="login-field">
+                    <label for="login">Логин</label>
+                    <input type="text" id="login" name="login" class="login-input" required autofocus>
+                </div>
+                <div class="login-field">
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" class="login-input" required>
+                </div>
+                <button type="submit" class="login-btn">
+                    <span class="material-symbols-rounded">login</span>
+                    Войти
+                </button>
             </div>
-            <div class="login-field">
-                <label for="password">Пароль</label>
-                <input type="password" id="password" name="password" class="login-input" required>
-            </div>
-            <button type="submit" class="login-btn">Войти</button>
         </form>
 
-        <!-- Demo: UI controls -->
-        <div class="login-controls">
-            <div class="login-controls-title">Дизайн-система v2 (демо)</div>
-            <div class="login-controls-row">
-                <!-- Theme toggle -->
-                <button @click="toggleDark()"
-                        class="pv-btn pv-btn-ghost pv-btn-sm"
-                        :title="dark ? 'Светлая тема' : 'Тёмная тема'">
-                    <span class="material-symbols-rounded" x-text="dark ? 'light_mode' : 'dark_mode'"></span>
-                    <span x-text="dark ? 'Свет' : 'Тёмно'"></span>
-                </button>
-
-                <!-- Density controls -->
-                <div class="pv-density-controls">
-                    <button @click="setDensity('compact')"
-                            class="pv-density-btn"
-                            :class="{ 'active': density === 'compact' }"
-                            title="Компактная">C</button>
-                    <button @click="setDensity('regular')"
-                            class="pv-density-btn"
-                            :class="{ 'active': density === 'regular' }"
-                            title="Обычная">R</button>
-                    <button @click="setDensity('comfortable')"
-                            class="pv-density-btn"
-                            :class="{ 'active': density === 'comfortable' }"
-                            title="Комфорт">K</button>
-                </div>
-
-                <!-- Accent swatches -->
-                <div class="pv-accent-controls">
-                    <template x-for="acc in accents" :key="acc">
-                        <button @click="setAccent(acc)"
-                                class="pv-accent-swatch"
-                                :style="{ backgroundColor: acc }"
-                                :class="{ 'active': accent === acc }"></button>
-                    </template>
-                </div>
-            </div>
+        <div class="login-foot">
+            <span class="material-symbols-rounded">shield</span>
+            Защищённое соединение · сессия 8 часов
         </div>
     </div>
 </div>
 
 <script src="{{ url_for('static', path='js/ui.js') }}"></script>
-<script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.store('ui', {
-            dark: false
-        });
-    });
-</script>
 {% endblock %}
