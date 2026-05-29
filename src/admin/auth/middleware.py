@@ -91,8 +91,12 @@ class RequireAdminMiddleware:
         if admin is None or not admin.is_active:
             # Cookie валидна, но admin удалён / деактивирован после issue.
             logger.warning("admin.auth.stale_session", admin_id=admin_id)
+            s = get_settings()
+            session_name = (
+                SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
+            )
             response = RedirectResponse(url="/login", status_code=302)
-            response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+            response.delete_cookie(session_name, path="/")
             await response(scope, receive, send)
             return
 
@@ -112,10 +116,8 @@ class RequireAdminMiddleware:
             "HttpOnly",
             f"SameSite={s.admin.session_samesite.capitalize()}",
             f"Expires={expires.strftime('%a, %d %b %Y %H:%M:%S GMT')}",
+            "Path=/",  # __Host- cookies ТРЕБУЮТ явный Path=/
         ]
-        if s.environment == "dev":
-            cookie_parts.append("Path=/")
-        # __Host- cookies не требуют Path (browser подставляет /=/)
 
         if s.environment != "dev":
             cookie_parts.append("Secure")
@@ -173,10 +175,8 @@ class CsrfTokenMiddleware:
             f"{csrf_name}={signed_token}",
             "HttpOnly",
             f"SameSite={s.admin.session_samesite.capitalize()}",
+            "Path=/",  # __Host- cookies ТРЕБУЮТ явный Path=/
         ]
-        if s.environment == "dev":
-            cookie_parts.append("Path=/")
-        # __Host- cookies не требуют Path
 
         if s.environment != "dev":
             cookie_parts.append("Secure")

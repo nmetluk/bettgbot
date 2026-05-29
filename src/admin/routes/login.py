@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi_csrf_protect import CsrfProtect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -65,11 +65,9 @@ async def _login_rate_limit(request: Request) -> None:
         await redis.expire(rate_key, 60)
 
     if current > 5:
-        from fastapi.responses import JSONResponse
-
-        raise JSONResponse(
-            status_code=429,
-            content={"detail": "Too many requests. Please try again later."},
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again later.",
         )
 
 
@@ -145,28 +143,17 @@ async def login_submit(
 
     session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
     redirect = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
-    if s.environment == "dev":
-        redirect.set_cookie(
-            key=session_name,
-            value=token,
-            httponly=True,
-            secure=False,
-            samesite=s.admin.session_samesite,
-            expires=expires,
-            path="/",
-        )
-    else:
-        # __Host- cookies: browser подставляет Path=/, Secure
-        redirect.set_cookie(
-            key=session_name,
-            value=token,
-            httponly=True,
-            secure=True,
-            samesite=s.admin.session_samesite,
-            expires=expires,
-        )
+    redirect.set_cookie(
+        key=session_name,
+        value=token,
+        httponly=True,
+        secure=s.environment != "dev",
+        samesite=s.admin.session_samesite,
+        expires=expires,
+        path="/",  # __Host- cookies ТРЕБУЮТ явный Path=/
+    )
 
-    # Fresh CSRF cookie при успешном login
+    # Ротация CSRF-куки при успешном логине (fresh token)
     _, signed_csrf = csrf_protect.generate_csrf_tokens()
     csrf_protect.set_csrf_cookie(signed_csrf, redirect)
 
@@ -183,10 +170,6 @@ async def logout(
     s = get_settings()
     session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
     response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-    # __Host- cookies не требуют path (browser подставляет /=/)
-    if s.environment == "dev":
-        response.delete_cookie(session_name, path="/")
-    else:
-        response.delete_cookie(session_name)
+    response.delete_cookie(session_name, path="/")  # __Host- cookies ТРЕБУЕТ path=/
     logger.info("admin.auth.logout")
     return response

@@ -314,7 +314,7 @@ make prod.logs
 # Ожидается: JSON-строки логов
 ```
 
-Откройте в браузере `https://your-domain.com/admin` — должен быть логин.
+Откройте в браузере `https://your-domain.com/` — должен быть логин.
 
 ## Шаг 8. Деплой через GitHub Actions (TASK-042)
 
@@ -416,7 +416,7 @@ make prod.backup.restore FILE=bettgbot-...
 ssh -L 8888:127.0.0.1:8888 user@vps-ip
 
 # Затем в браузере открывайте:
-http://127.0.0.1:8888/admin
+http://127.0.0.1:8888/
 ```
 
 Это шифрует трафик между вашей машиной и VPS, даже если админка использует HTTP.
@@ -443,7 +443,7 @@ make prod.nodomain.up
 
 1. Следуйте инструкции "Шаг 4. Bootstrap certbot" выше
 2. Перейдите на `make prod.up` вместо `make prod.nodomain.up`
-3. Убедитесь что `https://your-domain.com/admin` работает
+3. Убедитесь что `https://your-domain.com/` работает
 4. (Опционально) Удалите no-domain конфиги: `rm infra/docker-compose.prod-no-domain.yml infra/nginx/admin-no-domain.conf`
 
 ## Ссылки
