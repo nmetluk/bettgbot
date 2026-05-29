@@ -128,80 +128,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
         integrity="sha384-MDhJ3V4vtK2j473r9Jbza2v8IrJh0pJGm+U8JGFwfn3rH+dZ+JpPY3u8pY2Uk3dpU"
         crossorigin="anonymous"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Данные для графика по дням
-    const dailyData = {{ daily_counts | tojson }};
-    const dailyLabels = dailyData.map(d => d.date);
-    const dailyCounts = dailyData.map(d => d.count);
-
-    // График динамики по дням
-    new Chart(document.getElementById('dailyChart'), {
-        type: 'line',
-        data: {
-            labels: dailyLabels,
-            datasets: [{
-                label: 'Прогнозы',
-                data: dailyCounts,
-                borderColor: '#8b5cf6',
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                fill: true,
-                tension: 0.3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { stepSize: 1 }
-                }
-            }
-        }
-    });
-
-    // Данные для точности по категориям
-    const categoryData = {{ category_accuracy | tojson }};
-    const categoryLabels = categoryData.map(c => c.category_name);
-    const categoryAccuracy = categoryData.map(c => c.accuracy || 0);
-
-    // График точности по категориям
-    new Chart(document.getElementById('categoryChart'), {
-        type: 'bar',
-        data: {
-            labels: categoryLabels,
-            datasets: [{
-                label: 'Точность %',
-                data: categoryAccuracy,
-                backgroundColor: [
-                    '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b',
-                    '#ef4444', '#ec4899', '#6366f1', '#14b8a6'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100
-                }
-            }
-        }
-    });
-});
+<!-- Analytics charts initialization -->
+<script src="/static/js/analytics.js" defer></script>
+<!-- Analytics data (CSP-safe: application/json is not executable) -->
+<script type="application/json" id="analytics-data">
+{
+    "daily_counts": {{ daily_counts | tojson }},
+    "category_accuracy": {{ category_accuracy | tojson }}
+}
 </script>
 {% endblock %}
 {% endblock %}
