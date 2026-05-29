@@ -149,7 +149,10 @@ def test_login_error_shows_actual_error_text_not_hardcoded() -> None:
     from unittest.mock import patch
 
     # Monkeypatch authenticate
-    with patch("src.admin.routes.login.AdminAuthService.authenticate", side_effect=AdminInvalidCredentialsError()):
+    with patch(
+        "src.admin.routes.login.AdminAuthService.authenticate",
+        side_effect=AdminInvalidCredentialsError(),
+    ):
         response = client.post(
             "/login",
             data={"csrf_token": csrf_token, "login": "x", "password": "wrong"},
@@ -199,7 +202,6 @@ def test_proxy_headers_middleware_applies_x_forwarded_proto() -> None:
     response = client.get("/login", headers={"X-Forwarded-Proto": "https"})
     assert response.status_code == 200
     # В разметке должны быть root-relative ссылки на статику (не absolute)
-    assert '/static/css/tokens.css' in response.text
+    assert "/static/css/tokens.css" in response.text
     # Absolute URL с http:// не должно быть
-    assert 'http://' not in response.text
-
+    assert "http://" not in response.text

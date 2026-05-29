@@ -92,7 +92,9 @@ class RequireAdminMiddleware:
             # Cookie валидна, но admin удалён / деактивирован после issue.
             logger.warning("admin.auth.stale_session", admin_id=admin_id)
             s = get_settings()
-            session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
+            session_name = (
+                SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
+            )
             response = RedirectResponse(url="/login", status_code=302)
             response.delete_cookie(session_name, path="/")
             await response(scope, receive, send)
