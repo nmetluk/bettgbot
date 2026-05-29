@@ -4,20 +4,29 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest_asyncio.fixture()
 async def clean_session(session: AsyncSession) -> AsyncSession:
-    """Очищает User и Broadcast таблицы перед тестом."""
-    from src.shared.models import Broadcast, User
+    """Очищает User и Broadcast таблицы перед и после теста.
 
-    # Удаляем все записи
-    for b in (await session.execute(select(Broadcast))).scalars().all():
-        await session.delete(b)
-    for u in (await session.execute(select(User))).scalars().all():
-        await session.delete(u)
-    await session.flush()
+    Используется для dispatch_broadcasts тестов, которые делают commit.
+    cleanup в teardown гарантирует, что последующие тесты не видят эти данные.
+    """
+    from src.shared.models import Broadcast, User, BroadcastDelivery
+
+    # Cleanup перед тестом
+    await session.execute(delete(BroadcastDelivery))
+    await session.execute(delete(Broadcast))
+    await session.execute(delete(User))
+    await session.commit()
 
     yield session
+
+    # Cleanup после теста
+    await session.execute(delete(BroadcastDelivery))
+    await session.execute(delete(Broadcast))
+    await session.execute(delete(User))
+    await session.commit()

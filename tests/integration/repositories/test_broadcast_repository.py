@@ -6,9 +6,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.shared.models import User
+from src.shared.models import Broadcast, BroadcastDelivery, User
 from src.shared.repositories import BroadcastRepository
 from tests.integration.conftest import make_admin, make_category, make_event, make_user
 
@@ -154,7 +154,7 @@ async def test_claim_next_queued_transitions_to_sending(session: AsyncSession) -
     assert claimed.status == "sending"
     assert claimed.started_at is not None
 
-    await session.commit()
+    await session.flush()
 
     # Повторный call не возвращает ту же (уже sending)
     second_claim = await repo.claim_next_queued()
@@ -204,7 +204,7 @@ async def test_record_delivery_is_idempotent(session: AsyncSession) -> None:
     second = await repo.record_delivery(broadcast.id, user.id)
     assert second is False
 
-    await session.commit()
+    await session.flush()
 
     # Проверяем, что только одна запись в БД
     from src.shared.models import BroadcastDelivery
@@ -285,7 +285,7 @@ async def test_mark_done_updates_status_and_timestamps(session: AsyncSession) ->
     await session.flush()
 
     await repo.mark_done(broadcast.id)
-    await session.commit()
+    await session.flush()
 
     await session.refresh(broadcast)
     assert broadcast.status == "done"
@@ -307,7 +307,7 @@ async def test_increment_sent_and_failed(session: AsyncSession) -> None:
     await repo.increment_sent(broadcast.id)
     await repo.increment_sent(broadcast.id)
     await repo.increment_failed(broadcast.id)
-    await session.commit()
+    await session.flush()
 
     await session.refresh(broadcast)
     assert broadcast.sent_count == 2
@@ -327,7 +327,7 @@ async def test_update_total_recipients(session: AsyncSession) -> None:
     await session.flush()
 
     await repo.update_total_recipients(broadcast.id, 42)
-    await session.commit()
+    await session.flush()
 
     await session.refresh(broadcast)
     assert broadcast.total_recipients == 42
