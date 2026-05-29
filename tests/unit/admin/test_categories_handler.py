@@ -113,7 +113,8 @@ def test_list_categories_renders(fake_admin_middleware_session) -> None:
     assert response.status_code == 200
     assert "Категории" in response.text
     assert "Спорт" in response.text
-    assert "<td>5</td>" in response.text
+    assert "pv-c-num" in response.text
+    assert "5</td>" in response.text
 
 
 def test_new_form_renders_with_csrf(fake_admin_middleware_session) -> None:

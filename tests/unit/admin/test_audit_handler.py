@@ -141,7 +141,7 @@ def test_list_audit_renders_with_filters(fake_admin_middleware_session) -> None:
     response = client.get("/audit")
 
     assert response.status_code == 200
-    assert "Журнал аудита" in response.text
+    assert "Аудит-лог" in response.text
     assert 'name="admin_id"' in response.text
     assert 'name="action"' in response.text
     assert "event.create" in response.text

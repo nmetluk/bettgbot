@@ -145,7 +145,8 @@ def test_list_users_renders_table(fake_admin_middleware_session) -> None:
     assert response.status_code == 200
     assert "Alice" in response.text
     assert "@alice" in response.text
-    assert "<td>7</td>" in response.text
+    assert "pv-c-num" in response.text
+    assert "7</td>" in response.text
 
 
 def test_list_users_with_query_filters_results(fake_admin_middleware_session) -> None:
@@ -184,9 +185,10 @@ def test_user_detail_renders_profile_and_predictions(fake_admin_middleware_sessi
     assert response.status_code == 200
     assert "Alice Smith" in response.text
     assert "Финал" in response.text
-    assert "✅ сбылся" in response.text
-    # Stats секция.
-    assert "Статистика" in response.text
+    assert "сбылся" in response.text
+    # Статистика представлена карточками с заголовками «Точность» и «Прогнозов».
+    assert "Точность" in response.text
+    assert "Прогнозов" in response.text
 
 
 def test_user_detail_unknown_user_404(fake_admin_middleware_session) -> None:

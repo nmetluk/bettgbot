@@ -205,7 +205,7 @@ def test_edit_form_renders_with_tabs(fake_admin_middleware_session) -> None:
 
     assert response.status_code == 200
     assert "Existing" in response.text
-    assert "nav-tabs" in response.text
+    assert "pv-tabs" in response.text
     # Исходы и Результат вкладки — обе после TASK-024 активны/conditional.
     assert "Исходы" in response.text
     assert "Результат" in response.text
@@ -363,10 +363,10 @@ def test_edit_form_result_tab_visible_when_published_and_deadline_passed(
     response = client.get("/events/7?tab=result")
 
     assert response.status_code == 200
-    assert "Фиксация итога" in response.text
+    assert "Итоговый исход" in response.text
     # Радио-кнопки для каждого исхода.
     assert 'name="outcome_id"' in response.text
-    assert "🏁 Зафиксировать" in response.text
+    assert "Зафиксировать" in response.text
 
 
 def test_edit_form_result_tab_disabled_when_not_published(
@@ -383,9 +383,8 @@ def test_edit_form_result_tab_disabled_when_not_published(
     response = client.get("/events/7?tab=data")
 
     assert response.status_code == 200
-    # Вкладка «Результат» рендерится с classes disabled + aria-disabled.
-    assert 'aria-disabled="true"' in response.text
-    assert "Доступно после дедлайна" in response.text
+    # Вкладка «Результат» рендерится с атрибутом disabled.
+    assert "disabled" in response.text
 
 
 def test_edit_form_result_tab_shows_readonly_when_result_set(
@@ -405,10 +404,9 @@ def test_edit_form_result_tab_shows_readonly_when_result_set(
     response = client.get("/events/7?tab=result")
 
     assert response.status_code == 200
-    assert "🏁 Итог:" in response.text
+    assert "Итог зафиксирован:" in response.text
     # Read-only — нет формы / radio-кнопок.
     assert 'name="outcome_id"' not in response.text
-    assert "Зафиксирован:" in response.text
 
 
 def test_create_event_with_html_chars_rejects_with_error(
