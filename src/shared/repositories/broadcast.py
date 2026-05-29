@@ -98,6 +98,7 @@ class BroadcastRepository:
             # distinct user_id через Prediction → Event → Category
             stmt = (
                 select(Prediction.user_id)
+                .join(User, Prediction.user_id == User.id)
                 .join(Event, Prediction.event_id == Event.id)
                 .join(Category, Event.category_id == Category.id)
                 .where(
@@ -127,6 +128,7 @@ class BroadcastRepository:
         elif segment == "category":
             stmt = (
                 select(func.count(func.distinct(Prediction.user_id)))
+                .join(User, Prediction.user_id == User.id)
                 .join(Event, Prediction.event_id == Event.id)
                 .join(Category, Event.category_id == Category.id)
                 .where(
