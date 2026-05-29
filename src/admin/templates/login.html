@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
 
 {% block title %}Вход — Betting Bot Admin{% endblock %}
 
@@ -141,7 +141,7 @@
         {% endif %}
 
         <form method="post" action="/login">
-            <input type="hidden" name="csrf_token" x-model="csrfToken">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
             <div class="login-field">
                 <label for="login">Логин</label>
                 <input type="text" id="login" name="login" class="login-input" required autofocus>
@@ -195,12 +195,11 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', path='js/ui.js') }}"></script>
 <script>
-    // Pass CSRF token from Jinja to Alpine
     document.addEventListener('alpine:init', () => {
         Alpine.store('ui', {
-            dark: false,
-            csrfToken: '{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}'
+            dark: false
         });
     });
 </script>

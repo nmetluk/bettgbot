@@ -1,5 +1,5 @@
 <!-- ============================================================
-   Layout shell for authenticated pages
+   Layout shell for authenticated pages (v2)
    ============================================================ -->
 
 <div class="pv-app" :data-rail="rail ? 'collapsed' : null">
@@ -88,21 +88,22 @@
                 <span class="material-symbols-rounded" x-text="dark ? 'light_mode' : 'dark_mode'"></span>
             </button>
             <div class="pv-tb-divider"></div>
-            <!-- User menu placeholder -->
+            <!-- User info -->
             <div style="display: flex; align-items: center; gap: 10px; padding: 4px 10px; border-radius: var(--pv-r-6);">
+                {% set _adm = admin or (request.state.admin if request.state and request.state.admin is defined else None) %}
                 <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--pv-purple); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">
-                    {{ (admin or request.state.admin).full_name[0] if (admin or request.state.admin).full_name else (admin or request.state.admin).login[0]|upper }}
+                    {{ (_adm.full_name[0] if _adm and _adm.full_name else (_adm.login[0]|upper) if _adm else 'A')) }}
                 </div>
                 <div style="display: flex; flex-direction: column; line-height: 1.15;">
                     <b style="font-weight: 700; font-size: var(--pv-fs-13); color: var(--pv-fg);">
-                        {{ (admin or request.state.admin).full_name or (admin or request.state.admin).login }}
+                        {{ (_adm.full_name or _adm.login) if _adm else 'Admin' }}
                     </b>
                     <span style="font-size: var(--pv-fs-11); color: var(--pv-fg-muted);">Администратор</span>
                 </div>
             </div>
             <!-- Logout -->
             <form method="post" action="/logout" style="display: contents;">
-                <input type="hidden" name="csrf_token" :value="typeof csrfToken !== 'undefined' ? csrfToken : '{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}'">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
                 <button type="submit" class="pv-tb-iconbtn" title="Выйти">
                     <span class="material-symbols-rounded">logout</span>
                 </button>
@@ -112,7 +113,7 @@
 
     <!-- Main content area -->
     <main class="pv-main">
-        {% block content %}{% endblock %}
+        {% block pv_content %}{% endblock %}
     </main>
 </div>
 
@@ -120,10 +121,9 @@
 <script src="{{ url_for('static', path='js/ui.js') }}"></script>
 
 <script>
-    // Pass CSRF token to Alpine (if available)
     document.addEventListener('alpine:init', () => {
         Alpine.store('ui', {
-            dark: {{ 'true' if request.state and request.state.get('dark_theme', false) else 'false' }}
+            dark: false
         });
     });
 </script>

@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ru" x-data="{ dark: $store.ui.dark }" :data-theme="dark ? 'dark' : 'light'">
+<html lang="ru">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Betting Bot Admin{% endblock %}</title>
 
-    <!-- Design tokens -->
+    <!-- Design tokens v2 -->
     <link rel="stylesheet" href="{{ url_for('static', path='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
 
@@ -19,7 +19,7 @@
           integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+"
           crossorigin="anonymous">
 
-    <!-- Material Symbols for icons -->
+    <!-- Material Symbols for icons (v2) -->
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=block">
 
@@ -28,16 +28,62 @@
             integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
             crossorigin="anonymous"></script>
 
-    <!-- Alpine.js -->
+    <!-- Alpine.js (v2) -->
     <script defer
             src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
-            integrity="sha384-"
             crossorigin="anonymous"></script>
+
+    <script src="{{ url_for('static', path='js/volt.js') }}"></script>
+    <script src="{{ url_for('static', path='js/confirm.js') }}"></script>
 
     {% block head_extra %}{% endblock %}
 </head>
-<body x-data="uiState">
-{% block body %}{% endblock %}
+<body class="bg-body-tertiary">
+<div class="container-fluid">
+    <div class="row">
+        {% block sidebar %}
+        <nav class="sidebar col-md-3 col-lg-2 d-md-block bg-light min-vh-100 border-end">
+            <ul class="nav flex-column p-3">
+                <li class="nav-item">
+                    <a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Дашборд</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/categories"><i class="bi bi-folder"></i> Категории</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/events"><i class="bi bi-calendar-event"></i> События</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/users"><i class="bi bi-people"></i> Пользователи</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/audit"><i class="bi bi-journal-text"></i> Аудит</a>
+                </li>
+                {% set _adm = admin or (request.state.admin if request.state and request.state.admin is defined else None) %}
+                {% if _adm %}
+                <li class="nav-item mt-auto pt-3">
+                    <small class="text-muted d-block px-2">
+                        <i class="bi bi-person-circle"></i>
+                        {{ _adm.full_name or _adm.login }}
+                    </small>
+                </li>
+                {% endif %}
+                <li class="nav-item mt-3">
+                    <form method="post" action="/logout">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                            <i class="bi bi-box-arrow-right"></i> Выйти
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+        {% endblock %}
+        <main class="col-md-9 col-lg-10 content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
 {% block scripts_extra %}{% endblock %}
 </body>
 </html>
