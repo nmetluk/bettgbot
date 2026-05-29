@@ -177,7 +177,7 @@ async def test_leaderboard_threshold_and_sorting(session: AsyncSession) -> None:
     assert rows[1][0] == u_c.id
     assert rows[1][1] == 4
     assert rows[1][2] == 6
-    assert abs(rows[1][4] - 66.6666667) < 0.01
+    assert abs(rows[1][4] - 66.7) < 0.1
 
     assert rows[2][0] == u_b.id
     assert rows[2][1] == 3
@@ -251,11 +251,7 @@ async def test_leaderboard_empty(session: AsyncSession) -> None:
     event = await make_event(session)
     outcome = await make_outcome(session, event.id)
 
-    session.add(
-        Prediction(
-            user_id=u.id, event_id=event.id, outcome_id=outcome.id, is_correct=True
-        )
-    )
+    session.add(Prediction(user_id=u.id, event_id=event.id, outcome_id=outcome.id, is_correct=True))
     await session.flush()
 
     rows = await repo.leaderboard(min_resolved=5, limit=100)

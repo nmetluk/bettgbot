@@ -92,9 +92,7 @@ async def test_leaderboard_returns_ranked_rows(nested_session: AsyncSession) -> 
 
     rows = await service.leaderboard(min_resolved=5, limit=100)
 
-    assert len(rows) == 2  # u3 ниже порога (только 4/6, но resolved=6 >=5)
-    # Ой, у u3 resolved=6 >=5, значит он в рейтинге
-    # u1: 5/5, u2: 3/5, u3: 4/6
+    # u1: 5/5, u2: 3/5, u3: 4/6 — все прошли порог (resolved >= 5)
     assert len(rows) == 3
 
     # Проверяем тип и поля первой строки (u1, 100%)

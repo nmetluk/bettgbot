@@ -56,9 +56,7 @@ class StatsService:
             min_resolved=min_resolved, limit=limit, period_days=period_days
         )
         result: list[LeaderboardRow] = []
-        for rank, (user_id, correct, resolved, display_name, accuracy) in enumerate(
-            rows, start=1
-        ):
+        for rank, (user_id, correct, resolved, display_name, accuracy) in enumerate(rows, start=1):
             result.append(
                 LeaderboardRow(
                     rank=rank,

@@ -180,9 +180,7 @@ class PredictionRepository:
                 Prediction.user_id,
                 correct.label("correct"),
                 resolved.label("resolved"),
-                (User.first_name + " " + func.coalesce(User.last_name, "")).label(
-                    "display_name"
-                ),
+                (User.first_name + " " + func.coalesce(User.last_name, "")).label("display_name"),
                 accuracy.label("accuracy"),
             )
             .join(User, Prediction.user_id == User.id)
