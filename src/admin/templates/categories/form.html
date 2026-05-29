@@ -1,53 +1,119 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
 
 {% block title %}
     {% if category and category.id is defined %}
-        Категория «{{ category.name }}» — Admin
+        Категория «{{ category.name }}» — Betting Bot Admin
     {% else %}
-        Новая категория — Admin
+        Новая категория — Betting Bot Admin
     {% endif %}
 {% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <h1>
-        {% if category and category.id is defined %}
-            Редактирование категории
-        {% else %}
-            Новая категория
-        {% endif %}
-    </h1>
+{% block body %}
+{% include "_layout_shell.html" %}
 
-    {% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">
+                {% if category and category.id is defined %}
+                    Категория «{{ category.name }}»
+                {% else %}
+                    Новая категория
+                {% endif %}
+            </h1>
+        </div>
+    </div>
 
-    <form method="post" action="{{ form_action }}">
-        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-        <div class="mb-3">
-            <label class="form-label">Название</label>
-            <input type="text" name="name" class="form-control" required
-                   value="{{ category.name if category else '' }}">
+    <div class="pv-grid c-2-1">
+        <div class="pv-card">
+            <div class="pv-card-body">
+                {% if error %}
+                <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-red); background: rgba(230,64,58,0.06);">
+                    <div class="pv-card-body" style="padding: 12px 20px;">
+                        <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);">error</span>
+                        {{ error }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="post" action="{{ form_action }}" class="pv-stack">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+                    <div class="pv-stack" style="gap: var(--pv-s-16);">
+                        <div>
+                            <label class="pv-field-label" for="name">Название *</label>
+                            <input type="text" id="name" name="name" class="pv-input" required
+                                   value="{{ category.name if category else '' }}"
+                                   placeholder="Например: Футбол">
+                        </div>
+
+                        <div>
+                            <label class="pv-field-label" for="slug">Slug *</label>
+                            <input type="text" id="slug" name="slug" class="pv-input pv-mono" required
+                                   value="{{ category.slug if category else '' }}"
+                                   placeholder="football"
+                                   pattern="[a-z0-9-]+">
+                            <div class="pv-field-help">Используется в дип-линках бота: /all?cat=…</div>
+                        </div>
+
+                        <div class="pv-grid c2">
+                            <div>
+                                <label class="pv-field-label" for="sort_order">Порядок</label>
+                                <input type="number" id="sort_order" name="sort_order" class="pv-input pv-mono"
+                                       value="{{ category.sort_order if category else 0 }}">
+                                <div class="pv-field-help">Сортировка в списках</div>
+                            </div>
+
+                            <div>
+                                <label class="pv-field-label">Видимость</label>
+                                <div class="pv-row" style="height: 36px;">
+                                    <div class="pv-toggle{% if category is none or category.is_active %} on{% endif %}"
+                                         onclick="document.querySelector('#is_active').click()"
+                                         style="cursor: pointer;"></div>
+                                    <span class="pv-muted">
+                                        {% if category is none or category.is_active %}Видна пользователям{% else %}Скрыта от бота{% endif %}
+                                    </span>
+                                    <input type="checkbox" id="is_active" name="is_active"
+                                           {% if category is none or category.is_active %}checked{% endif %}
+                                           style="position: absolute; opacity: 0; pointer-events: none;">
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if category and category.id is defined %}
+                        {# TODO: events_count пока не передаётся в шаблон, нужно добавить в роут #}
+                        {% endif %}
+                    </div>
+
+                    <div class="pv-divider"></div>
+
+                    <div class="pv-row" style="justify-content: flex-end; gap: var(--pv-s-8);">
+                        {% if category and category.id is defined %}
+                        {# TODO: добавить удаление, когда events_count будет доступен #}
+                        {% endif %}
+                        <div class="pv-grow"></div>
+                        <a href="/categories" class="pv-btn">Отмена</a>
+                        <button type="submit" class="pv-btn pv-btn-primary">
+                            <span class="material-symbols-rounded">check</span>
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Slug</label>
-            <input type="text" name="slug" class="form-control" required
-                   pattern="[a-z0-9-]+"
-                   value="{{ category.slug if category else '' }}">
-            <div class="form-text">Латиница, цифры, дефис.</div>
+
+        <div class="pv-stack">
+            <div class="pv-card">
+                <div class="pv-section-title">Подсказки</div>
+                <div class="pv-stack" style="gap: var(--pv-s-12); font-size: var(--pv-fs-13); color: var(--pv-fg-muted);">
+                    <p><strong>Slug</strong> — идентификатор категории для URL. Только латиница, цифры и дефис.</p>
+                    <p><strong>Порядок</strong> — чем меньше число, тем выше категория в списке.</p>
+                    <p><strong>Видимость</strong> — скрытые категории не показываются в боте, но доступны в админке.</p>
+                </div>
+            </div>
         </div>
-        <div class="mb-3">
-            <label class="form-label">Порядок сортировки</label>
-            <input type="number" name="sort_order" class="form-control"
-                   value="{{ category.sort_order if category else 0 }}">
-        </div>
-        <div class="form-check mb-3">
-            <input type="checkbox" name="is_active" class="form-check-input" id="is_active"
-                   {% if category is none or category.is_active %}checked{% endif %}>
-            <label class="form-check-label" for="is_active">Активна</label>
-        </div>
-        <button type="submit" class="btn btn-primary">Сохранить</button>
-        <a href="/categories" class="btn btn-outline-secondary">Отмена</a>
-    </form>
+    </div>
 </div>
+{% endblock %}
 {% endblock %}
