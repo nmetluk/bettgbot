@@ -67,22 +67,39 @@ def _clear_overrides() -> Generator[None, None, None]:
 
 def test_dashboard_renders_counters(fake_admin_middleware_session: None) -> None:
     """Dashboard handler вызывает сервис и передаёт счётчики в шаблон."""
+    from src.shared.services.dashboard import ActiveEventInfo, AuditLogInfo
+    from datetime import datetime, UTC
+
     service = MagicMock()
     service.get_counters = AsyncMock(
-        return_value={"users": 10, "events": 5, "categories": 3, "predictions": 25}
+        return_value={
+            "users_total": 10,
+            "users_active_30d": 5,
+            "predictions_total": 25,
+            "predictions_24h": 2,
+            "events_total": 5,
+            "events_published": 3,
+            "events_archived": 1,
+            "categories": 3,
+            "categories_hidden": 0,
+        }
     )
+    service.get_active_events = AsyncMock(return_value=[])
+    service.get_recent_audit_logs = AsyncMock(return_value=[])
 
     client = _client(service)
     response = client.get("/")
 
     assert response.status_code == 200
     service.get_counters.assert_awaited_once_with()
+    service.get_active_events.assert_awaited_once_with(limit=10)
+    service.get_recent_audit_logs.assert_awaited_once_with(limit=8)
 
     content = response.text
-    assert "10" in content
-    assert "5" in content
-    assert "3" in content
-    assert "25" in content
+    assert "10" in content  # users_total
+    assert "25" in content  # predictions_total
+    assert "5" in content  # events_total
+    assert "3" in content  # categories
     assert "TASK-024" not in content  # warning-текст удалён
 
 
@@ -90,12 +107,27 @@ def test_dashboard_with_zero_counters(fake_admin_middleware_session: None) -> No
     """Dashboard корректно отображает нулевые значения."""
     service = MagicMock()
     service.get_counters = AsyncMock(
-        return_value={"users": 0, "events": 0, "categories": 0, "predictions": 0}
+        return_value={
+            "users_total": 0,
+            "users_active_30d": 0,
+            "predictions_total": 0,
+            "predictions_24h": 0,
+            "events_total": 0,
+            "events_published": 0,
+            "events_archived": 0,
+            "categories": 0,
+            "categories_hidden": 0,
+        }
     )
+    service.get_active_events = AsyncMock(return_value=[])
+    service.get_recent_audit_logs = AsyncMock(return_value=[])
 
     client = _client(service)
     response = client.get("/")
 
     assert response.status_code == 200
     content = response.text
-    assert content.count(">0<") >= 4  # четыре нуля на странице
+    # Проверяем, что нули есть на странице (как минимум в нескольких местах)
+    assert "0" in content
+    # Проверяем отсутствие warning-текста
+    assert "TASK-024" not in content

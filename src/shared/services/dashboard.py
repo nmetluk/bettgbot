@@ -79,10 +79,9 @@ class DashboardService:
         predictions_total = await self._predictions.count()
         predictions_24h = await self._predictions.count_24h()
         events_total = await self._events.count_for_admin()  # status="all"
-        events_published = (
-            await self._events.count_for_admin(status="published_open")
-            + await self._events.count_for_admin(status="published_closed")
-        )
+        events_published = await self._events.count_for_admin(
+            status="published_open"
+        ) + await self._events.count_for_admin(status="published_closed")
         events_archived = await self._events.count_for_admin(status="archived")
         categories_total = await self._categories.count()
         categories_active = await self._categories.count(include_inactive=False)
