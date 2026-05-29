@@ -174,7 +174,10 @@ async def test_category_accuracy_calculation(session: AsyncSession) -> None:
     # Категория C исключена (нет разрешённых)
     assert len(rows) == 2
 
-    rows_dict = {(cat_id, slug): (correct, resolved, acc) for cat_id, name, slug, correct, resolved, acc in rows}
+    rows_dict = {
+        (cat_id, slug): (correct, resolved, acc)
+        for cat_id, name, slug, correct, resolved, acc in rows
+    }
 
     # Проверим категорию A
     key_a = (cat_a.id, "cat-a")
