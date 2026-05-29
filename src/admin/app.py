@@ -124,6 +124,7 @@ def create_app() -> FastAPI:
     from .routes import categories as categories_routes
     from .routes import dashboard as dashboard_routes
     from .routes import events as events_routes
+    from .routes import leaderboard as leaderboard_routes
     from .routes import login as login_routes
     from .routes import outcomes as outcomes_routes
     from .routes import users as users_routes
@@ -134,6 +135,7 @@ def create_app() -> FastAPI:
     app.include_router(events_routes.router)
     app.include_router(outcomes_routes.router)
     app.include_router(users_routes.router)
+    app.include_router(leaderboard_routes.router)
     app.include_router(audit_routes.router)
 
     @app.get("/healthz", tags=["meta"])

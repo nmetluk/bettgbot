@@ -32,6 +32,10 @@
                 <span class="material-symbols-rounded">groups</span>
                 <span class="pv-sb-label">Пользователи</span>
             </a>
+            <a href="/leaderboard" class="pv-sb-item {{ 'active' if '/leaderboard' in request.path else '' }}">
+                <span class="material-symbols-rounded">leaderboard</span>
+                <span class="pv-sb-label">Рейтинг</span>
+            </a>
             <div class="pv-sb-section">Журнал</div>
             <a href="/audit" class="pv-sb-item {{ 'active' if '/audit' in request.path else '' }}">
                 <span class="material-symbols-rounded">receipt_long</span>
