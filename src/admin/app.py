@@ -22,6 +22,7 @@ from fastapi_csrf_protect.exceptions import CsrfProtectError
 from fastapi_csrf_protect.load_config import LoadConfig
 from fastapi_limiter import FastAPILimiter
 from redis.asyncio import Redis
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
@@ -29,6 +30,7 @@ from src.shared.observability import init_sentry
 
 from ._security_headers import SecurityHeadersMiddleware
 from .auth.middleware import CsrfTokenMiddleware, RequireAdminMiddleware
+from .auth.security import CSRF_COOKIE_NAME, CSRF_COOKIE_NAME_PROD
 
 __all__ = ["app", "templates"]
 
@@ -56,6 +58,8 @@ def _csrf_config() -> LoadConfig:
     s = get_settings()
     return LoadConfig(
         secret_key=s.admin.csrf_secret.get_secret_value(),
+        # Имя куки должно совпадать с тем, что ставит CsrfTokenMiddleware.
+        cookie_key=CSRF_COOKIE_NAME_PROD if s.environment != "dev" else CSRF_COOKIE_NAME,
         # Форма постит csrf_token полем тела, не header'ом.
         token_location="body",
         token_key="csrf_token",
@@ -110,9 +114,11 @@ def create_app() -> FastAPI:
     )
 
     # Порядок: add_middleware добавляет в обратном порядке выполнения.
-    # CsrfTokenMiddleware добавляем ПЕРВЫМ → он inner (после Require).
-    # RequireAdminMiddleware ВТОРЫМ → он outer, обрабатывает запрос первым.
-    # SecurityHeadersMiddleware ТРЕТЬИМ → outermost, добавляет headers ко всем response.
+    # ProxyHeadersMiddleware ПЕРВЫЙ → outermost, применяет X-Forwarded-*/Proto.
+    # CsrfTokenMiddleware ВТОРОЙ → он inner (после Require).
+    # RequireAdminMiddleware ТРЕТИЙ → он outer, обрабатывает запрос первым.
+    # SecurityHeadersMiddleware ЧЕТВЁРТЫМ → добавляет headers ко всем response.
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     app.add_middleware(CsrfTokenMiddleware)
     app.add_middleware(RequireAdminMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
