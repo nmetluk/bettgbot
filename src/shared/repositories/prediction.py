@@ -11,7 +11,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models import Event, Prediction, User
+from ..models import Category, Event, Prediction, User
 
 __all__ = ["PredictionRepository"]
 
@@ -211,3 +211,116 @@ class PredictionRepository:
                 )
             )
         return rows
+
+    async def daily_prediction_counts(self, *, days: int = 30) -> Sequence[tuple[str, int]]:
+        """Подсчёт прогнозов по дням за последние N дней.
+
+        Возвращает список кортежей ``(date_str, count)`` где ``date_str`` —
+        формат ``YYYY-MM-DD``. Дни без прогнозов не включаются в результат
+        (заполняются нулями на уровне сервиса).
+        """
+        cutoff = datetime.now(tz=UTC) - timedelta(days=days)
+        stmt = (
+            select(
+                func.date(Prediction.created_at).label("day"),
+                func.count().label("count"),
+            )
+            .where(Prediction.created_at >= cutoff)
+            .group_by(func.date(Prediction.created_at))
+            .order_by(func.date(Prediction.created_at))
+        )
+        result = await self._session.execute(stmt)
+        return [(str(row.day), int(row.count)) for row in result]  # type: ignore[call-overload]
+
+    async def category_accuracy(self) -> Sequence[tuple[int, str, str, int, int, float | None]]:
+        """Точность прогнозов по категориям.
+
+        Возвращает список кортежей ``(category_id, category_name, category_slug,
+        correct, resolved, accuracy)``. ``accuracy`` — ``None`` если ``resolved == 0``.
+        Категории без разрешённых прогнозов исключаются.
+        """
+        correct = func.count().filter(Prediction.is_correct.is_(True))
+        resolved = func.count().filter(Prediction.is_correct.isnot(None))
+        accuracy = func.round(
+            cast(correct, NUMERIC) / cast(resolved, NUMERIC) * 100,
+            1,
+        )
+
+        stmt = (
+            select(
+                Category.id.label("category_id"),
+                Category.name.label("category_name"),
+                Category.slug.label("category_slug"),
+                correct.label("correct"),
+                resolved.label("resolved"),
+                accuracy.label("accuracy"),
+            )
+            .join(Event, Event.category_id == Category.id)
+            .join(Prediction, Prediction.event_id == Event.id)
+            .group_by(Category.id, Category.name, Category.slug)
+            .having(resolved > 0)
+            .order_by(Category.sort_order, Category.name)
+        )
+        result = await self._session.execute(stmt)
+        return [
+            (
+                int(row.category_id),
+                str(row.category_name),
+                str(row.category_slug),
+                int(row.correct),
+                int(row.resolved),
+                float(row.accuracy) if row.accuracy is not None else None,
+            )
+            for row in result
+        ]
+
+    async def funnel_metrics(self) -> tuple[int, int]:
+        """Метрики воронки «регистрация → первый прогноз».
+
+        Возвращает ``(total_users, users_with_predictions)`` где:
+        - ``total_users`` — количество незаблокированных пользователей;
+        - ``users_with_predictions`` — количество пользователей с ≥1 прогнозом.
+        """
+        total_stmt = select(func.count()).select_from(User).where(User.is_blocked.is_(False))
+        total_result = await self._session.execute(total_stmt)
+        total = int(total_result.scalar_one())
+
+        with_pred_stmt = (
+            select(func.count(User.id).distinct())
+            .join(Prediction, Prediction.user_id == User.id)
+            .where(User.is_blocked.is_(False))
+        )
+        with_pred_result = await self._session.execute(with_pred_stmt)
+        with_pred = int(with_pred_result.scalar_one())
+
+        return total, with_pred
+
+    async def top_events(self, *, limit: int = 10) -> Sequence[tuple[int, str, str, int]]:
+        """Топ событий по количеству прогнозов.
+
+        Возвращает список кортежей ``(event_id, event_title, category_slug,
+        prediction_count)`` отсортированный по количеству прогнозов (убывание).
+        """
+        stmt = (
+            select(
+                Event.id.label("event_id"),
+                Event.title.label("event_title"),
+                Category.slug.label("category_slug"),
+                func.count(Prediction.id).label("prediction_count"),
+            )
+            .join(Category, Category.id == Event.category_id)
+            .join(Prediction, Prediction.event_id == Event.id)
+            .group_by(Event.id, Event.title, Category.slug)
+            .order_by(func.count(Prediction.id).desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [
+            (
+                int(row.event_id),
+                str(row.event_title),
+                str(row.category_slug),
+                int(row.prediction_count),
+            )
+            for row in result
+        ]
