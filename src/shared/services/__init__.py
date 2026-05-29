@@ -12,12 +12,23 @@ from .dashboard import DashboardService
 from .event import EventService
 from .prediction import PredictionService
 from .reminder import ReminderCandidate, ReminderService
-from .stats import LeaderboardRow, StatsService
+from .stats import (
+    AnalyticsDayRow,
+    AnalyticsFunnelMetrics,
+    AnalyticsTopEventRow,
+    CategoryAccuracyRow,
+    LeaderboardRow,
+    StatsService,
+)
 from .user import UserService
 
 __all__ = [
     "AdminAuthService",
+    "AnalyticsDayRow",
+    "AnalyticsFunnelMetrics",
+    "AnalyticsTopEventRow",
     "AuditService",
+    "CategoryAccuracyRow",
     "CategoryService",
     "DashboardService",
     "EventService",
