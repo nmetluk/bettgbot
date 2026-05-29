@@ -14,6 +14,9 @@ erDiagram
     OUTCOME ||--o{ PREDICTION : "выбран в"
     EVENT ||--o| OUTCOME : "итоговый исход (result)"
     ADMIN_USER ||--o{ AUDIT_LOG : "пишет"
+    ADMIN_USER ||--o{ BROADCAST : "создаёт"
+    CATEGORY ||--o{ BROADCAST : "опционально для segment=category"
+    BROADCAST ||--o{ BROADCAST_DELIVERY : "лог доставки"
 
     USER {
         bigint id PK
@@ -92,6 +95,27 @@ erDiagram
         string action "category.create, event.set_result, ..."
         jsonb payload "детали изменения"
         timestamptz created_at
+    }
+
+    BROADCAST {
+        bigint id PK
+        string segment "all, active, category"
+        bigint category_id FK "nullable, обязателен при segment=category"
+        text message_text
+        string status "draft, queued, sending, done, failed"
+        bigint created_by_admin_id FK
+        timestamptz created_at
+        timestamptz started_at "nullable"
+        timestamptz finished_at "nullable"
+        int total_recipients
+        int sent_count
+        int failed_count
+    }
+
+    BROADCAST_DELIVERY {
+        bigint broadcast_id PK
+        bigint user_id PK
+        timestamptz delivered_at
     }
 ```
 
@@ -178,8 +202,33 @@ Per-user настройки напоминаний.
 
 Журнал значимых действий в админке. Минимально:
 
-- `action ∈ {category.create, category.update, category.delete, event.create, event.update, event.publish, event.set_result, event.unpublish, outcome.create, outcome.update, outcome.delete, admin.login, user.block, user.unblock}`
+- `action ∈ {category.create, category.update, category.delete, event.create, event.update, event.publish, event.set_result, event.unpublish, outcome.create, outcome.update, outcome.delete, admin.login, user.block, user.unblock, broadcast.enqueue}`
 - `payload` — JSON с до/после или другим контекстом.
+
+### `Broadcast`
+
+Рассылка сообщения по сегменту пользователей (TASK-061).
+
+- `segment ∈ {all, active, category}` — способ выбора получателей.
+- `category_id` — обязательно при `segment='category'` (CHECK constraint).
+- `message_text` — текст сообщения (плоский, без HTML; ≤ 4096 байт — лимит Telegram).
+- `status` — жизненный цикл: `draft` → `queued` → `sending` → `done`/`failed`.
+- `total_recipients` — подсчитывается при enqueue; `sent_count`/`failed_count` — инкрементятся при доставке.
+- `created_by_admin_id` — для аудита.
+- **Идемпотентность доставки** через таблицу `broadcast_delivery` (UNIQUE на broadcast_id + user_id).
+
+**Сегменты:**
+- `all`: все `User.is_blocked = false`.
+- `active`: `is_blocked = false AND last_seen_at >= now() - 30 days`.
+- `category`: DISTINCT `user_id` из `Prediction` → `Event` → `Category`, где `category.id = category_id`.
+
+### `BroadcastDelivery`
+
+Лог доставки broadcast-сообщения конкретному пользователю (TASK-061).
+
+- `(broadcast_id, user_id)` UNIQUE — гарантирует, что при рестарте job'а сообщение не будет отправлено дважды.
+- `delivered_at` — timestamp записи (не обязательно время успешной доставки в Telegram).
+- Паттерн зеркалирует `ReminderDispatchLog` (TASK-017).
 
 ## Индексы
 
@@ -195,6 +244,9 @@ Per-user настройки напоминаний.
 | `prediction` | `(user_id, created_at DESC)` | «мои прогнозы» |
 | `prediction` | `(event_id)` | фиксация итога |
 | `audit_log` | `(created_at DESC)`, `(admin_id, created_at DESC)` | просмотр журнала |
+| `broadcast` | `(status, created_at)` | список queued рассылок для job'а |
+| `broadcast` | `(created_by_admin_id)` | фильтр по автору |
+| `broadcast_delivery` | `unique(broadcast_id, user_id)` | идемпотентность доставки |
 
 ## Стратегия миграций
 

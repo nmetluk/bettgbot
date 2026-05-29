@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Рассылки — Betting Bot Admin{% endblock %}
+
+{% block body %}
+{% include "_layout_shell.html" %}
+
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">Рассылки</h1>
+            <p class="pv-page-sub">История отправленных и запланированных рассылок</p>
+        </div>
+        <div class="pv-page-actions">
+            <a href="/broadcasts/new" class="pv-btn pv-btn-primary">
+                <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: middle;">add</span>
+                Новая рассылка
+            </a>
+        </div>
+    </div>
+
+    {% if flash %}
+    <div class="pv-alert pv-alert-success" role="alert">
+        {{ flash }}
+    </div>
+    {% endif %}
+
+    {% if items %}
+    <div class="pv-card pv-card-flush">
+        <table class="pv-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Автор</th>
+                    <th>Сегмент</th>
+                    <th>Статус</th>
+                    <th class="pv-c-num">Получено</th>
+                    <th class="pv-c-num">Отправлено</th>
+                    <th class="pv-c-num">Ошибок</th>
+                    <th class="pv-c-num">Прогресс</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="pv-mono">{{ item.created_at|strftime('%d.%m %H:%M') }}</td>
+                    <td>{{ item.created_by.full_name or item.created_by.login }}</td>
+                    <td>
+                        {% if item.segment == 'all' %}
+                        Все пользователи
+                        {% elif item.segment == 'active' %}
+                        Активные (30д)
+                        {% elif item.segment == 'category' %}
+                        Категория: {{ item.category.name if item.category else '—' }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == 'draft' %}
+                        <span class="pv-badge secondary">Черновик</span>
+                        {% elif item.status == 'queued' %}
+                        <span class="pv-badge info">В очереди</span>
+                        {% elif item.status == 'sending' %}
+                        <span class="pv-badge warning">Отправка…</span>
+                        {% elif item.status == 'done' %}
+                        <span class="pv-badge success">Готово</span>
+                        {% elif item.status == 'failed' %}
+                        <span class="pv-badge danger">Ошибка</span>
+                        {% endif %}
+                    </td>
+                    <td class="pv-c-num pv-mono">{{ item.total_recipients }}</td>
+                    <td class="pv-c-num pv-mono">{{ item.sent_count }}</td>
+                    <td class="pv-c-num pv-mono">{{ item.failed_count }}</td>
+                    <td class="pv-c-num">
+                        {% set percent = (item.sent_count + item.failed_count) * 100 // item.total_recipients if item.total_recipients > 0 else 0 %}
+                        <div class="pv-progress" title="{{ percent }}%">
+                            <div class="pv-progress-bar" style="width: {{ percent }}%;"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if total_pages > 1 %}
+        <div class="pv-pagination">
+            {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+            <span class="pv-pagination-item pv-pagination-active">{{ p }}</span>
+            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 1 and p <= page + 1) %}
+            <a href="/broadcasts?page={{ p }}" class="pv-pagination-item">{{ p }}</a>
+            {% elif p == 4 or p == total_pages - 3 %}
+            <span class="pv-pagination-item">…</span>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="pv-empty" data-icon="campaign">
+        <p>Ещё ни одной рассылки не было.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% endblock %}

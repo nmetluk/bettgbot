@@ -3,6 +3,8 @@
 from .admin_user import AdminUser
 from .audit_log import AuditLog
 from .base import Base
+from .broadcast import Broadcast
+from .broadcast_delivery import BroadcastDelivery
 from .category import Category
 from .event import Event
 from .outcome import Outcome
@@ -15,6 +17,8 @@ __all__ = [
     "AdminUser",
     "AuditLog",
     "Base",
+    "Broadcast",
+    "BroadcastDelivery",
     "Category",
     "Event",
     "Outcome",

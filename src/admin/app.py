@@ -41,6 +41,16 @@ templates = Jinja2Templates(directory=str(_BASE_DIR / "templates"))
 templates.env.globals["now"] = lambda: datetime.now(tz=UTC)
 
 
+# Кастомный фильтр для форматирования даты
+def _strftime_filter(dt: datetime, fmt: str = "%d.%m %H:%M") -> str:
+    if dt is None:
+        return ""
+    return dt.strftime(fmt)
+
+
+templates.env.filters["strftime"] = _strftime_filter
+
+
 @CsrfProtect.load_config  # type: ignore[arg-type]
 def _csrf_config() -> LoadConfig:
     s = get_settings()
@@ -122,6 +132,7 @@ def create_app() -> FastAPI:
     # Импорты локально — routes используют `templates` отсюда (circular avoidance).
     from .routes import analytics as analytics_routes
     from .routes import audit as audit_routes
+    from .routes import broadcasts as broadcasts_routes
     from .routes import categories as categories_routes
     from .routes import dashboard as dashboard_routes
     from .routes import events as events_routes
@@ -139,6 +150,7 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard_routes.router)
     app.include_router(analytics_routes.router)
     app.include_router(audit_routes.router)
+    app.include_router(broadcasts_routes.router)
 
     @app.get("/healthz", tags=["meta"])
     async def healthz() -> dict[str, str]:
