@@ -1,78 +1,95 @@
 {% extends "base.html" %}
 
-{% block title %}Пользователи — Admin{% endblock %}
+{% block title %}Пользователи — Betting Bot Admin{% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <h1 class="mb-3">Пользователи</h1>
+{% block body %}
+{% include "_layout_shell.html" %}
 
-    <form method="get" class="row g-2 mb-4">
-        <div class="col-md-6">
-            <input type="text" name="query" class="form-control"
-                   placeholder="Поиск: телефон, username или имя"
-                   value="{{ query }}" minlength="1">
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">Пользователи</h1>
+            <p class="pv-page-sub">Проверенные по телефону через внешний реестр</p>
         </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-outline-primary w-100">
-                <i class="bi bi-search"></i> Найти
-            </button>
-        </div>
-        {% if query %}
-        <div class="col-md-2">
-            <a href="/users" class="btn btn-outline-secondary w-100">Сбросить</a>
-        </div>
-        {% endif %}
-    </form>
+    </div>
 
-    {% if rows %}
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>#</th><th>TG ID</th><th>Телефон</th>
-                <th>Имя</th><th>Username</th>
-                <th>Прогнозов</th><th>Регистрация</th><th>Статус</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user, pred_count in rows %}
-            <tr class="{% if user.is_blocked %}table-secondary{% endif %}">
-                <td><a href="/users/{{ user.id }}">{{ user.id }}</a></td>
-                <td><code>{{ user.tg_user_id }}</code></td>
-                <td><code>{{ user.phone }}</code></td>
-                <td>{{ user.first_name }} {{ user.last_name or "" }}</td>
-                <td>{% if user.tg_username %}@{{ user.tg_username }}{% else %}—{% endif %}</td>
-                <td>{{ pred_count }}</td>
-                <td>{{ user.created_at.strftime("%d.%m.%Y") }}</td>
-                <td>
-                    {% if user.is_blocked %}
-                    <span class="badge bg-danger">заблокирован</span>
-                    {% else %}
-                    <span class="badge bg-success">активен</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    {% if total > page_size %}
-    <nav>
-        <ul class="pagination">
+    <div class="pv-card pv-card-flush">
+        <div class="pv-toolbar">
+            <form method="get" class="pv-toolbar-search" style="flex: 1;">
+                <span class="material-symbols-rounded ms">search</span>
+                <input type="text" name="query" placeholder="Телефон, username или имя…" value="{{ query }}" minlength="1">
+            </form>
+            {% if query %}
+            <a href="/users" class="pv-btn pv-btn-ghost pv-btn-sm">Сбросить</a>
+            {% endif %}
+        </div>
+        <table class="pv-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Пользователь</th>
+                    <th>Телефон</th>
+                    <th>Telegram</th>
+                    <th class="pv-c-num">Прогнозов</th>
+                    <th>Регистрация</th>
+                    <th>Доступ</th>
+                    <th class="pv-c-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user, pred_count in rows %}
+                <tr style="cursor: pointer;" onclick="window.location='/users/{{ user.id }}'">
+                    <td class="pv-mono pv-muted">{{ user.id }}</td>
+                    <td>
+                        <div class="pv-row" style="gap: 10px;">
+                            <div class="pv-avatar">{{ user.first_name[0]|upper }}</div>
+                            <span class="pv-row-strong">{{ user.first_name }} {{ user.last_name or "" }}</span>
+                        </div>
+                    </td>
+                    <td class="pv-mono">{{ user.phone }}</td>
+                    <td>
+                        {% if user.tg_username %}
+                        <span class="pv-muted">@{{ user.tg_username }}</span>
+                        {% else %}
+                        <span class="pv-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="pv-c-num">{{ pred_count }}</td>
+                    <td class="pv-mono pv-muted">{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                    <td>
+                        {% if user.is_blocked %}
+                        <span class="pv-badge danger" data-dot>заблокирован</span>
+                        {% else %}
+                        <span class="pv-badge success" data-dot>активен</span>
+                        {% endif %}
+                    </td>
+                    <td class="pv-c-actions">
+                        <span class="material-symbols-rounded" style="color: var(--pv-fg-subtle);">chevron_right</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if total > page_size %}
+        <div class="pv-pagination">
             {% set qs_query = "&query=" ~ query if query else "" %}
             {% if page > 0 %}
-            <li class="page-item"><a class="page-link" href="?page={{ page - 1 }}{{ qs_query }}">‹</a></li>
+            <a href="?page={{ page - 1 }}{{ qs_query }}" class="pv-btn pv-btn-ghost pv-btn-sm">‹</a>
             {% endif %}
-            <li class="page-item active"><span class="page-link">{{ page + 1 }}</span></li>
+            <span class="pv-pagination-current">{{ page + 1 }}</span>
             {% if (page + 1) * page_size < total %}
-            <li class="page-item"><a class="page-link" href="?page={{ page + 1 }}{{ qs_query }}">›</a></li>
+            <a href="?page={{ page + 1 }}{{ qs_query }}" class="pv-btn pv-btn-ghost pv-btn-sm">›</a>
             {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+        </div>
+        {% endif %}
+    </div>
 
-    <p class="text-muted">Всего: {{ total }} пользователей.</p>
+    {% if rows %}
+    <p class="pv-muted">Всего: {{ total }} пользователей.</p>
     {% else %}
-    <p class="text-muted">Пользователей по выбранным критериям нет.</p>
+    <div class="pv-empty" data-icon="person_off">Пользователей по выбранным критериям нет.</div>
     {% endif %}
 </div>
+{% endblock %}
 {% endblock %}

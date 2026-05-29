@@ -1,4 +1,4 @@
-{% extends "base_v2.html" %}
+{% extends "base.html" %}
 
 {% block title %}
     {% if event and event.id is defined %}
@@ -54,7 +54,7 @@
 
 {% block pv_content %}
 {% set isNew = not event or event.id is not defined %}
-{% set _result_enabled = event and event.is_published and event.predictions_close_at.replace(tzinfo=None) <= now() %}
+{% set _result_enabled = event and event.is_published and event.predictions_close_at <= now() %}
 
 <div class="pv-page">
     {% if isNew %}
@@ -79,7 +79,7 @@
             <span class="pv-badge neutral">архив</span>
         {% elif not event.is_published %}
             <span class="pv-badge draft">черновик</span>
-        {% elif event.predictions_close_at.replace(tzinfo=None) > now() %}
+        {% elif event.predictions_close_at > now() %}
             <span class="pv-badge success dot">открыт</span>
         {% else %}
             <span class="pv-badge danger dot">закрыт</span>
@@ -246,7 +246,7 @@
                             <span class="pv-badge neutral">архив</span>
                         {% elif not event.is_published %}
                             <span class="pv-badge draft">черновик</span>
-                        {% elif event.predictions_close_at.replace(tzinfo=None) > now() %}
+                        {% elif event.predictions_close_at > now() %}
                             <span class="pv-badge success dot">открыт</span>
                         {% else %}
                             <span class="pv-badge danger dot">закрыт</span>

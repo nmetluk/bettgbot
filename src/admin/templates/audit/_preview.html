@@ -1,10 +1,39 @@
 {# HTMX-fragment: collapsed preview одной audit-записи. #}
 {% set _payload_json = entry.payload | tojson %}
-<div id="audit-details-{{ entry.id }}">
-    <button type="button" class="btn btn-sm btn-outline-secondary text-start"
-            hx-get="/audit/{{ entry.id }}/details"
-            hx-target="#audit-details-{{ entry.id }}"
-            hx-swap="outerHTML">
-        <code style="font-size: 0.85em;">{{ _payload_json[:80] }}{% if _payload_json | length > 80 %}…{% endif %}</code>
-    </button>
+<div id="audit-row-{{ entry.id }}">
+    <tr>
+        <td class="pv-mono pv-muted">{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+        <td>
+            <div class="pv-row" style="gap: 8px;">
+                <div class="pv-avatar">{{ (entry.admin.full_name or entry.admin.login)[0]|upper }}</div>
+                <span>{{ entry.admin.full_name or entry.admin.login }}</span>
+            </div>
+        </td>
+        <td><code>{{ entry.action }}</code></td>
+        <td class="pv-muted" style="font-size: 12px;">
+            {% if entry.action == 'category.create' %}Создание категории{% endif %}
+            {% if entry.action == 'category.update' %}Обновление категории{% endif %}
+            {% if entry.action == 'category.delete' %}Удаление категории{% endif %}
+            {% if entry.action == 'event.create' %}Создание события{% endif %}
+            {% if entry.action == 'event.update' %}Обновление события{% endif %}
+            {% if entry.action == 'event.delete' %}Удаление события{% endif %}
+            {% if entry.action == 'event.publish' %}Публикация события{% endif %}
+            {% if entry.action == 'event.archive' %}Архивация события{% endif %}
+            {% if entry.action == 'outcome.create' %}Создание исхода{% endif %}
+            {% if entry.action == 'outcome.update' %}Обновление исхода{% endif %}
+            {% if entry.action == 'outcome.delete' %}Удаление исхода{% endif %}
+            {% if entry.action == 'user.block' %}Блокировка пользователя{% endif %}
+            {% if entry.action == 'user.unblock' %}Разблокировка пользователя{% endif %}
+        </td>
+        <td class="pv-c-actions">
+            <button type="button"
+                    hx-get="/audit/{{ entry.id }}/details"
+                    hx-target="#audit-row-{{ entry.id }}"
+                    hx-swap="outerHTML"
+                    class="pv-btn pv-btn-ghost pv-btn-icon"
+                    title="Развернуть">
+                <span class="material-symbols-rounded">expand_more</span>
+            </button>
+        </td>
+    </tr>
 </div>

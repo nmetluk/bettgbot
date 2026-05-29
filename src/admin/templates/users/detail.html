@@ -1,116 +1,126 @@
 {% extends "base.html" %}
 
-{% block title %}{{ user.first_name }} {{ user.last_name or "" }} — Admin{% endblock %}
+{% block title %}{{ user.first_name }} {{ user.last_name or "" }} — Betting Bot Admin{% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <a href="/users" class="btn btn-sm btn-outline-secondary mb-3">
-        <i class="bi bi-arrow-left"></i> К списку
-    </a>
+{% block body %}
+{% include "_layout_shell.html" %}
 
-    {% if request.query_params.get("success") == "blocked" %}
-    <div class="alert alert-success">Пользователь заблокирован.</div>
-    {% elif request.query_params.get("success") == "unblocked" %}
-    <div class="alert alert-success">Пользователь разблокирован.</div>
-    {% endif %}
+{% block pv_content %}
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div class="pv-crumbs">
+            <a href="/users">Пользователи</a>
+            <span class="pv-crumbs-sep">/</span>
+            <span class="pv-crumbs-current">#{{ user.id }}</span>
+        </div>
+        <div style="display: flex; gap: var(--pv-s-8); align-items: center; width: 100%;">
+            <div>
+                <h1 class="pv-page-title">{{ user.first_name }} {{ user.last_name or "" }}</h1>
+                <p class="pv-page-sub">{% if user.tg_username %}@{{ user.tg_username }}{% else %}без username{% endif %}</p>
+            </div>
+            <div style="flex: 1;"></div>
+            {% if request.query_params.get("success") == "blocked" %}
+            <span class="pv-badge success">Пользователь заблокирован</span>
+            {% elif request.query_params.get("success") == "unblocked" %}
+            <span class="pv-badge success">Пользователь разблокирован</span>
+            {% endif %}
+            {% if user.is_blocked %}
+            <form method="post" action="/users/{{ user.id }}/unblock" onsubmit="return confirm('Разблокировать пользователя?');">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <button type="submit" class="pv-btn pv-btn-primary pv-btn-sm">
+                    <span class="material-symbols-rounded">lock_open</span>
+                    Разблокировать
+                </button>
+            </form>
+            {% else %}
+            <form method="post" action="/users/{{ user.id }}/block" onsubmit="return confirm('Заблокировать пользователя? Он не сможет делать прогнозы и получать напоминания.');">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <button type="submit" class="pv-btn pv-btn-danger pv-btn-sm">
+                    <span class="material-symbols-rounded">block</span>
+                    Заблокировать
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
 
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">{{ user.first_name }} {{ user.last_name or "" }}</h5>
-                    <dl class="row mb-0">
-                        <dt class="col-sm-5">ID:</dt>
-                        <dd class="col-sm-7">{{ user.id }}</dd>
-                        <dt class="col-sm-5">TG ID:</dt>
-                        <dd class="col-sm-7"><code>{{ user.tg_user_id }}</code></dd>
-                        <dt class="col-sm-5">Телефон:</dt>
-                        <dd class="col-sm-7"><code>{{ user.phone }}</code></dd>
-                        <dt class="col-sm-5">Username:</dt>
-                        <dd class="col-sm-7">{% if user.tg_username %}@{{ user.tg_username }}{% else %}—{% endif %}</dd>
-                        <dt class="col-sm-5">Регистрация:</dt>
-                        <dd class="col-sm-7">{{ user.created_at.strftime("%d.%m.%Y %H:%M") }}</dd>
-                        <dt class="col-sm-5">Был активен:</dt>
-                        <dd class="col-sm-7">{{ user.last_seen_at.strftime("%d.%m.%Y %H:%M") }}</dd>
-                        <dt class="col-sm-5">Статус:</dt>
-                        <dd class="col-sm-7">
-                            {% if user.is_blocked %}
-                            <span class="badge bg-danger">заблокирован</span>
-                            {% else %}
-                            <span class="badge bg-success">активен</span>
-                            {% endif %}
-                        </dd>
-                    </dl>
-
-                    <hr>
-
+    <div class="pv-grid c-1-2">
+        <!-- Профиль -->
+        <div class="pv-card">
+            <div class="pv-row" style="gap: 14px; margin-bottom: 16px;">
+                <div class="pv-avatar" style="width: 48px; height: 48px; font-size: 18px;">{{ user.first_name[0]|upper }}</div>
+                <div>
+                    <div style="font-weight: 700; color: var(--pv-fg); font-size: 16px;">{{ user.first_name }} {{ user.last_name or "" }}</div>
                     {% if user.is_blocked %}
-                    <form method="post" action="/users/{{ user.id }}/unblock"
-                          onsubmit="return confirm('Разблокировать пользователя?');">
-                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="bi bi-unlock"></i> Разблокировать
-                        </button>
-                    </form>
+                    <span class="pv-badge danger" data-dot>доступ ограничен</span>
                     {% else %}
-                    <form method="post" action="/users/{{ user.id }}/block"
-                          onsubmit="return confirm('Заблокировать пользователя? Он не сможет делать прогнозы и получать напоминания.');">
-                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                        <button type="submit" class="btn btn-outline-danger w-100">
-                            <i class="bi bi-lock"></i> Заблокировать
-                        </button>
-                    </form>
+                    <span class="pv-badge success" data-dot>активен</span>
                     {% endif %}
                 </div>
             </div>
-
-            <div class="card mt-3">
-                <div class="card-body">
-                    <h6 class="card-title">📊 Статистика</h6>
-                    <p class="mb-0">
-                        Сбылось: <strong>{{ stats_correct }}</strong> из <strong>{{ stats_total }}</strong>
-                        ({{ stats_percent }}%)
-                    </p>
+            <div class="pv-stack" style="gap: 10px;">
+                <div class="pv-row"><span class="pv-muted pv-grow">Телефон</span><span class="pv-mono">{{ user.phone }}</span></div>
+                <div class="pv-row"><span class="pv-muted pv-grow">Telegram ID</span><span class="pv-mono">{{ user.tg_user_id }}</span></div>
+                <div class="pv-row"><span class="pv-muted pv-grow">Username</span><span>{% if user.tg_username %}@{{ user.tg_username }}{% else %}—{% endif %}</span></div>
+                <div class="pv-row"><span class="pv-muted pv-grow">Регистрация</span><span class="pv-mono">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</span></div>
+                <div class="pv-row"><span class="pv-muted pv-grow">Был онлайн</span><span class="pv-mono">{{ user.last_seen_at.strftime('%d.%m.%Y %H:%M') }}</span></div>
+            </div>
+            <div class="pv-divider"></div>
+            <div class="pv-row">
+                <div class="pv-grow">
+                    <div class="pv-caps">Точность</div>
+                    <div class="pv-num-lg">{{ stats_percent }}%</div>
+                </div>
+                <div class="pv-grow">
+                    <div class="pv-caps">Прогнозов</div>
+                    <div class="pv-num-lg">{{ stats_total }}</div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-8">
-            <h4>Прогнозы ({{ predictions | length }})</h4>
+        <!-- Прогнозы -->
+        <div class="pv-card pv-card-flush">
+            <div class="pv-card-head">
+                <h3>Прогнозы пользователя</h3>
+                <span class="pv-card-meta">{{ predictions | length }} записей</span>
+            </div>
             {% if predictions %}
-            <table class="table table-sm">
+            <table class="pv-table">
                 <thead>
                     <tr>
-                        <th>Событие</th><th>Выбор</th><th>Старт</th>
-                        <th>Статус</th><th>Результат</th>
+                        <th>Событие</th>
+                        <th>Категория</th>
+                        <th>Выбор</th>
+                        <th>Статус события</th>
+                        <th>Результат</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in predictions %}
                     <tr>
-                        <td><a href="/events/{{ p.event_id }}">{{ p.event.title }}</a></td>
+                        <td class="pv-row-strong">{{ p.event.title }}</td>
+                        <td>{{ p.event.category.name if p.event and p.event.category else '—' }}</td>
                         <td>«{{ p.outcome.label }}»</td>
-                        <td>{{ p.event.starts_at.strftime("%d.%m.%Y %H:%M") }}</td>
                         <td>
                             {% if p.event.is_archived %}
-                            <span class="badge bg-info">архив</span>
+                            <span class="pv-badge info">архив</span>
                             {% elif not p.event.is_published %}
-                            <span class="badge bg-secondary">черновик</span>
+                            <span class="pv-badge muted">черновик</span>
                             {% else %}
-                            <span class="badge bg-success">активно</span>
+                            <span class="pv-badge success">активно</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if p.is_correct is none %}
                                 {% if p.event.is_archived %}
-                                    <span class="text-muted">⏳ нет итога</span>
+                                <span class="pv-muted">⏳ нет итога</span>
                                 {% else %}
-                                    <span class="text-muted">—</span>
+                                <span class="pv-muted">—</span>
                                 {% endif %}
                             {% elif p.is_correct %}
-                                <span class="text-success">✅ сбылся</span>
+                            <span class="pv-badge success" data-icon="check">сбылся</span>
                             {% else %}
-                                <span class="text-danger">❌ не сбылся</span>
+                            <span class="pv-badge danger" data-icon="close">не сбылся</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -118,9 +128,10 @@
                 </tbody>
             </table>
             {% else %}
-            <p class="text-muted">Прогнозов пока нет.</p>
+            <div class="pv-empty" data-icon="checklist">Пока нет прогнозов</div>
             {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
 {% endblock %}
