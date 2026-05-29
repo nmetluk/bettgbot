@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru" x-data="{ dark: $store.ui.dark }" :data-theme="dark ? 'dark' : 'light'">
+<html lang="ru">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,9 +24,9 @@
             integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
             crossorigin="anonymous"></script>
 
-    <!-- Alpine.js -->
+    <!-- Alpine.js CSP build -->
     <script defer
-            src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
+            src="https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.14.1/dist/cdn.min.js"
             crossorigin="anonymous"></script>
 
     {% block head_extra %}{% endblock %}

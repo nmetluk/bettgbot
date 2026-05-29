@@ -2,7 +2,7 @@
    Layout shell for authenticated pages (v2)
    ============================================================ -->
 
-<div class="pv-app" :data-rail="rail ? 'collapsed' : null">
+<div class="pv-app" :data-rail="isRailCollapsed">
     <!-- Sidebar -->
     <aside class="pv-sidebar">
         <div class="pv-sb-brand">
@@ -78,14 +78,14 @@
                 <template x-for="acc in accents" :key="acc">
                     <button @click="setAccent(acc)"
                             class="pv-accent-swatch"
-                            :style="{ backgroundColor: acc }"
-                            :class="{ 'active': accent === acc }"
-                            :title="'Акцент ' + acc"></button>
+                            :style="accentStyle(acc)"
+                            x-bind:class="accentClass(acc)"
+                            :title="accentTitle(acc)"></button>
                 </template>
             </div>
             <!-- Dark mode toggle -->
-            <button @click="toggleDark()" class="pv-tb-iconbtn" :title="dark ? 'Светлая тема' : 'Тёмная тема'">
-                <span class="material-symbols-rounded" x-text="dark ? 'light_mode' : 'dark_mode'"></span>
+            <button @click="toggleDark()" class="pv-tb-iconbtn" :title="themeTitle">
+                <span class="material-symbols-rounded" x-text="themeIcon"></span>
             </button>
             <div class="pv-tb-divider"></div>
             <!-- User info -->
@@ -121,11 +121,3 @@
 
 <!-- UI state script -->
 <script src="{{ url_for('static', path='js/ui.js') }}"></script>
-
-<script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.store('ui', {
-            dark: false
-        });
-    });
-</script>

@@ -36,6 +36,45 @@ class TestSecurityHeaders:
         assert "frame-ancestors 'none'" in csp
         assert "form-action 'self'" in csp
 
+    def test_csp_allows_google_fonts(self):
+        """CSP allows Google Fonts for Material Symbols (TASK-057)."""
+        app = FastAPI()
+
+        @app.get("/")
+        def read_root():
+            return {"status": "ok"}
+
+        app.add_middleware(SecurityHeadersMiddleware)
+        client = TestClient(app)
+
+        response = client.get("/")
+        csp = response.headers.get("Content-Security-Policy")
+
+        assert csp is not None
+        # CSS for Material Symbols
+        assert "https://fonts.googleapis.com" in csp
+        # Font files from gstatic
+        assert "font-src 'self' https://fonts.gstatic.com" in csp
+
+    def test_csp_allows_alpine_csp_build(self):
+        """CSP allows Alpine.js CSP build from jsDelivr (TASK-057)."""
+        app = FastAPI()
+
+        @app.get("/")
+        def read_root():
+            return {"status": "ok"}
+
+        app.add_middleware(SecurityHeadersMiddleware)
+        client = TestClient(app)
+
+        response = client.get("/")
+        csp = response.headers.get("Content-Security-Policy")
+
+        assert csp is not None
+        assert "https://cdn.jsdelivr.net" in csp
+        # Alpine CSP build doesn't require unsafe-eval
+        assert "unsafe-eval" not in csp
+
     def test_x_frame_options(self):
         """X-Frame-Options is DENY."""
         app = FastAPI()
@@ -122,6 +161,8 @@ class TestSecurityHeaders:
                     "script-src 'self'",
                     "https://cdn.jsdelivr.net",
                     "frame-ancestors 'none'",
+                    "https://fonts.googleapis.com",
+                    "https://fonts.gstatic.com",
                 ]
             ),
             "X-Frame-Options": lambda v: v == "DENY",
