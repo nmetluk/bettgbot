@@ -157,7 +157,7 @@ def test_analytics_empty_category_accuracy(fake_admin_middleware_session: None) 
 
 
 def test_analytics_renders_chart_script(fake_admin_middleware_session: None) -> None:
-    """Handler рендерит скрипт с Chart.js и данными графиков."""
+    """Handler рендерит CSP-совместимые скрипты: внешний analytics.js и JSON-блок данных."""
     service = MagicMock()
     service.daily_prediction_counts = AsyncMock(
         return_value=[AnalyticsDayRow(date="2026-05-29", count=42)]
@@ -188,7 +188,15 @@ def test_analytics_renders_chart_script(fake_admin_middleware_session: None) -> 
 
     assert response.status_code == 200
     content = response.text
-    # Проверим наличие Chart.js
+    # Chart.js через CDN
     assert "chart.js" in content.lower()
+    # Внешний скрипт инициализации (CSP-совместимый)
+    assert "/static/js/analytics.js" in content
+    # JSON-блок с данными (CSP-совместимый, не исполняемый)
+    assert 'id="analytics-data"' in content
+    assert 'type="application/json"' in content
+    assert '"daily_counts"' in content
+    assert '"category_accuracy"' in content
+    # Canvas элементы для графиков
     assert "dailyChart" in content
     assert "categoryChart" in content
