@@ -230,3 +230,90 @@ async def test_0004_roundtrip(fresh_db: None) -> None:
     )
     # Остался только unique constraint из 0002 (он реализован через индекс).
     assert indexes == ["uq_reminder_dispatch_log_user_event_offset"]
+
+
+async def test_0005_creates_broadcast_tables(fresh_db: None) -> None:
+    """После 0005 создаются таблицы broadcast и broadcast_delivery (TASK-061)."""
+    _alembic("upgrade", "head")
+    tables = await _fetch_scalars(
+        "SELECT tablename FROM pg_tables WHERE schemaname='public' "
+        "AND tablename LIKE 'broadcast%' ORDER BY tablename"
+    )
+    assert set(tables) == {"broadcast", "broadcast_delivery"}
+
+
+async def test_0005_broadcast_unique_constraint(fresh_db: None) -> None:
+    """После 0005 на broadcast_delivery есть primary key на (broadcast_id, user_id) для идемпотентности."""
+    _alembic("upgrade", "head")
+    # PRIMARY KEY создаёт implicit unique constraint (именовался бы uq_ если бы не PK)
+    constraints = await _fetch_scalars(
+        "SELECT conname FROM pg_constraint WHERE conname LIKE '%broadcast_delivery%'"
+    )
+    assert "broadcast_delivery_pkey" in constraints
+
+
+async def test_0005_broadcast_category_check(fresh_db: None) -> None:
+    """После 0005 CHECK требует category_id при segment='category' (TASK-061)."""
+    from sqlalchemy.exc import IntegrityError
+
+    _alembic("upgrade", "head")
+
+    engine = create_async_engine(DATABASE_URL)
+    try:
+        # Сначала создаём admin
+        async with engine.begin() as conn:
+            admin_id = (
+                await conn.execute(
+                    text(
+                        "INSERT INTO admin_user (login, password_hash) "
+                        "VALUES ('a', 'h') RETURNING id"
+                    )
+                )
+            ).scalar_one()
+
+        # 1) segment='category' без category_id — нарушение CHECK.
+        # Отдельная транзакция, т.к. IntegrityError оставляет транзакцию в aborted состоянии.
+        with pytest.raises(IntegrityError):
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(
+                        """
+                        INSERT INTO broadcast (
+                          segment, category_id, message_text, created_by_admin_id
+                        ) VALUES ('category', NULL, 'test', :adm)
+                        """
+                    ),
+                    {"adm": admin_id},
+                )
+
+        # 2) segment='all' без category_id — ок.
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO broadcast (
+                      segment, category_id, message_text, created_by_admin_id
+                    ) VALUES ('all', NULL, 'test', :adm)
+                    """
+                ),
+                {"adm": admin_id},
+            )
+
+        # Cleanup
+        async with engine.begin() as conn:
+            await conn.execute(text("TRUNCATE broadcast, admin_user CASCADE"))
+    finally:
+        await engine.dispose()
+
+
+async def test_0005_roundtrip(fresh_db: None) -> None:
+    """Upgrade+downgrade 0005 оставляют схему валидной (TASK-061-amendment)."""
+    _alembic("upgrade", "0004_reminder_dispatch_log_indexes")
+    _alembic("upgrade", "0005_broadcasts")
+    _alembic("downgrade", "0004_reminder_dispatch_log_indexes")
+
+    # После downgrade таблицы broadcast должны исчезнуть.
+    tables = await _fetch_scalars(
+        "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'broadcast%'"
+    )
+    assert set(tables) == set()

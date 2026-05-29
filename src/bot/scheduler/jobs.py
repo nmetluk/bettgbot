@@ -116,7 +116,9 @@ async def cleanup_old_dispatch_logs(
         )
 
 
-async def dispatch_broadcasts(*, bot: Bot, session_maker: async_sessionmaker[AsyncSession]) -> None:
+async def dispatch_broadcasts(
+    *, bot: Bot, session_maker: async_sessionmaker[AsyncSession], commit_batch_size: int = 50
+) -> None:
     """Один тик scheduler'а: отправить одну queued-рассылку.
 
     Идемпотентность: `broadcast_delivery.record(...)` зовётся ДО `send_message`.
@@ -128,6 +130,10 @@ async def dispatch_broadcasts(*, bot: Bot, session_maker: async_sessionmaker[Asy
 
     Безопасность: `parse_mode=None` (плоский текст), никакого HTML —
     исключает инъекцию при отправке пользовательского контента.
+
+    Идемпотентность при рестарте: записи доставки фиксируются порциями
+    (`commit_batch_size`, default 50). При крэше уже отправленные зафиксированы,
+    повторная отправка исключается через UNIQUE constraint в delivery-log.
     """
     async with session_maker() as session:
         repo = BroadcastRepository(session)
@@ -155,10 +161,17 @@ async def dispatch_broadcasts(*, bot: Bot, session_maker: async_sessionmaker[Asy
             total_recipients=broadcast.total_recipients,
         )
 
-        # Получаем список получателей
+        # Коммитим переход queued→sending сразу, чтобы освободить лок
+        # и зафиксировать факт старта (рестарт не начнёт параллельно)
+        await session.commit()
+
+        # Получаем список получателей (закеширован в репо, отдельный select)
         recipients = await repo.recipients_for(
             segment=broadcast.segment, category_id=broadcast.category_id
         )
+
+        # Для порционного коммита
+        batch_counter = 0
 
         for user_id in recipients:
             # Идемпотентность: записываем факт доставки ДО отправки
@@ -176,6 +189,7 @@ async def dispatch_broadcasts(*, bot: Bot, session_maker: async_sessionmaker[Asy
             if user is None or user.is_blocked:
                 # Пользователь удалён или заблокирован после подсчёта recipients
                 await repo.increment_failed(broadcast.id)
+                batch_counter += 1
                 continue
 
             try:
@@ -195,10 +209,17 @@ async def dispatch_broadcasts(*, bot: Bot, session_maker: async_sessionmaker[Asy
                     error=str(exc),
                 )
 
+            batch_counter += 1
+
             # Пейсинг: ~20 msg/s (0.05s = 50ms между сообщениями)
             await asyncio.sleep(0.05)
 
-        # Завершаем рассылку
+            # Порционный коммит для идемпотентности при рестарте
+            if batch_counter >= commit_batch_size:
+                await session.commit()
+                batch_counter = 0
+
+        # Финальный коммит для оставшихся записей
         await repo.mark_done(broadcast.id)
         await session.commit()
 

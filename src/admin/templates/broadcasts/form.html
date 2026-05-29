@@ -2,6 +2,10 @@
 
 {% block title %}Новая рассылка — Betting Bot Admin{% endblock %}
 
+{% block scripts_extra %}
+<script src="{{ url_for('static', path='js/broadcasts.js') }}" defer></script>
+{% endblock %}
+
 {% block body %}
 {% include "_layout_shell.html" %}
 
@@ -48,7 +52,7 @@
             </div>
 
             {% if categories %}
-            <div class="pv-form-group" id="category-group" style="{% if not form_data or form_data.segment != 'category' %}display: none;{% endif %}">
+            <div class="pv-form-group {% if not form_data or form_data.segment != 'category' %}pv-hidden{% endif %}" id="category-group">
                 <label class="pv-form-label">Категория</label>
                 <select name="category_id" class="pv-form-control">
                     <option value="">— выберите категорию —</option>
@@ -96,76 +100,6 @@
         </form>
     </div>
 
-    <script>
-        // Показываем/скрываем выбор категории в зависимости от сегмента
-        document.addEventListener('DOMContentLoaded', function() {
-            const segmentInputs = document.querySelectorAll('input[name="segment"]');
-            const categoryGroup = document.getElementById('category-group');
-
-            function toggleCategory() {
-                const selected = document.querySelector('input[name="segment"]:checked');
-                if (selected && selected.value === 'category') {
-                    categoryGroup.style.display = 'block';
-                } else {
-                    categoryGroup.style.display = 'none';
-                }
-            }
-
-            segmentInputs.forEach(input => {
-                input.addEventListener('change', toggleCategory);
-            });
-
-            // Инициализация
-            toggleCategory();
-        });
-    </script>
-
-    <style>
-    .pv-segment-choices {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .pv-segment-choice {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 4px;
-    }
-    .pv-segment-choice:hover {
-        background: var(--pv-surface-hover);
-    }
-    .pv-segment-choice input[type="radio"] {
-        margin-top: 4px;
-    }
-    .pv-segment-label {
-        flex: 1;
-    }
-    .pv-segment-title {
-        font-weight: 500;
-    }
-    .pv-segment-desc {
-        font-size: 13px;
-        color: var(--pv-muted);
-    }
-    .pv-broadcast-preview {
-        padding: 16px;
-        background: var(--pv-surface);
-        border-radius: 8px;
-        display: flex;
-        justify-content: center;
-    }
-    .pv-bubble {
-        background: var(--pv-bg-tertiary);
-        padding: 12px 16px;
-        border-radius: 16px 16px 4px 16px;
-        max-width: 400px;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-    </style>
 </div>
 {% endblock %}
 {% endblock %}
