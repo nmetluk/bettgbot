@@ -119,7 +119,6 @@ async def test_recipients_for_category_returns_users_with_predictions(
 
 async def test_claim_next_queued_transitions_to_sending(session: AsyncSession) -> None:
     """claim_next_queued атомарно забирает queued-рассылку и переводит в sending."""
-    from src.shared.models import Broadcast
 
     # Очищаем таблицу broadcast от предыдущих тестов
     existing = await session.execute(select(Broadcast))
@@ -165,7 +164,6 @@ async def test_claim_next_queued_transitions_to_sending(session: AsyncSession) -
 
 async def test_claim_next_queued_returns_none_when_empty(session: AsyncSession) -> None:
     """claim_next_queued возвращает None когда нет queued-рассылок."""
-    from src.shared.models import Broadcast
 
     # Очищаем таблицу broadcast от предыдущих тестов
     await session.execute(select(Broadcast).where(Broadcast.id > 0))
@@ -207,7 +205,6 @@ async def test_record_delivery_is_idempotent(session: AsyncSession) -> None:
     await session.flush()
 
     # Проверяем, что только одна запись в БД
-    from src.shared.models import BroadcastDelivery
 
     result = await session.execute(
         select(BroadcastDelivery).where(

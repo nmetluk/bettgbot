@@ -10,17 +10,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 @pytest_asyncio.fixture()
 async def clean_session(session: AsyncSession) -> AsyncSession:
-    """Очищает User и Broadcast таблицы перед и после теста.
+    """Очищает Broadcast таблицы перед и после теста.
 
     Используется для dispatch_broadcasts тестов, которые делают commit.
     cleanup в teardown гарантирует, что последующие тесты не видят эти данные.
+
+    NOTA BENE: Не удаляет Users, т.к. есть FK constraints из других таблиц.
+    Dispatch тесты создают пользователей через make_user, и они остаются в БД,
+    но это не должно влиять на другие тесты, которые делают proper rollback.
     """
-    from src.shared.models import Broadcast, User, BroadcastDelivery
+    from src.shared.models import Broadcast, BroadcastDelivery
 
     # Cleanup перед тестом
     await session.execute(delete(BroadcastDelivery))
     await session.execute(delete(Broadcast))
-    await session.execute(delete(User))
     await session.commit()
 
     yield session
@@ -28,5 +31,4 @@ async def clean_session(session: AsyncSession) -> AsyncSession:
     # Cleanup после теста
     await session.execute(delete(BroadcastDelivery))
     await session.execute(delete(Broadcast))
-    await session.execute(delete(User))
     await session.commit()

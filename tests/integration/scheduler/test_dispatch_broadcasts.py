@@ -17,7 +17,7 @@ pytestmark = pytest.mark.integration
 
 async def test_dispatch_broadcasts_sends_to_recipients(clean_session: AsyncSession) -> None:
     """dispatch_broadcasts отправляет сообщение всем получателям сегмента."""
-    from sqlalchemy import func, select
+    from sqlalchemy import func
     from src.shared.models import User
 
     admin = await make_admin(clean_session)
@@ -70,7 +70,7 @@ async def test_dispatch_broadcasts_sends_to_recipients(clean_session: AsyncSessi
 async def test_dispatch_broadcasts_handles_send_errors(clean_session: AsyncSession) -> None:
     """dispatch_broadcasts продолжает работу при ошибках отправки."""
     from aiogram.exceptions import TelegramAPIError
-    from sqlalchemy import func, select
+    from sqlalchemy import func
     from src.shared.models import User
 
     admin = await make_admin(clean_session)
@@ -111,7 +111,7 @@ async def test_dispatch_broadcasts_handles_send_errors(clean_session: AsyncSessi
 
 async def test_dispatch_broadcasts_is_idempotent(clean_session: AsyncSession) -> None:
     """Повторный вызов не отправляет сообщения уже доставшим пользователям."""
-    from sqlalchemy import func, select
+    from sqlalchemy import func
     from src.shared.models import BroadcastDelivery, User
 
     admin = await make_admin(clean_session)
@@ -183,7 +183,7 @@ async def test_dispatch_broadcasts_skips_empty_segment(clean_session: AsyncSessi
 
 async def test_dispatch_broadcasts_commits_in_batches(clean_session: AsyncSession) -> None:
     """dispatch_broadcasts коммитит порциями для идемпотентности."""
-    from sqlalchemy import func, select
+    from sqlalchemy import func
     from src.shared.models import User
 
     admin = await make_admin(clean_session)
