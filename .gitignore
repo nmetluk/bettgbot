@@ -77,3 +77,4 @@ handoff/.draft/
 
 # --- GitHub PAT (read-only, cowork local) ---
 .gh_pat
+.config/

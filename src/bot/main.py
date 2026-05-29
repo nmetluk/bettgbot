@@ -43,8 +43,9 @@ def build_dispatcher() -> tuple[Bot, Dispatcher]:
         token=s.telegram_bot_token.get_secret_value(),
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    storage = RedisStorage.from_url(str(s.redis_url))
-    dp = Dispatcher(storage=storage)
+    # storage = RedisStorage.from_url(str(s.redis_url))
+    # dp = Dispatcher(storage=storage)
+    dp = Dispatcher()  # Use memory storage for debugging
 
     dp.update.middleware(LoggingMiddleware())
     dp.update.middleware(SessionMiddleware())
@@ -79,7 +80,10 @@ async def main() -> None:
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot)
+        # await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
+        # Temporary: test webhook instead of polling
+        # webhook setup requires public URL, skipping for now
+        await dp.start_polling(bot, allowed_updates=["message", "callback_query"])
     finally:
         scheduler.shutdown(wait=True)
         # HttpExternalUserRegistryClient имеет .close(); Mock — нет.

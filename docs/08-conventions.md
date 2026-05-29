@@ -221,6 +221,73 @@ CI запускает 4 parallel security-job'а на каждый push/PR в `m
 - Сложные функции (>20 строк) — с docstring (что делает, контракты).
 - Никаких комментариев-«объяснений того, что и так видно». Только «почему» и инварианты.
 
+## Локальный запуск бота (dev)
+
+Для разработки бот запускается через systemd user-service — это обеспечивает:
+- Автоматический запуск после ребута/логина
+- Структурированное логирование в journal
+- Автоматический рестарт при падениях
+
+### Файл сервиса
+
+`~/.config/systemd/user/bettgbot-bot.service`:
+
+```ini
+[Unit]
+Description=Betting Bot Telegram Bot
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/bettgbot
+ExecStart=%h/.local/bin/uv run python -m src.bot.main
+Restart=always
+RestartSec=10
+Environment=ENVIRONMENT=dev
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bettgbot-bot
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
+```
+
+### Управление
+
+```bash
+# Первый запуск и Enable
+systemctl --user daemon-reload
+systemctl --user enable bettgbot-bot.service
+systemctl --user start bettgbot-bot.service
+
+# Управление
+systemctl --user status bettgbot-bot.service   # статус
+systemctl --user stop bettgbot-bot.service     # остановить
+systemctl --user restart bettgbot-bot.service  # перезапуск
+
+# Логи (live)
+journalctl --user -u bettgbot-bot.service -f
+
+# Логи (за последние 5 минут)
+journalctl --user -u bettgbot-bot.service --since "5 minutes ago"
+```
+
+### Прямой запуск (для отладки)
+
+```bash
+# В foreground с логом в консоль
+uv run python -m src.bot.main
+
+# В background с логом в файл
+nohup uv run python -m src.bot.main >> bot.log 2>&1 &
+```
+
 ## Связанное
 
 - [01-architecture.md](01-architecture.md), [02-tech-stack.md](02-tech-stack.md)
