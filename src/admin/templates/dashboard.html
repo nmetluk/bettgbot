@@ -2,20 +2,66 @@
 
 {% block title %}Дашборд — Betting Bot Admin{% endblock %}
 
+{% block head_extra %}
+<style>
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--pv-s-16);
+        margin-bottom: var(--pv-s-24);
+    }
+    .kpi-tile {
+        background: var(--pv-panel);
+        border: 1px solid var(--pv-border);
+        border-radius: var(--pv-r-8);
+        padding: var(--pv-card-pad);
+        display: flex; flex-direction: column; gap: var(--pv-s-8);
+    }
+    .kpi-label {
+        font-size: var(--pv-fs-12);
+        color: var(--pv-fg-muted);
+        text-transform: uppercase;
+        letter-spacing: var(--pv-tracking-caps);
+        font-weight: 700;
+    }
+    .kpi-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--pv-fg);
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include "_layout_shell.html" %}
+
 {% block content %}
-<div class="container py-4">
-    <h1 class="mb-4">Дашборд</h1>
-    <div class="row g-3">
+<div class="pv-page">
+    <div class="pv-page-header">
+        <div>
+            <h1 class="pv-page-title">Дашборд</h1>
+            <p class="pv-page-sub">Обзор состояния системы</p>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
         {% for key, value in counters.items() %}
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <div class="display-4">{{ value }}</div>
-                    <div class="text-muted text-uppercase">{{ key }}</div>
-                </div>
-            </div>
+        <div class="kpi-tile">
+            <div class="kpi-label">{{ key }}</div>
+            <div class="kpi-value">{{ value }}</div>
         </div>
         {% endfor %}
     </div>
+
+    <div class="pv-card">
+        <div class="pv-card-body">
+            <p style="color: var(--pv-fg-muted);">
+                Дашборд в разработке. Здесь будут сводки по событиям, прогнозам и активности пользователей.
+            </p>
+        </div>
+    </div>
 </div>
+{% endblock %}
 {% endblock %}
