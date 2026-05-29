@@ -32,11 +32,18 @@ async def dashboard(
     admin: AdminUser = Depends(current_admin),
     session: AsyncSession = Depends(_session_dep),
 ) -> HTMLResponse:
-    """Главная админки — счётчики объектов в БД."""
+    """Главная админки — счётчики, активные события, последние действия."""
     service = DashboardService(session)
     counters = await service.get_counters()
+    active_events = await service.get_active_events(limit=10)
+    audit_logs = await service.get_recent_audit_logs(limit=8)
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"counters": counters, "admin": admin},
+        context={
+            "counters": counters,
+            "active_events": active_events,
+            "audit_logs": audit_logs,
+            "admin": admin,
+        },
     )

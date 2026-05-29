@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,3 +118,14 @@ class UserRepository:
         )
         result = await self._session.execute(stmt)
         return [(row[0], int(row[1])) for row in result.all()]
+
+    async def count_active_30d(self) -> int:
+        """Количество пользователей с активностью за последние 30 дней.
+
+        Активность определяется по полю `last_seen_at` — пользователь
+        считался активным, если `last_seen_at >= now() - interval '30 days'`.
+        """
+        cutoff = datetime.now(tz=UTC) - timedelta(days=30)
+        stmt = select(func.count()).select_from(User).where(User.last_seen_at >= cutoff)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, case, func, not_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -137,5 +138,12 @@ class PredictionRepository:
     async def count(self) -> int:
         """Общее количество прогнозов."""
         stmt = select(func.count()).select_from(Prediction)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def count_24h(self) -> int:
+        """Количество прогнозов за последние 24 часа."""
+        cutoff = datetime.now(tz=UTC) - timedelta(hours=24)
+        stmt = select(func.count()).select_from(Prediction).where(Prediction.created_at >= cutoff)
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
