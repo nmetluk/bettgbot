@@ -34,11 +34,17 @@ async def test_recipients_for_all_returns_unblocked_users(session: AsyncSession)
 async def test_recipients_for_active_filters_by_last_seen(session: AsyncSession) -> None:
     """Сегмент `active` возвращает только пользователей с last_seen_at >= 30 дней."""
     # Активный: заходил 25 дней назад
-    active = await make_user(session, is_blocked=False, last_seen_at=datetime.now(tz=UTC) - timedelta(days=25))
+    active = await make_user(
+        session, is_blocked=False, last_seen_at=datetime.now(tz=UTC) - timedelta(days=25)
+    )
     # Неактивный: заходил 35 дней назад
-    inactive = await make_user(session, is_blocked=False, last_seen_at=datetime.now(tz=UTC) - timedelta(days=35))
+    inactive = await make_user(
+        session, is_blocked=False, last_seen_at=datetime.now(tz=UTC) - timedelta(days=35)
+    )
     # Заблокированный даже если активный
-    blocked = await make_user(session, is_blocked=True, last_seen_at=datetime.now(tz=UTC) - timedelta(days=25))
+    blocked = await make_user(
+        session, is_blocked=True, last_seen_at=datetime.now(tz=UTC) - timedelta(days=25)
+    )
 
     repo = BroadcastRepository(session)
     recipients = await repo.recipients_for("active")
@@ -48,7 +54,9 @@ async def test_recipients_for_active_filters_by_last_seen(session: AsyncSession)
     assert blocked.id not in recipients
 
 
-async def test_recipients_for_category_returns_users_with_predictions(session: AsyncSession) -> None:
+async def test_recipients_for_category_returns_users_with_predictions(
+    session: AsyncSession,
+) -> None:
     """Сегмент `category` возвращает пользователей с прогнозами в категории."""
     category = await make_category(session)
     other_category = await make_category(session)
@@ -70,22 +78,32 @@ async def test_recipients_for_category_returns_users_with_predictions(session: A
 
     # User1 делал прогноз в категории
     session.add(
-        await _make_prediction(session, user_id=user1.id, event_id=event_in_cat.id, outcome_id=outcome1.id)
+        await _make_prediction(
+            session, user_id=user1.id, event_id=event_in_cat.id, outcome_id=outcome1.id
+        )
     )
     # User2 делал прогноз в другой категории
     session.add(
-        await _make_prediction(session, user_id=user2.id, event_id=event_other_cat.id, outcome_id=outcome2.id)
+        await _make_prediction(
+            session, user_id=user2.id, event_id=event_other_cat.id, outcome_id=outcome2.id
+        )
     )
     # User3 делал прогноз в обеих
     session.add(
-        await _make_prediction(session, user_id=user3.id, event_id=event_in_cat.id, outcome_id=outcome1.id)
+        await _make_prediction(
+            session, user_id=user3.id, event_id=event_in_cat.id, outcome_id=outcome1.id
+        )
     )
     session.add(
-        await _make_prediction(session, user_id=user3.id, event_id=event_other_cat.id, outcome_id=outcome2.id)
+        await _make_prediction(
+            session, user_id=user3.id, event_id=event_other_cat.id, outcome_id=outcome2.id
+        )
     )
     # Blocked делал прогноз в категории
     session.add(
-        await _make_prediction(session, user_id=blocked.id, event_id=event_in_cat.id, outcome_id=outcome1.id)
+        await _make_prediction(
+            session, user_id=blocked.id, event_id=event_in_cat.id, outcome_id=outcome1.id
+        )
     )
 
     await session.flush()
@@ -316,7 +334,9 @@ async def test_update_total_recipients(session: AsyncSession) -> None:
 
 
 # Helper для создания прогноза
-async def _make_prediction(session: AsyncSession, user_id: int, event_id: int, outcome_id: int) -> Any:
+async def _make_prediction(
+    session: AsyncSession, user_id: int, event_id: int, outcome_id: int
+) -> Any:
     from src.shared.models import Prediction
 
     pred = Prediction(
