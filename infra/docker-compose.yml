@@ -49,6 +49,8 @@ services:
       MOCK_REGISTRY_ALLOWED: ${MOCK_REGISTRY_ALLOWED:-}
       REMINDER_TICK_SECONDS: ${REMINDER_TICK_SECONDS:-300}
       ENVIRONMENT: ${ENVIRONMENT:-dev}
+      ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
+      ADMIN_CSRF_SECRET: ${ADMIN_CSRF_SECRET}
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
