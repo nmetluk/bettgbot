@@ -58,20 +58,32 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 
 ## Git и GitHub
 
-- Branch-стратегия: `main` защищён, работа в ветках `feature/TASK-NNN-slug`, `fix/...`, `chore/...`.
+- Branch-стратегия: `main` защищён branch protection (enforce_admins=true, required status checks: lint, typecheck, unit-test, integration, handoff-consistency), работа в ветках `feature/TASK-NNN-slug`, `fix/...`, `chore/...`.
 - Commit-сообщения — [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`).
 - Каждая задача → одна ветка → один PR в `main`. Имя PR: `TASK-NNN: <subject>`. В описании PR — ссылка на `handoff/inbox/TASK-NNN.md` и `handoff/outbox/TASK-NNN-report.md`.
 - PAT для пуша уже на машине пользователя — настраивать не нужно. При первой задаче создаст GitHub-репозиторий (детали в TASK-001).
+- **Auto-merge включен на репозитории.** Все PR сливаются автоматически через `gh pr merge --auto --squash` когда все required-чеки зелёные. Прямой push в `main` запрещён для всех (включая admin'ов благодаря `enforce_admins=true`).
 
 ### Push обязателен после каждой задачи
 
 После закрытия любой задачи (фичевой, фикса, cleanup, archive) **обязательно** выполнить:
 
 1. `git push origin <feature-branch>` — выложить ветку до открытия/обновления PR.
-2. `gh pr create ...` или обновить существующий PR; **дождаться** зелёного CI.
-3. `gh pr merge --squash` (если права позволяют) или явно попросить владельца замёрджить.
+2. `gh pr create ...` или обновить существующий PR.
+3. `gh pr merge --auto --squash` — включить auto-merge. PR вольётся автоматически, когда все required-чеки (lint, typecheck, unit-test, integration, handoff-consistency) станут зелёными.
 4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой).
 5. Только после этого считать задачу закрытой и переходить к следующей.
+
+### Handoff-публикация архитектором (cowork-агент)
+
+Архитектор не имеет прямого доступа к GitHub API. Для публикации handoff-доков:
+
+1. Архитектор пушит ветку `chore/handoff-NNN` (или `docs/handoff-NNN`) в `origin`.
+2. Workflow `.github/workflows/auto-handoff-pr.yml` автоматически:
+   - Открывает PR в `main` (если ещё не открыт).
+   - Включает auto-merge (`--auto --squash`).
+3. PR вливается сам по зелёному CI без участия человека.
+4. Архитектор синхронизирует локальную `main`: `git pull origin main`.
 
 Цель — на удалённом репо `nmetluk/bettgbot` всегда лежит актуальная `main` сразу после каждой задачи. Это позволяет:
 

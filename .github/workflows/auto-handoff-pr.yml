@@ -1,0 +1,67 @@
+name: Auto-handoff PR
+
+on:
+  push:
+    branches:
+      - chore/handoff-**
+      - docs/handoff-**
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get branch name
+        id: branch
+        run: echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      - name: Check for existing PR
+        id: check_pr
+        run: |
+          PR=$(gh pr list --head "${{ steps.branch.outputs.name }}" --json number --jq '.[0].number' || echo "")
+          echo "number=$PR" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.REPO_PAT }}
+
+      - name: Create PR
+        if: steps.check_pr.outputs.number == ''
+        run: |
+          BRANCH="${{ steps.branch.outputs.name }}"
+          TITLE="Auto-handoff: $BRANCH"
+          BODY="Auto-generated PR for handoff branch $BRANCH
+
+          Changes: https://github.com/nmetluk/bettgbot/compare/main...$BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$TITLE" \
+            --body "$BODY" \
+            --label auto-handoff
+        env:
+          GH_TOKEN: ${{ secrets.REPO_PAT }}
+
+      - name: Get PR number
+        id: get_pr
+        run: |
+          BRANCH="${{ steps.branch.outputs.name }}"
+          if [ -n "${{ steps.check_pr.outputs.number }}" ]; then
+            PR_NUM="${{ steps.check_pr.outputs.number }}"
+          else
+            PR_NUM=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number')
+          fi
+          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.REPO_PAT }}
+
+      - name: Enable auto-merge
+        run: |
+          gh pr merge "${{ steps.get_pr.outputs.number }}" --auto --squash
+        env:
+          GH_TOKEN: ${{ secrets.REPO_PAT }}
