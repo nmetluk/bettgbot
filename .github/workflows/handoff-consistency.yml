@@ -8,11 +8,14 @@ name: handoff-consistency
 #     с task.md/report.md/amendments/ внутри — не TASK-NNN.md прямо в archive/.
 # (3) В каждой archive-директории должен быть файл task.md.
 # (4) У каждой архивной задачи должен быть report.md (в outbox или в archive).
+# (5) На main в inbox/ не должно быть transient-суффиксов (.in-progress.md,
+#     .blocked.md) — они leak'ят рабочее состояние после merge (TASK-080).
 #
 # Контекст: 5 случаев подряд (TASK-028..032) CC нарушал move-семантику.
 # В TASK-032 дополнительно сломалась convention (положил файл вместо
 # директории), что обошло первую версию этого CI-check'a. Расширили до 4
 # проверок в TASK-052 после 9 случаев подряд отсутствия report.md.
+# TASK-080 добавил (5) после инцидента с TASK-076.in-progress на main.
 
 on:
   pull_request:
@@ -90,6 +93,23 @@ jobs:
               violations=$((violations + 1))
             fi
           done
+
+          # (5) NEW (TASK-080): transient suffixes (.in-progress/.blocked) must not exist in inbox on main
+          #     (on feature branches they are expected and part of the handoff lifecycle; only block if seen on main)
+          if [ "${GITHUB_REF:-}" = "refs/heads/main" ] || [ "${GITHUB_EVENT_NAME:-}" = "push" ]; then
+            echo "→ Проверка transient-суффиксов в inbox (TASK-080, main only)..."
+            for transient in handoff/inbox/TASK-*.in-progress.md handoff/inbox/TASK-*.blocked.md; do
+              [ -e "$transient" ] || continue
+              if [ -f "$transient" ]; then
+                echo "❌ Transient suffix leaked to main: $transient"
+                echo "   На main в inbox/ должны быть только открытые TASK-NNN-<slug>.md (или ничего)."
+                echo "   .in-progress/.blocked — transient состояния ЖЦ (см. CLAUDE.md), не должны утекать в main."
+                violations=$((violations + 1))
+              fi
+            done
+          else
+            echo "→ Проверка transient-суффиксов пропущена (не main; transients легитимны на feature-ветках TASK-NNN)"
+          fi
 
           if [ $violations -gt 0 ]; then
             echo ""

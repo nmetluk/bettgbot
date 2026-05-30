@@ -50,6 +50,8 @@ stateDiagram-v2
 
 **Правило для CC:** до коммита `chore(handoff): archive TASK-NNN and add report` — проверь `ls handoff/inbox/ | grep TASK-NNN`. Если что-то нашлось — `git rm` это.
 
+**Transient-суффиксы на main запрещены.** `.in-progress.md` / `.blocked.md` — это переходные состояния ЖЦ задачи (см. CLAUDE.md). Они не должны существовать в `main` (к моменту merge задача либо открыта как `TASK-NNN-<slug>.md`, либо заархивирована). Нарушение (как TASK-076.in-progress на main) теперь ловится CI (handoff-consistency, TASK-080). Перед любым push в main — `git status handoff/inbox/` не должен показывать transient-файлы.
+
 ## Формат задачи
 
 См. [`templates/task.md`](templates/task.md). Обязательные секции:
