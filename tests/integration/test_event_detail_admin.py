@@ -27,7 +27,9 @@ async def _create_authenticated_session(session: AsyncSession) -> str:
 
 
 @pytest.mark.asyncio(loop_scope="module")
-async def test_event_detail_returns_200_for_draft_without_outcomes(nested_session: AsyncSession) -> None:
+async def test_event_detail_returns_200_for_draft_without_outcomes(
+    nested_session: AsyncSession,
+) -> None:
     """TASK-074 regression: черновик без исходов должен рендериться с 200, а не 500.
 
     Сценарий:
@@ -49,7 +51,9 @@ async def test_event_detail_returns_200_for_draft_without_outcomes(nested_sessio
     client = TestClient(app, cookies={"session": token})
 
     response = client.get(f"/events/{event.id}")
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    )
     # Проверяем, что ключевые данные присутствуют в ответе
     assert event.title in response.text
     assert category.name in response.text
@@ -57,7 +61,9 @@ async def test_event_detail_returns_200_for_draft_without_outcomes(nested_sessio
 
 
 @pytest.mark.asyncio(loop_scope="module")
-async def test_event_detail_returns_200_for_published_with_outcomes(nested_session: AsyncSession) -> None:
+async def test_event_detail_returns_200_for_published_with_outcomes(
+    nested_session: AsyncSession,
+) -> None:
     """TASK-074 regression: опубликованное событие с исходами тоже должно рендериться.
 
     Сценарий:
@@ -82,7 +88,9 @@ async def test_event_detail_returns_200_for_published_with_outcomes(nested_sessi
     client = TestClient(app, cookies={"session": token})
 
     response = client.get(f"/events/{event.id}")
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    )
     assert event.title in response.text
     assert "Outcome 1" in response.text
     assert "Outcome 2" in response.text
@@ -125,5 +133,7 @@ async def test_event_detail_result_tab_loads_without_error(nested_session: Async
     client = TestClient(app, cookies={"session": token})
 
     response = client.get(f"/events/{event.id}?tab=result")
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    )
     assert "Итоговый исход" in response.text
