@@ -77,6 +77,10 @@
   --pv-s-24: 24px; --pv-s-32: 32px; --pv-s-40: 40px;
   --pv-s-48: 48px; --pv-s-64: 64px;
 
+  /* Chart heights */
+  --pv-chart-h-sm: 250px;
+  --pv-chart-h-md: 300px;
+
   /* Layout */
   --pv-rail-w:        232px;
   --pv-rail-w-collapsed: 60px;

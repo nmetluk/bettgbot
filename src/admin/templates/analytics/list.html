@@ -29,14 +29,22 @@
     </div>
 
     <!-- График: Динамика по дням -->
+    {% if daily_counts %}
     <div class="pv-card">
         <div class="pv-card-header">
             <h2 class="pv-card-title">Динамика прогнозов за 30 дней</h2>
         </div>
         <div class="pv-card-body">
-            <canvas id="dailyChart" style="height: 300px;"></canvas>
+            <canvas id="dailyChart" class="pv-chart"></canvas>
         </div>
     </div>
+    {% else %}
+    <div class="pv-card">
+        <div class="pv-card-body pv-empty-state" data-icon="show_chart">
+            <p>Нет данных для отображения динамики.</p>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Точность по категориям -->
     {% if category_accuracy %}
@@ -45,7 +53,7 @@
             <h2 class="pv-card-title">Точность по категориям</h2>
         </div>
         <div class="pv-card-body">
-            <canvas id="categoryChart" style="height: 250px;"></canvas>
+            <canvas id="categoryChart" class="pv-chart pv-chart-sm"></canvas>
         </div>
     </div>
     <div class="pv-card pv-card-flush">

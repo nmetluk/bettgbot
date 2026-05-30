@@ -597,3 +597,27 @@
   word-break: break-word;
 }
 .pv-hidden { display: none !important; }
+
+/* Charts */
+.pv-chart {
+  width: 100%;
+  height: var(--pv-chart-h-md);
+}
+.pv-chart.pv-chart-sm { height: var(--pv-chart-h-sm); }
+
+/* Empty state */
+.pv-empty-state {
+  padding: var(--pv-s-48) var(--pv-s-32);
+  text-align: center;
+  color: var(--pv-fg-muted);
+  font-size: var(--pv-fs-14);
+  position: relative;
+}
+.pv-empty-state::before {
+  content: attr(data-icon);
+  font-family: "Material Symbols Rounded";
+  font-size: 48px;
+  display: block;
+  margin-bottom: var(--pv-s-16);
+  opacity: 0.4;
+}
