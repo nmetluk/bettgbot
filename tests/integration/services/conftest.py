@@ -57,6 +57,7 @@ async def nested_session() -> AsyncIterator[AsyncSession]:
 
 class StubRegistry:
     """In-memory заглушка `ExternalUserRegistryClient` для UserService-тестов."""
+
     def __init__(
         self,
         *,
