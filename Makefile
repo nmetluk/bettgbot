@@ -99,7 +99,7 @@ full.up: ## Поднять полный dev-stack (db + redis + bot + web в к�
 	$(COMPOSE) --profile full up -d
 
 prod.build: ## Собрать prod-образы bot+web
-	@bash scripts/generate_build_info.sh 2>/dev/null || true
+	@bash scripts/generate_build_info.sh || echo "WARNING: generate_build_info.sh failed (non-fatal for build)"
 	$(PROD_COMPOSE) build
 
 prod.up: ## Поднять prod-stack (с nginx)
@@ -235,7 +235,7 @@ prod.rollback: ## Откат к предыдущему IMAGE_TAG: make prod.roll
 # Для продакшена с доменом используйте prod.* цели вместо prod.nodomain.*.
 
 prod.nodomain.build: ## Собрать prod-образы для no-domain (порт 8888)
-	@bash scripts/generate_build_info.sh 2>/dev/null || true
+	@bash scripts/generate_build_info.sh || echo "WARNING: generate_build_info.sh failed (non-fatal for build)"
 	$(PROD_NO_DOMAIN_COMPOSE) build
 
 prod.nodomain.up: ## Поднять prod-stack без домена (порт 8888) — ⚠️ DANGER: HTTP only!
