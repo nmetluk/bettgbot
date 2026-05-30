@@ -320,3 +320,112 @@ def test_csrf_cookie_reuse_logic() -> None:
     assert middleware._get_token_from_cookie(signed_token, wrong_secret) is None, (
         "Кука с другим секретом должна возвращать None"
     )
+
+
+def test_stale_csrf_cookie_self_heals_on_next_get() -> None:
+    """TASK-069: браузер со старой CSRF-кукой (>15 мин) всё равно может войти.
+
+    Сценарий:
+    1. Пользователь открыл /login 16 минут назад → получил куку C1
+    2. Кука протухла (TTL=15 мин), но браузер её хранит
+    3. Пользователь возвращается, делает GET /login
+    4. Middleware видит протухшую куку → выдаёт свежую C2
+    5. POST с токеном из формы → НЕ 403 (self-heal)
+
+    До фикса TASK-069: middleware декодировал с max_age=None, протухшая кука
+    переиспользовалась, validate_csrf с max_age=900 давал 403 → вход сломан.
+    """
+    import time
+    from unittest.mock import patch
+
+    from fastapi_csrf_protect import CsrfProtect
+    from freezegun import freeze_time
+    from itsdangerous import URLSafeTimedSerializer
+    from src.admin.auth.security import CSRF_COOKIE_NAME, CSRF_TTL_SECONDS
+    from src.shared.config import get_settings
+    from src.shared.exceptions import AdminInvalidCredentialsError
+
+    client = TestClient(app, follow_redirects=False)
+
+    s = get_settings()
+    secret = s.admin.csrf_secret.get_secret_value()
+    csrf = CsrfProtect()
+
+    # Шаг 1: создаём куку в "прошлом" (16 минут назад)
+    with freeze_time("2026-05-30 12:00:00 UTC"):
+        response1 = client.get("/login")
+        assert response1.status_code == 200
+        old_cookie = client.cookies.get(CSRF_COOKIE_NAME)
+        assert old_cookie is not None
+
+        # Декодируем токен из куки (для сравнения позже)
+        serializer = URLSafeTimedSerializer(secret, salt="fastapi-csrf-token")
+        old_token = serializer.loads(old_cookie, max_age=None)
+
+    # Шаг 2: перематываем время вперёд на 16 минут (кука протухла)
+    with freeze_time("2026-05-30 12:16:00 UTC"):
+        # Шаг 3: GET с протухшей кукой → middleware должен выдать новую
+        response2 = client.get("/login")
+        assert response2.status_code == 200
+
+        new_cookie = client.cookies.get(CSRF_COOKIE_NAME)
+        assert new_cookie is not None
+        # Кука ДОЛЖНА быть обновлена (старая протухла)
+        assert new_cookie != old_cookie, "Протухшая кука должна быть заменена на свежую"
+
+        # Извлекаем токен из формы
+        import re
+
+        form_token_match = re.search(r'name="csrf_token" value="([^"]+)"', response2.text)
+        assert form_token_match is not None
+        form_token = form_token_match.group(1)
+
+        # Шаг 4: POST с токеном из формы → НЕ 403 (а 401 от неверных кредов)
+        with patch(
+            "src.admin.routes.login.AdminAuthService.authenticate",
+            side_effect=AdminInvalidCredentialsError(),
+        ):
+            response3 = client.post(
+                "/login",
+                data={"login": "wrong", "password": "wrong", "csrf_token": form_token},
+                follow_redirects=False,
+            )
+
+        # Ожидаем 401 (неверные креды), но не 403 (CSRF-ошибка)
+        assert response3.status_code == 401, (
+            f"Ожидается 401 (неверные креды), не 403 (CSRF). "
+            f"Статус: {response3.status_code}"
+        )
+
+
+def test_csrf_cookie_respects_ttl_in_decode() -> None:
+    """TASK-069: проверяет что _get_token_from_cookie использует TTL при декодировании.
+
+    Прямая проверка метода: кука старше TTL секунд не декодируется.
+    """
+    from freezegun import freeze_time
+    from itsdangerous import URLSafeTimedSerializer
+
+    from fastapi_csrf_protect import CsrfProtect
+    from src.admin.auth.middleware import CsrfTokenMiddleware
+    from src.admin.auth.security import CSRF_TTL_SECONDS
+    from src.shared.config import get_settings
+
+    s = get_settings()
+    secret = s.admin.csrf_secret.get_secret_value()
+    csrf = CsrfProtect()
+
+    middleware = CsrfTokenMiddleware(lambda: None)  # type: ignore
+
+    # Создаём токен
+    token, signed_token = csrf.generate_csrf_tokens()
+
+    # Свежая кука декодируется
+    extracted_fresh = middleware._get_token_from_cookie(signed_token, secret)
+    assert extracted_fresh == token, "Свежая кука должна декодироваться"
+
+    # Перематываем время вперёд на TTL + 1 секунда
+    with freeze_time(f"2026-05-30 12:{CSRF_TTL_SECONDS // 60 + 1}:00 UTC"):
+        # Кука старше TTL НЕ должна декодироваться
+        extracted_stale = middleware._get_token_from_cookie(signed_token, secret)
+        assert extracted_stale is None, "Кука старше TTL не должна декодироваться"
