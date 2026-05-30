@@ -16,7 +16,7 @@
         margin-bottom: var(--pv-s-20);
     }
     .pv-tab {
-        padding: 10px 16px;
+        padding: var(--pv-s-12) var(--pv-s-16);
         background: transparent; border: none;
         color: var(--pv-fg-muted);
         font: inherit; font-size: var(--pv-fs-14); font-weight: 500;
@@ -38,7 +38,7 @@
 
     .result-opt {
         display: flex; align-items: center; gap: var(--pv-s-12);
-        padding: 12px 16px;
+        padding: var(--pv-s-12) var(--pv-s-16);
         border: 1px solid var(--pv-border);
         border-radius: var(--pv-r-8);
         cursor: pointer;
@@ -96,7 +96,7 @@
         </button>
         <button class="pv-tab{% if active_tab == 'result' %} active{% endif %}"
                 {% if not _result_enabled %}disabled{% endif %}
-                onclick="{% if _result_enabled %}window.location='/events/{{ event.id }}?tab=result'{% else %}return false;{% endif %}">
+                onclick="window.location='/events/{{ event.id }}?tab=result' if {{ _result_enabled }} else return false;">
             Результат
         </button>
         {% endif %}
@@ -105,7 +105,7 @@
 
     {% if error %}
     <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-red); background: rgba(230,64,58,0.06);">
-        <div class="pv-card-body" style="padding: 12px 20px;">
+        <div class="pv-card-body">
             <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);" aria-hidden="true">error</span>
             {{ error }}
         </div>
@@ -128,7 +128,7 @@
     {% if event.result_outcome_id %}
         {% set _result_outcome = (event.outcomes | selectattr('id', 'equalto', event.result_outcome_id) | first) %}
         <div class="pv-card" style="max-width: 620px; border-color: var(--pv-green); background: rgba(41,180,115,0.06);">
-            <div class="pv-card-body" style="padding: 20px;">
+            <div class="pv-card-body">
                 <div class="pv-row" style="gap: var(--pv-s-12);">
                     <span class="material-symbols-rounded" style="color: var(--pv-green); font-size: 24px;" aria-hidden="true">check_circle</span>
                     <div>
@@ -147,28 +147,30 @@
     {% else %}
         <div class="pv-stack" style="max-width: 620px;">
             <div class="pv-card">
-                <div class="pv-section-title">Итоговый исход</div>
-                <form method="post" action="/events/{{ event.id }}/result" class="pv-stack" style="gap: 8px;">
-                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                    {% for outcome in event.outcomes %}
-                    <label class="result-opt">
-                        <input type="radio" name="outcome_id" value="{{ outcome.id }}" required>
-                        <span style="font-weight: 700; color: var(--pv-fg); flex: 1;">{{ outcome.label }}</span>
-                        <span class="pv-muted pv-mono">{{ outcome.predictions|length }} прогн.</span>
-                    </label>
-                    {% endfor %}
-                    <div class="pv-divider"></div>
-                    <div class="pv-row">
-                        <span class="pv-field-help pv-grow">
-                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px; color: var(--pv-gold);" aria-hidden="true">warning</span>
-                            Действие необратимо: все прогнозы получат отметку «сбылся / нет».
-                        </span>
-                        <button type="submit" class="pv-btn pv-btn-accent" onclick="return confirm('Зафиксировать итог? Это действие необратимо.');">
-                            <span class="material-symbols-rounded" aria-hidden="true">task_alt</span>
-                            Зафиксировать
-                        </button>
-                    </div>
-                </form>
+                <div class="pv-card-body">
+                    <div class="pv-section-title">Итоговый исход</div>
+                    <form method="post" action="/events/{{ event.id }}/result" class="pv-stack" style="gap: var(--pv-s-12);">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        {% for outcome in event.outcomes %}
+                        <label class="result-opt">
+                            <input type="radio" name="outcome_id" value="{{ outcome.id }}" required>
+                            <span style="font-weight: 700; color: var(--pv-fg); flex: 1;">{{ outcome.label }}</span>
+                            <span class="pv-muted pv-mono">{{ outcome.predictions|length }} прогн.</span>
+                        </label>
+                        {% endfor %}
+                        <div class="pv-divider"></div>
+                        <div class="pv-row">
+                            <span class="pv-field-help pv-grow">
+                                <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px; color: var(--pv-gold);" aria-hidden="true">warning</span>
+                                Действие необратимо: все прогнозы получат отметку «сбылся / нет».
+                            </span>
+                            <button type="submit" class="pv-btn pv-btn-accent" onclick="return confirm('Зафиксировать итог? Это действие необратимо.');">
+                                <span class="material-symbols-rounded" aria-hidden="true">task_alt</span>
+                                Зафиксировать
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     {% endif %}
@@ -178,114 +180,118 @@
     {# Данные события #}
     <div class="pv-grid c-2-1">
         <div class="pv-card">
-            <div class="pv-section-title">Данные события</div>
-            <form method="post" action="{{ form_action }}" class="pv-stack" style="gap: var(--pv-s-16);">
-                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+            <div class="pv-card-body">
+                <div class="pv-section-title">Данные события</div>
+                <form method="post" action="{{ form_action }}" class="pv-stack" style="gap: var(--pv-s-16);">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
-                <div>
-                    <label class="pv-field-label" for="title">Название *</label>
-                    <input type="text" id="title" name="title" class="pv-input" required
-                           value="{{ event.title if event else '' }}">
-                </div>
-
-                <div>
-                    <label class="pv-field-label" for="description">Описание</label>
-                    <textarea id="description" name="description" class="pv-textarea">{{ event.description if event and event.description else '' }}</textarea>
-                </div>
-
-                <div class="pv-grid c2">
                     <div>
-                        <label class="pv-field-label" for="category_id">Категория *</label>
-                        <select id="category_id" name="category_id" class="pv-select" required>
-                            {% for cat in categories %}
-                            <option value="{{ cat.id }}" {% if event and event.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="pv-field-label" for="title">Название *</label>
+                        <input type="text" id="title" name="title" class="pv-input" required
+                               value="{{ event.title if event else '' }}">
                     </div>
+
                     <div>
-                        <label class="pv-field-label" for="starts_at">Старт события *</label>
-                        <input type="datetime-local" id="starts_at" name="starts_at" class="pv-input pv-mono" required
-                               value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') if event and event.starts_at else '' }}">
+                        <label class="pv-field-label" for="description">Описание</label>
+                        <textarea id="description" name="description" class="pv-textarea">{{ event.description if event and event.description else '' }}</textarea>
                     </div>
-                </div>
 
-                <div>
-                    <label class="pv-field-label" for="predictions_close_at">Дедлайн приёма прогнозов</label>
-                    <input type="datetime-local" id="predictions_close_at" name="predictions_close_at" class="pv-input pv-mono" required
-                           value="{{ event.predictions_close_at.strftime('%Y-%m-%dT%H:%M') if event and event.predictions_close_at else '' }}">
-                    <div class="pv-field-help">Обычно ≤ начала события. По умолчанию = старту.</div>
-                </div>
+                    <div class="pv-grid c2">
+                        <div>
+                            <label class="pv-field-label" for="category_id">Категория *</label>
+                            <select id="category_id" name="category_id" class="pv-select" required>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if event and event.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="pv-field-label" for="starts_at">Старт события *</label>
+                            <input type="datetime-local" id="starts_at" name="starts_at" class="pv-input pv-mono" required
+                                   value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') if event and event.starts_at else '' }}">
+                        </div>
+                    </div>
 
-                <div>
-                    <label class="pv-field-label" for="metadata">metadata (JSON)</label>
-                    <textarea id="metadata" name="metadata" class="pv-textarea pv-mono" style="min-height: 110px; font-size: 12px;">{% if event and event.metadata_ %}{{ event.metadata_|tojson(indent=2) }}{% else %}{}{% endif %}</textarea>
-                    <div class="pv-field-help">Произвольные поля для расширения без миграций.</div>
-                </div>
+                    <div>
+                        <label class="pv-field-label" for="predictions_close_at">Дедлайн приёма прогнозов</label>
+                        <input type="datetime-local" id="predictions_close_at" name="predictions_close_at" class="pv-input pv-mono" required
+                               value="{{ event.predictions_close_at.strftime('%Y-%m-%dT%H:%M') if event and event.predictions_close_at else '' }}">
+                        <div class="pv-field-help">Обычно ≤ начала события. По умолчанию = старту.</div>
+                    </div>
 
-                <div class="pv-divider"></div>
+                    <div>
+                        <label class="pv-field-label" for="metadata">metadata (JSON)</label>
+                        <textarea id="metadata" name="metadata" class="pv-textarea pv-mono" style="min-height: 110px; font-size: 12px;">{% if event and event.metadata_ %}{{ event.metadata_|tojson(indent=2) }}{% else %}{}{% endif %}</textarea>
+                        <div class="pv-field-help">Произвольные поля для расширения без миграций.</div>
+                    </div>
 
-                <div class="pv-row" style="justify-content: flex-end; gap: var(--pv-s-8);">
-                    <a href="/events" class="pv-btn">Отмена</a>
-                    <button type="submit" class="pv-btn pv-btn-primary">
-                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                        Сохранить
-                    </button>
-                </div>
-            </form>
+                    <div class="pv-divider"></div>
+
+                    <div class="pv-row" style="justify-content: flex-end; gap: var(--pv-s-8);">
+                        <a href="/events" class="pv-btn">Отмена</a>
+                        <button type="submit" class="pv-btn pv-btn-primary">
+                            <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                            Сохранить
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         {% if not isNew %}
         <div class="pv-stack">
             <div class="pv-card">
-                <div class="pv-section-title">Состояние</div>
-                <div class="pv-stack" style="gap: 10px;">
-                    <div class="pv-row"><span class="pv-muted pv-grow">Статус</span>
+                <div class="pv-card-body">
+                    <div class="pv-section-title">Состояние</div>
+                    <div class="pv-stack" style="gap: var(--pv-s-12);">
+                        <div class="pv-row"><span class="pv-muted pv-grow">Статус</span>
+                            {% if event.is_archived %}
+                                <span class="pv-badge neutral">архив</span>
+                            {% elif not event.is_published %}
+                                <span class="pv-badge draft">черновик</span>
+                            {% elif event.predictions_close_at > now() %}
+                                <span class="pv-badge success dot">открыт</span>
+                            {% else %}
+                                <span class="pv-badge danger dot">закрыт</span>
+                            {% endif %}
+                        </div>
+                        <div class="pv-row"><span class="pv-muted pv-grow">Исходов</span><b>{{ event.outcomes|length }}</b></div>
+                        <div class="pv-row"><span class="pv-muted pv-grow">Прогнозов</span><b>{{ event.predictions_count|default(0) }}</b></div>
+                        <div class="pv-row"><span class="pv-muted pv-grow">Автор</span><span>{{ event.created_by_admin.username if event.created_by_admin else '—' }}</span></div>
+                        <div class="pv-row"><span class="pv-muted pv-grow">Создано</span><span class="pv-mono">{{ event.created_at.strftime('%Y-%m-%d %H:%M') if event.created_at else '—' }}</span></div>
+                    </div>
+                    <div class="pv-divider"></div>
+                    <div class="pv-stack" style="gap: var(--pv-s-12);">
+                        <button type="submit" form="data-form" class="pv-btn pv-btn-primary">
+                            <span class="material-symbols-rounded" aria-hidden="true">check</span>
+                            Сохранить
+                        </button>
                         {% if event.is_archived %}
-                            <span class="pv-badge neutral">архив</span>
-                        {% elif not event.is_published %}
-                            <span class="pv-badge draft">черновик</span>
-                        {% elif event.predictions_close_at > now() %}
-                            <span class="pv-badge success dot">открыт</span>
+                            <span class="pv-muted">Событие архивно. Восстановление вне scope MVP.</span>
+                        {% elif event.is_published %}
+                            <form method="post" action="/events/{{ event.id }}/unpublish" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                <button type="submit" class="pv-btn">
+                                    <span class="material-symbols-rounded" aria-hidden="true">unpublished</span>
+                                    Снять с публикации
+                                </button>
+                            </form>
                         {% else %}
-                            <span class="pv-badge danger dot">закрыт</span>
+                            <form method="post" action="/events/{{ event.id }}/publish" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                <button type="submit" class="pv-btn pv-btn-accent"{% if event.outcomes|length < 2 %} disabled title="Нужно минимум 2 исхода"{% endif %}>
+                                    <span class="material-symbols-rounded" aria-hidden="true">publish</span>
+                                    Опубликовать
+                                </button>
+                            </form>
+                            {% if event.outcomes|length < 2 %}
+                            <div class="pv-field-help" style="color: var(--pv-gold); margin-top: var(--pv-s-12);">
+                                <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;" aria-hidden="true">info</span>
+                                Публикация недоступна: нужно ≥ 2 исхода.
+                            </div>
+                            {% endif %}
                         {% endif %}
                     </div>
-                    <div class="pv-row"><span class="pv-muted pv-grow">Исходов</span><b>{{ event.outcomes|length }}</b></div>
-                    <div class="pv-row"><span class="pv-muted pv-grow">Прогнозов</span><b>{{ event.predictions_count|default(0) }}</b></div>
-                    <div class="pv-row"><span class="pv-muted pv-grow">Автор</span><span>{{ event.created_by_admin.username if event.created_by_admin else '—' }}</span></div>
-                    <div class="pv-row"><span class="pv-muted pv-grow">Создано</span><span class="pv-mono">{{ event.created_at.strftime('%Y-%m-%d %H:%M') if event.created_at else '—' }}</span></div>
-                </div>
-                <div class="pv-divider"></div>
-                <div class="pv-stack" style="gap: 8px;">
-                    <button type="submit" form="data-form" class="pv-btn pv-btn-primary">
-                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
-                        Сохранить
-                    </button>
-                    {% if event.is_archived %}
-                        <span class="pv-muted">Событие архивно. Восстановление вне scope MVP.</span>
-                    {% elif event.is_published %}
-                        <form method="post" action="/events/{{ event.id }}/unpublish" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                            <button type="submit" class="pv-btn">
-                                <span class="material-symbols-rounded" aria-hidden="true">unpublished</span>
-                                Снять с публикации
-                            </button>
-                        </form>
-                    {% else %}
-                        <form method="post" action="/events/{{ event.id }}/publish" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                            <button type="submit" class="pv-btn pv-btn-accent"{% if event.outcomes|length < 2 %} disabled title="Нужно минимум 2 исхода"{% endif %}>
-                                <span class="material-symbols-rounded" aria-hidden="true">publish</span>
-                                Опубликовать
-                            </button>
-                        </form>
-                        {% if event.outcomes|length < 2 %}
-                        <div class="pv-field-help" style="color: var(--pv-gold); margin-top: 10px;">
-                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;" aria-hidden="true">info</span>
-                            Публикация недоступна: нужно ≥ 2 исхода.
-                        </div>
-                        {% endif %}
-                    {% endif %}
                 </div>
             </div>
         </div>
