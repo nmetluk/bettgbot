@@ -13,7 +13,6 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.admin.app import app
 from src.admin.auth.security import create_session_token
 from tests.integration.conftest import make_admin, make_category, make_event
