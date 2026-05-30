@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from sqlalchemy import and_, func, select, update
@@ -184,11 +184,11 @@ class EventRepository:
     def _period_filters(self, period: AdminEventPeriod) -> list:  # type: ignore[type-arg]
         clauses: list = []  # type: ignore[type-arg]
         if period == "next7":
-            now = datetime.now(tz=UTC)
+            now = datetime.utcnow()
             clauses.append(Event.starts_at >= now)
             clauses.append(Event.starts_at < now + timedelta(days=7))
         elif period == "past":
-            clauses.append(Event.starts_at < datetime.now(tz=UTC))
+            clauses.append(Event.starts_at < datetime.utcnow())
         # "all" — no extra filter
         return clauses
 
