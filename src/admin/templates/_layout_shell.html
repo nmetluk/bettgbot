@@ -1,3 +1,6 @@
+{% extends "base.html" %}
+
+{% block body %}
 <!-- ============================================================
    Layout shell for authenticated pages (v2)
    ============================================================ -->
@@ -130,6 +133,9 @@
         {% block pv_content %}{% endblock %}
     </main>
 </div>
+{% endblock %}
 
-<!-- UI state script -->
+{% block scripts_extra %}
+<!-- UI state script (loaded after page content) -->
 <script src="/static/js/ui.js"></script>
+{% endblock %}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "_layout_shell.html" %}
 
 {% block title %}
     {% if category and category.id is defined %}
@@ -8,8 +8,6 @@
     {% endif %}
 {% endblock %}
 
-{% block body %}
-{% include "_layout_shell.html" %}
 
 {% block pv_content %}
 <div class="pv-page">
@@ -115,5 +113,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
 {% endblock %}
