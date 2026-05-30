@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build web image
         run: |
           docker build -t bettgbot-web:scan -f infra/Dockerfile.web .
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build bot image
         run: |
           docker build -t bettgbot-bot:scan -f infra/Dockerfile.bot .
