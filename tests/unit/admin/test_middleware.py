@@ -121,7 +121,9 @@ def test_session_cookie_name_depends_on_environment(
     fake_settings = original_settings.model_copy(update={"environment": env_name})
 
     # Проверяем, что правильное имя куки выбирается
-    session_name = SESSION_COOKIE_NAME_PROD if fake_settings.environment != "dev" else SESSION_COOKIE_NAME
+    session_name = (
+        SESSION_COOKIE_NAME_PROD if fake_settings.environment != "dev" else SESSION_COOKIE_NAME
+    )
 
     assert session_name == expected_cookie_name
 
