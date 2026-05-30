@@ -33,8 +33,8 @@ class BuildInfo:
     git_commit: str
     git_commit_short: str
     git_branch: str
-    git_tag: str          # empty string if HEAD was not exactly on a tag
-    build_time: str       # ISO-8601 UTC or "unknown"
+    git_tag: str  # empty string if HEAD was not exactly on a tag
+    build_time: str  # ISO-8601 UTC or "unknown"
 
 
 def get_build_info() -> BuildInfo:

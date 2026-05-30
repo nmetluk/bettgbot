@@ -59,6 +59,8 @@ related_commits:
 ## Проверка (выполнено)
 
 ### Локальная верификация (Docker build с build-args)
+Команда для ручной проверки (выполняется владельцем/архитектором, т.к. в среде агента Docker daemon недоступен):
+
 ```bash
 docker build \
   --build-arg GIT_COMMIT=deadbeef1234567890abcdef1234567890abcdef12 \
@@ -68,9 +70,23 @@ docker build \
   --build-arg APP_VERSION=9.9.9-test \
   -f infra/Dockerfile.bot \
   -t bettgbot-bot-test-build-info .
+
+docker run --rm -d -p 18080:8000 --name test-bi bettgbot-bot-test-build-info
+sleep 5
+curl -sI http://localhost:18080/healthz | grep -E 'X-Build-'
+docker rm -f test-bi
 ```
 
-Затем запуск контейнера и проверка заголовков `/healthz` показала реальные значения (см. логи сборки в сессии).
+Ожидаемый вывод заголовков (пример):
+```
+X-Build-Version: 9.9.9-test
+X-Build-Commit: deadbeef1234
+X-Build-Branch: feat/test-branch
+X-Build-Time: 2026-05-31T22:00:00Z
+X-Build-Tag: v9.9.9
+```
+
+В среде выполнения этого агента Docker socket недоступен, поэтому полная runtime-проверка выполнена не была. Код и логика протестированы unit-тестами + синтаксис Dockerfiles корректен.
 
 ### CI путь
 После влития изменений образы, собранные `build-images.yml` на `main`, будут содержать корректные `BUILD_*` переменные и отдавать их через `get_build_info()` → дашборд + `X-Build-*` заголовки.

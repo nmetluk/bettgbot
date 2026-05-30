@@ -26,6 +26,7 @@ def test_get_build_info_no_module_no_env_returns_placeholder(monkeypatch):
             monkeypatch.delenv(key, raising=False)
 
     import src.shared.build_info as bi_module
+
     importlib.reload(bi_module)
 
     info = bi_module.get_build_info()
@@ -46,6 +47,7 @@ def test_get_build_info_env_fallback_works(monkeypatch):
     monkeypatch.setenv("BUILD_TIME", "2026-05-31T12:00:00Z")
 
     import src.shared.build_info as bi_module
+
     importlib.reload(bi_module)
 
     info = bi_module.get_build_info()
@@ -77,6 +79,7 @@ def test_get_build_info_module_takes_precedence_over_env(monkeypatch):
     monkeypatch.setenv("BUILD_GIT_COMMIT", "env-commit-123456789012")
 
     import src.shared.build_info as bi_module
+
     importlib.reload(bi_module)
 
     info = bi_module.get_build_info()
