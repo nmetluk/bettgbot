@@ -31,7 +31,7 @@ from src.shared.time import utcnow
 
 from ._security_headers import SecurityHeadersMiddleware
 from .auth.middleware import CsrfTokenMiddleware, RequireAdminMiddleware
-from .auth.security import CSRF_COOKIE_NAME, CSRF_COOKIE_NAME_PROD
+from .auth.security import CSRF_COOKIE_NAME, CSRF_COOKIE_NAME_PROD, CSRF_TTL_SECONDS
 
 __all__ = ["app", "templates"]
 
@@ -64,9 +64,9 @@ def _csrf_config() -> LoadConfig:
         # Форма постит csrf_token полем тела, не header'ом.
         token_location="body",
         token_key="csrf_token",
-        # TASK-068: явный TTL CSRF-токена — 15 минут. После фикса ротации
-        # токен живёт ровно это время, а не перезаписывается на каждом GET.
-        max_age=900,
+        # TASK-068/TASK-069: явный TTL CSRF-токена — 15 минут.
+        # CSRF_TTL_SECONDS константа синхронизирована с middleware.
+        max_age=CSRF_TTL_SECONDS,
         cookie_secure=s.environment != "dev",
         cookie_samesite="lax",
         # CSRF только на изменяющие методы.

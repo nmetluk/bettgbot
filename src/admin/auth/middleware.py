@@ -33,6 +33,7 @@ from src.shared.time import utcnow
 from .security import (
     CSRF_COOKIE_NAME,
     CSRF_COOKIE_NAME_PROD,
+    CSRF_TTL_SECONDS,
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_NAME_PROD,
     create_session_token,
@@ -165,12 +166,13 @@ class CsrfTokenMiddleware:
         """Декодирует подписанную CSRF-куку и возвращает unsigned токен.
 
         Если кука невалидна/истекла — возвращает None. Использует тот же
-        serializer, что и CsrfProtect (URLSafeTimedSerializer с salt="fastapi-csrf-token").
+        serializer и max_age, что и CsrfProtect.validate_csrf (TASK-069).
         """
         try:
             serializer = URLSafeTimedSerializer(secret_key, salt="fastapi-csrf-token")
-            # max_age=None чтобы проверка срока была только при POST (validate_csrf)
-            token: str | None = serializer.loads(signed_token, max_age=None)
+            # TASK-069: декодируем с тем же TTL, что и validate_csrf.
+            # Просроченная кука → SignatureExpired → None → будет выдана свежая.
+            token: str | None = serializer.loads(signed_token, max_age=CSRF_TTL_SECONDS)
             return token
         except (BadData, Exception):
             # Кука невалидна, истекла или повреждена — сгенерируем новую

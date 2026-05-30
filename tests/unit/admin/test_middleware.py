@@ -3,16 +3,29 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from re import search as re_search
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from fastapi_csrf_protect import CsrfProtect
+from freezegun import freeze_time
+from itsdangerous import URLSafeTimedSerializer
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.admin.app import app
-from src.admin.auth.security import (
+from src.admin.auth.middleware import (
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_NAME_PROD,
+    CsrfTokenMiddleware,
+)
+from src.admin.auth.security import (
+    CSRF_COOKIE_NAME,
+    CSRF_COOKIE_NAME_PROD,
+    CSRF_TTL_SECONDS,
     create_session_token,
 )
+from src.shared.config import Settings, get_settings
+from src.shared.exceptions import AdminInvalidCredentialsError
 
 
 def test_unauthenticated_redirects_to_login() -> None:
@@ -113,9 +126,6 @@ def test_session_cookie_name_depends_on_environment(
 
     Этот тест проверяет, что логика выбора имени куки по окружению работает правильно.
     """
-    from src.admin.auth.middleware import SESSION_COOKIE_NAME, SESSION_COOKIE_NAME_PROD
-    from src.shared.config import Settings, get_settings
-
     # Получаем текущие настройки и создаём копию с изменённым environment
     original_settings = get_settings()
     fake_settings = original_settings.model_copy(update={"environment": env_name})
@@ -144,9 +154,6 @@ def test_prod_env_round_trip_with_correct_cookie_name(
 
     Фикс TASK-063: middleware теперь выбирает имя куки по окружению.
     """
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from src.shared.config import Settings, get_settings
-
     # Создаём fake settings с нужным environment
     original_settings = get_settings()
     fake_settings = original_settings.model_copy(update={"environment": env_name})
@@ -198,13 +205,7 @@ def test_double_get_does_not_rotate_csrf_cookie() -> None:
 
     До фикса: второй GET перетирал куку на C2, POST с T1/C2 давал 403.
     """
-    from unittest.mock import patch
-
-    from fastapi_csrf_protect import CsrfProtect
-    from itsdangerous import URLSafeTimedSerializer
-    from src.admin.auth.security import CSRF_COOKIE_NAME
     from src.shared.config import get_settings
-    from src.shared.exceptions import AdminInvalidCredentialsError
 
     client = TestClient(app, follow_redirects=False)  # raise_server_exceptions=True по умолчанию
 
@@ -232,9 +233,7 @@ def test_double_get_does_not_rotate_csrf_cookie() -> None:
     assert csrf_cookie_after == csrf_cookie, "CSRF-кука не должна перезаписываться на втором GET"
 
     # Извлекаем токен из формы
-    import re
-
-    form_token_match = re.search(r'name="csrf_token" value="([^"]+)"', response2.text)
+    form_token_match = re_search(r'name="csrf_token" value="([^"]+)"', response2.text)
     assert form_token_match is not None, "Форма должна содержать CSRF-токен"
     form_token = form_token_match.group(1)
 
@@ -261,9 +260,6 @@ def test_prod_env_csrf_cookie_name_selection() -> None:
     Проверяет логику выбора имени куки по окружению. Полный тест перезаписи куки
     ограничен тем, что __Host- куки не работают корректно в TestClient.
     """
-    from src.admin.auth.security import CSRF_COOKIE_NAME, CSRF_COOKIE_NAME_PROD
-    from src.shared.config import Settings, get_settings
-
     # Проверяем что имена констант правильные
     assert CSRF_COOKIE_NAME == "fastapi-csrf-token"
     assert CSRF_COOKIE_NAME_PROD == "__Host-fastapi-csrf-token"
@@ -291,8 +287,6 @@ def test_csrf_cookie_reuse_logic() -> None:
     """
     import secrets
 
-    from fastapi_csrf_protect import CsrfProtect
-    from src.admin.auth.middleware import CsrfTokenMiddleware
     from src.shared.config import get_settings
 
     s = get_settings()
@@ -320,3 +314,87 @@ def test_csrf_cookie_reuse_logic() -> None:
     assert middleware._get_token_from_cookie(signed_token, wrong_secret) is None, (
         "Кука с другим секретом должна возвращать None"
     )
+
+
+def test_stale_csrf_cookie_self_heals_on_next_get() -> None:
+    """TASK-069: браузер со старой CSRF-кукой (>15 мин) всё равно может войти.
+
+    Сценарий:
+    1. Пользователь открыл /login 16 минут назад → получил куку C1
+    2. Кука протухла (TTL=15 мин), но браузер её хранит
+    3. Пользователь возвращается, делает GET /login
+    4. Middleware видит протухшую куку → выдаёт свежую C2
+    5. POST с токеном из формы → НЕ 403 (self-heal)
+
+    До фикса TASK-069: middleware декодировал с max_age=None, протухшая кука
+    переиспользовалась, validate_csrf с max_age=900 давал 403 → вход сломан.
+    """
+    from src.shared.config import get_settings
+
+    client = TestClient(app, follow_redirects=False)
+
+    # Шаг 1: создаём куку в "прошлом" (16 минут назад)
+    with freeze_time("2026-05-30 12:00:00 UTC"):
+        response1 = client.get("/login")
+        assert response1.status_code == 200
+        old_cookie = client.cookies.get(CSRF_COOKIE_NAME)
+        assert old_cookie is not None
+
+    # Шаг 2: перематываем время вперёд на 16 минут (кука протухла)
+    with freeze_time("2026-05-30 12:16:00 UTC"):
+        # Шаг 3: GET с протухшей кукой → middleware должен выдать новую
+        response2 = client.get("/login")
+        assert response2.status_code == 200
+
+        new_cookie = client.cookies.get(CSRF_COOKIE_NAME)
+        assert new_cookie is not None
+        # Кука ДОЛЖНА быть обновлена (старая протухла)
+        assert new_cookie != old_cookie, "Протухшая кука должна быть заменена на свежую"
+
+        # Извлекаем токен из формы
+        form_token_match = re_search(r'name="csrf_token" value="([^"]+)"', response2.text)
+        assert form_token_match is not None
+        form_token = form_token_match.group(1)
+
+        # Шаг 4: POST с токеном из формы → НЕ 403 (а 401 от неверных кредов)
+        with patch(
+            "src.admin.routes.login.AdminAuthService.authenticate",
+            side_effect=AdminInvalidCredentialsError(),
+        ):
+            response3 = client.post(
+                "/login",
+                data={"login": "wrong", "password": "wrong", "csrf_token": form_token},
+                follow_redirects=False,
+            )
+
+        # Ожидаем 401 (неверные креды), но не 403 (CSRF-ошибка)
+        assert response3.status_code == 401, (
+            f"Ожидается 401 (неверные креды), не 403 (CSRF). Статус: {response3.status_code}"
+        )
+
+
+def test_csrf_cookie_respects_ttl_in_decode() -> None:
+    """TASK-069: проверяет что _get_token_from_cookie использует TTL при декодировании.
+
+    Прямая проверка метода: кука старше TTL секунд не декодируется.
+    """
+    from src.shared.config import get_settings
+
+    s = get_settings()
+    secret = s.admin.csrf_secret.get_secret_value()
+    csrf = CsrfProtect()
+
+    middleware = CsrfTokenMiddleware(lambda: None)  # type: ignore
+
+    # Создаём токен
+    token, signed_token = csrf.generate_csrf_tokens()
+
+    # Свежая кука декодируется
+    extracted_fresh = middleware._get_token_from_cookie(signed_token, secret)
+    assert extracted_fresh == token, "Свежая кука должна декодироваться"
+
+    # Перематываем время вперёд на TTL + 1 секунда
+    with freeze_time(f"2026-05-30 12:{CSRF_TTL_SECONDS // 60 + 1}:00 UTC"):
+        # Кука старше TTL НЕ должна декодироваться
+        extracted_stale = middleware._get_token_from_cookie(signed_token, secret)
+        assert extracted_stale is None, "Кука старше TTL не должна декодироваться"

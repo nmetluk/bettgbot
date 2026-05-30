@@ -14,11 +14,17 @@ from src.shared.config import get_settings
 __all__ = [
     "CSRF_COOKIE_NAME",
     "CSRF_COOKIE_NAME_PROD",
+    "CSRF_TTL_SECONDS",
     "SESSION_COOKIE_NAME",
     "SESSION_COOKIE_NAME_PROD",
     "create_session_token",
     "verify_session_token",
 ]
+
+
+# CSRF-токен живёт 15 минут (TASK-068, TASK-069)
+# Значение должно совпадать с max_age в _csrf_config (app.py)
+CSRF_TTL_SECONDS = 900
 
 
 # Dev-имена (без __Host- префикса, с Domain possibile)
