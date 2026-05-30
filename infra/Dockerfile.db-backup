@@ -1,6 +1,6 @@
 # db-backup service image with pg_dump, rclone and age for encrypted offsite backups.
 # Based on postgres:16-alpine (~240MB base + ~30MB tools).
-FROM postgres:16-alpine
+FROM postgres:18-alpine
 
 # Install rclone and age (single-step, ~30MB added).
 RUN apk add --no-cache rclone age
