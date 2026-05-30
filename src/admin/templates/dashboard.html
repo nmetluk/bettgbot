@@ -156,5 +156,23 @@
             </div>
         </div>
     </div>
+
+    {# Build / deploy information — very useful for operators and incident response #}
+    <div class="pv-card" style="margin-top: 1.5rem; font-size: 13px;">
+        <div class="pv-card-head" style="padding-bottom: 8px;">
+            <h3 style="font-size: 14px; margin: 0;">Сборка и деплой</h3>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 24px; font-family: ui-monospace, monospace;">
+            <div><span class="pv-muted">Версия:</span> <strong>{{ build.app_version }}</strong></div>
+            <div><span class="pv-muted">Коммит:</span> <strong>{{ build.git_commit_short }}</strong></div>
+            <div><span class="pv-muted">Ветка:</span> {{ build.git_branch }}</div>
+            <div><span class="pv-muted">Тег:</span> {{ build.git_tag or '—' }}</div>
+            <div><span class="pv-muted">Собрано:</span> {{ build.build_time }}</div>
+            <div style="grid-column: 1 / -1; font-size: 11px; color: #666;">
+                Полный коммит: <code>{{ build.git_commit }}</code>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

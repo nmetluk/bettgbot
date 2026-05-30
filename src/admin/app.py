@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi_csrf_protect import CsrfProtect
@@ -24,6 +25,7 @@ from fastapi_limiter import FastAPILimiter
 from redis.asyncio import Redis
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from src.shared.build_info import get_build_info
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
 from src.shared.observability import init_sentry
@@ -163,8 +165,23 @@ def create_app() -> FastAPI:
     app.include_router(broadcasts_routes.router)
 
     @app.get("/healthz", tags=["meta"])
-    async def healthz() -> dict[str, str]:
-        return {"status": "ok"}
+    async def healthz() -> Response:
+        """Health check with build metadata exposed via HTTP headers.
+
+        Extremely useful for load balancers, monitoring systems,
+        and incident investigation ("which exact commit is running?").
+        """
+        info = get_build_info()
+        return JSONResponse(
+            {"status": "ok"},
+            headers={
+                "X-Build-Version": info.app_version,
+                "X-Build-Commit": info.git_commit_short,
+                "X-Build-Branch": info.git_branch,
+                "X-Build-Time": info.build_time,
+                "X-Build-Tag": info.git_tag or "",
+            },
+        )
 
     return app
 
