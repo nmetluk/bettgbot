@@ -33,13 +33,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         response = await call_next(request)
 
-        # CSP: allow self, cdn.jsdelivr.net for Bootstrap/HTMX/Alpine CSP build,
+        # CSP: self-hosted assets only (TASK-079: removed jsdelivr.net for supply-chain / SRI).
+        # Bootstrap/HTMX/Alpine/Chart vendored in /static/vendor/.
         # fonts.googleapis.com for Material Symbols, fonts.gstatic.com for font files.
-        # unsafe-inline for styles (Bootstrap uses inline styles).
+        # 'unsafe-inline' for styles remains (Bootstrap/HTMX patterns).
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
             "connect-src 'self'; "

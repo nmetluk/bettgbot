@@ -31,7 +31,7 @@ class TestSecurityHeaders:
         assert csp is not None
         assert "default-src 'self'" in csp
         assert "script-src 'self'" in csp
-        assert "https://cdn.jsdelivr.net" in csp
+        assert "https://cdn.jsdelivr.net" not in csp
         assert "style-src 'self'" in csp
         assert "frame-ancestors 'none'" in csp
         assert "form-action 'self'" in csp
@@ -56,8 +56,8 @@ class TestSecurityHeaders:
         # Font files from gstatic
         assert "font-src 'self' https://fonts.gstatic.com" in csp
 
-    def test_csp_allows_alpine_csp_build(self):
-        """CSP allows Alpine.js CSP build from jsDelivr (TASK-057)."""
+    def test_csp_no_external_cdn_after_selfhost(self):
+        """CSP has no jsdelivr.net after TASK-079 self-host vendoring (supply-chain hardening)."""
         app = FastAPI()
 
         @app.get("/")
@@ -71,8 +71,10 @@ class TestSecurityHeaders:
         csp = response.headers.get("Content-Security-Policy")
 
         assert csp is not None
-        assert "https://cdn.jsdelivr.net" in csp
-        # Alpine CSP build doesn't require unsafe-eval
+        assert "https://cdn.jsdelivr.net" not in csp
+        # script-src is now strictly 'self' (no external CDNs)
+        assert "script-src 'self'" in csp
+        # Alpine CSP build (vendored) doesn't require unsafe-eval
         assert "unsafe-eval" not in csp
 
     def test_x_frame_options(self):
@@ -154,16 +156,18 @@ class TestSecurityHeaders:
 
         # Verify all headers at once
         expected_headers = {
-            "Content-Security-Policy": lambda v: all(
-                x in v
-                for x in [
-                    "default-src 'self'",
-                    "script-src 'self'",
-                    "https://cdn.jsdelivr.net",
-                    "frame-ancestors 'none'",
-                    "https://fonts.googleapis.com",
-                    "https://fonts.gstatic.com",
-                ]
+            "Content-Security-Policy": lambda v: (
+                all(
+                    x in v
+                    for x in [
+                        "default-src 'self'",
+                        "script-src 'self'",
+                        "frame-ancestors 'none'",
+                        "https://fonts.googleapis.com",
+                        "https://fonts.gstatic.com",
+                    ]
+                )
+                and "https://cdn.jsdelivr.net" not in v
             ),
             "X-Frame-Options": lambda v: v == "DENY",
             "X-Content-Type-Options": lambda v: v == "nosniff",

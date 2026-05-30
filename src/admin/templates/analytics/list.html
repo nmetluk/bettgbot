@@ -130,10 +130,8 @@
 {% endblock %}
 
 {% block scripts_extra %}
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"
-        integrity="sha384-MDhJ3V4vtK2j473r9Jbza2v8IrJh0pJGm+U8JGFwfn3rH+dZ+JpPY3u8pY2Uk3dpU"
-        crossorigin="anonymous"></script>
+<!-- Chart.js — vendored (TASK-079 self-host for CSP/SRI) -->
+<script src="/static/vendor/chart-4.4.2.umd.min.js"></script>
 <!-- Analytics charts initialization -->
 <script src="/static/js/analytics.js" defer></script>
 <!-- Analytics data (CSP-safe: application/json is not executable) -->
