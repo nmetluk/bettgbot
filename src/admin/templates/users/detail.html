@@ -26,7 +26,7 @@
             <form method="post" action="/users/{{ user.id }}/unblock" onsubmit="return confirm('Разблокировать пользователя?');">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <button type="submit" class="pv-btn pv-btn-primary pv-btn-sm">
-                    <span class="material-symbols-rounded">lock_open</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">lock_open</span>
                     Разблокировать
                 </button>
             </form>
@@ -34,7 +34,7 @@
             <form method="post" action="/users/{{ user.id }}/block" onsubmit="return confirm('Заблокировать пользователя? Он не сможет делать прогнозы и получать напоминания.');">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <button type="submit" class="pv-btn pv-btn-danger pv-btn-sm">
-                    <span class="material-symbols-rounded">block</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">block</span>
                     Заблокировать
                 </button>
             </form>

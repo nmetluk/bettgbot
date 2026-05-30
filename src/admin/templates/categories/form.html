@@ -29,7 +29,7 @@
                 {% if error %}
                 <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-red); background: rgba(230,64,58,0.06);">
                     <div class="pv-card-body" style="padding: 12px 20px;">
-                        <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);">error</span>
+                        <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);" aria-hidden="true">error</span>
                         {{ error }}
                     </div>
                 </div>
@@ -93,7 +93,7 @@
                         <div class="pv-grow"></div>
                         <a href="/categories" class="pv-btn">Отмена</a>
                         <button type="submit" class="pv-btn pv-btn-primary">
-                            <span class="material-symbols-rounded">check</span>
+                            <span class="material-symbols-rounded" aria-hidden="true">check</span>
                             Сохранить
                         </button>
                     </div>

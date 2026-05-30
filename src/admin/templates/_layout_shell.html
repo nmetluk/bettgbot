@@ -10,7 +10,7 @@
     <aside class="pv-sidebar">
         <div class="pv-sb-brand">
             <span class="bg-mark">
-                <span class="material-symbols-rounded">insights</span>
+                <span class="material-symbols-rounded" aria-hidden="true">insights</span>
             </span>
             <div class="pv-sb-brand-text">
                 <b>Прогнозы</b>
@@ -20,36 +20,36 @@
         <nav class="pv-sb-nav">
             <div class="pv-sb-section">Управление</div>
             <a href="/" class="pv-sb-item {{ 'active' if request.path == '/' else '' }}">
-                <span class="material-symbols-rounded">dashboard</span>
+                <span class="material-symbols-rounded" aria-hidden="true">dashboard</span>
                 <span class="pv-sb-label">Главная</span>
             </a>
             <a href="/categories" class="pv-sb-item {{ 'active' if '/categories' in request.path else '' }}">
-                <span class="material-symbols-rounded">folder</span>
+                <span class="material-symbols-rounded" aria-hidden="true">folder</span>
                 <span class="pv-sb-label">Категории</span>
             </a>
             <a href="/events" class="pv-sb-item {{ 'active' if '/events' in request.path else '' }}">
-                <span class="material-symbols-rounded">event</span>
+                <span class="material-symbols-rounded" aria-hidden="true">event</span>
                 <span class="pv-sb-label">События</span>
             </a>
             <a href="/users" class="pv-sb-item {{ 'active' if '/users' in request.path else '' }}">
-                <span class="material-symbols-rounded">groups</span>
+                <span class="material-symbols-rounded" aria-hidden="true">groups</span>
                 <span class="pv-sb-label">Пользователи</span>
             </a>
             <a href="/leaderboard" class="pv-sb-item {{ 'active' if '/leaderboard' in request.path else '' }}">
-                <span class="material-symbols-rounded">leaderboard</span>
+                <span class="material-symbols-rounded" aria-hidden="true">leaderboard</span>
                 <span class="pv-sb-label">Рейтинг</span>
             </a>
             <a href="/broadcasts" class="pv-sb-item {{ 'active' if '/broadcasts' in request.path else '' }}">
-                <span class="material-symbols-rounded">campaign</span>
+                <span class="material-symbols-rounded" aria-hidden="true">campaign</span>
                 <span class="pv-sb-label">Рассылки</span>
             </a>
             <a href="/analytics" class="pv-sb-item {{ 'active' if '/analytics' in request.path else '' }}">
-                <span class="material-symbols-rounded">monitoring</span>
+                <span class="material-symbols-rounded" aria-hidden="true">monitoring</span>
                 <span class="pv-sb-label">Аналитика</span>
             </a>
             <div class="pv-sb-section">Журнал</div>
             <a href="/audit" class="pv-sb-item {{ 'active' if '/audit' in request.path else '' }}">
-                <span class="material-symbols-rounded">receipt_long</span>
+                <span class="material-symbols-rounded" aria-hidden="true">receipt_long</span>
                 <span class="pv-sb-label">Аудит-лог</span>
             </a>
             <div class="pv-sb-foot">
@@ -68,10 +68,10 @@
     <!-- Topbar -->
     <header class="pv-topbar">
         <button @click="toggleRail()" class="pv-tb-iconbtn" title="Свернуть меню">
-            <span class="material-symbols-rounded">menu</span>
+            <span class="material-symbols-rounded" aria-hidden="true">menu</span>
         </button>
         <div class="pv-tb-search">
-            <span class="material-symbols-rounded ms">search</span>
+            <span class="material-symbols-rounded ms" aria-hidden="true">search</span>
             <input type="text" placeholder="Поиск событий, пользователей, категорий…" disabled>
         </div>
         <div class="pv-tb-grow"></div>
@@ -100,7 +100,7 @@
             </div>
             <!-- Dark mode toggle -->
             <button @click="toggleDark()" class="pv-tb-iconbtn" :title="themeTitle">
-                <span class="material-symbols-rounded" x-text="themeIcon"></span>
+                <span class="material-symbols-rounded" x-text="themeIcon" aria-hidden="true"></span>
             </button>
             <div class="pv-tb-divider"></div>
             <!-- User info -->
@@ -122,7 +122,7 @@
             <form method="post" action="/logout" style="display: contents;">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
                 <button type="submit" class="pv-tb-iconbtn" title="Выйти">
-                    <span class="material-symbols-rounded">logout</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">logout</span>
                 </button>
             </form>
         </div>

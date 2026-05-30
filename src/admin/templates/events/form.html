@@ -106,7 +106,7 @@
     {% if error %}
     <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-red); background: rgba(230,64,58,0.06);">
         <div class="pv-card-body" style="padding: 12px 20px;">
-            <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);">error</span>
+            <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);" aria-hidden="true">error</span>
             {{ error }}
         </div>
     </div>
@@ -117,7 +117,7 @@
          hx-trigger="load"
          hx-swap="outerHTML">
         <div class="pv-empty">
-            <span class="material-symbols-rounded" style="font-size: 32px;">downloading</span>
+            <span class="material-symbols-rounded" style="font-size: 32px;" aria-hidden="true">downloading</span>
             <p>Загрузка исходов…</p>
         </div>
     </div>
@@ -130,7 +130,7 @@
         <div class="pv-card" style="max-width: 620px; border-color: var(--pv-green); background: rgba(41,180,115,0.06);">
             <div class="pv-card-body" style="padding: 20px;">
                 <div class="pv-row" style="gap: var(--pv-s-12);">
-                    <span class="material-symbols-rounded" style="color: var(--pv-green); font-size: 24px;">check_circle</span>
+                    <span class="material-symbols-rounded" style="color: var(--pv-green); font-size: 24px;" aria-hidden="true">check_circle</span>
                     <div>
                         <b style="color: var(--pv-fg);">Итог зафиксирован: «{{ _result_outcome.label if _result_outcome else '—' }}»</b>
                         <div class="pv-muted" style="font-size: 13px;">{{ event.outcomes|length }} прогнозов проверено · переопределение не предусмотрено</div>
@@ -160,11 +160,11 @@
                     <div class="pv-divider"></div>
                     <div class="pv-row">
                         <span class="pv-field-help pv-grow">
-                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px; color: var(--pv-gold);">warning</span>
+                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px; color: var(--pv-gold);" aria-hidden="true">warning</span>
                             Действие необратимо: все прогнозы получат отметку «сбылся / нет».
                         </span>
                         <button type="submit" class="pv-btn pv-btn-accent" onclick="return confirm('Зафиксировать итог? Это действие необратимо.');">
-                            <span class="material-symbols-rounded">task_alt</span>
+                            <span class="material-symbols-rounded" aria-hidden="true">task_alt</span>
                             Зафиксировать
                         </button>
                     </div>
@@ -227,7 +227,7 @@
                 <div class="pv-row" style="justify-content: flex-end; gap: var(--pv-s-8);">
                     <a href="/events" class="pv-btn">Отмена</a>
                     <button type="submit" class="pv-btn pv-btn-primary">
-                        <span class="material-symbols-rounded">check</span>
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
                         Сохранить
                     </button>
                 </div>
@@ -258,7 +258,7 @@
                 <div class="pv-divider"></div>
                 <div class="pv-stack" style="gap: 8px;">
                     <button type="submit" form="data-form" class="pv-btn pv-btn-primary">
-                        <span class="material-symbols-rounded">check</span>
+                        <span class="material-symbols-rounded" aria-hidden="true">check</span>
                         Сохранить
                     </button>
                     {% if event.is_archived %}
@@ -267,7 +267,7 @@
                         <form method="post" action="/events/{{ event.id }}/unpublish" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <button type="submit" class="pv-btn">
-                                <span class="material-symbols-rounded">unpublished</span>
+                                <span class="material-symbols-rounded" aria-hidden="true">unpublished</span>
                                 Снять с публикации
                             </button>
                         </form>
@@ -275,13 +275,13 @@
                         <form method="post" action="/events/{{ event.id }}/publish" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <button type="submit" class="pv-btn pv-btn-accent"{% if event.outcomes|length < 2 %} disabled title="Нужно минимум 2 исхода"{% endif %}>
-                                <span class="material-symbols-rounded">publish</span>
+                                <span class="material-symbols-rounded" aria-hidden="true">publish</span>
                                 Опубликовать
                             </button>
                         </form>
                         {% if event.outcomes|length < 2 %}
                         <div class="pv-field-help" style="color: var(--pv-gold); margin-top: 10px;">
-                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;">info</span>
+                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;" aria-hidden="true">info</span>
                             Публикация недоступна: нужно ≥ 2 исхода.
                         </div>
                         {% endif %}

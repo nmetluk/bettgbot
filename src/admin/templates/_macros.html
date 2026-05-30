@@ -1,1 +1,6 @@
-{# Reusable Jinja macros — наполнится в TASK-021+ (form-fields, status-badges, pagination). #}
+{# Reusable Jinja macros — TASK-071 a11y fixes. #}
+
+{# Icon macro with aria-hidden for accessibility (D2) — wraps Material Symbols Rounded #}
+{% macro icon(name, size=24, label='') -%}
+<span class="material-symbols-rounded" style="font-size: {{ size }}px" {%- if label %} aria-label="{{ label }}" role="img" {%- else %} aria-hidden="true" {%- endif %}>{{ name }}</span>
+{%- endmacro %}

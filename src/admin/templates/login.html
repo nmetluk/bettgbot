@@ -138,7 +138,7 @@
     <div class="login-card">
         <div class="login-brand">
             <span class="bg-mark lg">
-                <span class="material-symbols-rounded" style="font-size: 22px;">insights</span>
+                <span class="material-symbols-rounded" style="font-size: 22px;" aria-hidden="true">insights</span>
             </span>
             <div class="login-brand-text">
                 <b>Прогнозы</b>
@@ -151,7 +151,7 @@
 
         {% if error %}
         <div class="login-field-help" style="color: var(--pv-red); margin-bottom: var(--pv-s-16);">
-            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;">error</span>
+            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;" aria-hidden="true">error</span>
             {{ error }}
         </div>
         {% endif %}
@@ -161,21 +161,21 @@
             <div class="login-stack">
                 <div class="login-field">
                     <label for="login">Логин</label>
-                    <input type="text" id="login" name="login" class="login-input" required autofocus>
+                    <input type="text" id="login" name="login" class="login-input" required autofocus autocomplete="username">
                 </div>
                 <div class="login-field">
                     <label for="password">Пароль</label>
-                    <input type="password" id="password" name="password" class="login-input" required>
+                    <input type="password" id="password" name="password" class="login-input" required autocomplete="current-password">
                 </div>
                 <button type="submit" class="login-btn">
-                    <span class="material-symbols-rounded">login</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">login</span>
                     Войти
                 </button>
             </div>
         </form>
 
         <div class="login-foot">
-            <span class="material-symbols-rounded">shield</span>
+            <span class="material-symbols-rounded" aria-hidden="true">shield</span>
             Защищённое соединение · сессия 8 часов
             <br><small style="opacity: 0.7; margin-top: 4px; display: block;">Если вход не удался — обновите страницу и попробуйте снова</small>
         </div>

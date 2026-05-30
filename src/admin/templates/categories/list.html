@@ -11,7 +11,7 @@
             <p class="pv-page-sub">Папки событий, видимые пользователю как разделы бота</p>
         </div>
         <a href="/categories/new" class="pv-btn pv-btn-primary">
-            <span class="material-symbols-rounded">add</span>
+            <span class="material-symbols-rounded" aria-hidden="true">add</span>
             Добавить категорию
         </a>
     </div>
@@ -19,7 +19,7 @@
     {% if request.query_params.get("error") == "has_events" %}
     <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-gold); background: rgba(230,155,58,0.06);">
         <div class="pv-card-body" style="padding: 12px 20px;">
-            <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-gold);">warning</span>
+            <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-gold);" aria-hidden="true">warning</span>
             Нельзя удалить категорию #{{ request.query_params.get("category_id") }}: на неё есть события.
         </div>
     </div>
@@ -57,18 +57,18 @@
                     <td class="pv-c-actions">
                         <div style="display: flex; justify-content: flex-end; gap: 4px;">
                             <a href="/categories/{{ category.id }}" class="pv-btn pv-btn-ghost pv-btn-sm" title="Редактировать">
-                                <span class="material-symbols-rounded">edit</span>
+                                <span class="material-symbols-rounded" aria-hidden="true">edit</span>
                             </a>
                             {% if events_count == 0 %}
                             <form method="post" action="/categories/{{ category.id }}/delete" style="display: inline;">
                                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                 <button type="submit" class="pv-btn pv-btn-ghost pv-btn-sm" title="Удалить">
-                                    <span class="material-symbols-rounded">delete</span>
+                                    <span class="material-symbols-rounded" aria-hidden="true">delete</span>
                                 </button>
                             </form>
                             {% else %}
                             <button class="pv-btn pv-btn-ghost pv-btn-sm" disabled title="Нельзя удалить непустую категорию">
-                                <span class="material-symbols-rounded">delete</span>
+                                <span class="material-symbols-rounded" aria-hidden="true">delete</span>
                             </button>
                             {% endif %}
                         </div>
@@ -80,7 +80,7 @@
     </div>
     {% else %}
     <div class="pv-empty">
-        <span class="material-symbols-rounded" style="font-size: 48px; display: block; margin-bottom: var(--pv-s-12);">folder_open</span>
+        <span class="material-symbols-rounded" style="font-size: 48px; display: block; margin-bottom: var(--pv-s-12);" aria-hidden="true">folder_open</span>
         <p>Категорий пока нет. Нажмите «Добавить категорию».</p>
     </div>
     {% endif %}

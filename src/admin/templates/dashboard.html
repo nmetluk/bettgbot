@@ -14,11 +14,11 @@
         </div>
         <div style="display: flex; gap: var(--pv-s-8);">
             <button class="pv-btn pv-btn-sm">
-                <span class="material-symbols-rounded">download</span>
+                <span class="material-symbols-rounded" aria-hidden="true">download</span>
                 Экспорт
             </button>
             <a href="/events/new" class="pv-btn pv-btn-primary pv-btn-sm">
-                <span class="material-symbols-rounded">add</span>
+                <span class="material-symbols-rounded" aria-hidden="true">add</span>
                 Новое событие
             </a>
         </div>
@@ -27,7 +27,7 @@
     <div class="pv-grid c4">
         <div class="pv-kpi">
             <div class="pv-kpi-label">
-                <span class="material-symbols-rounded">groups</span>
+                <span class="material-symbols-rounded" aria-hidden="true">groups</span>
                 Пользователей
             </div>
             <div class="pv-kpi-value">
@@ -36,7 +36,7 @@
             </div>
             <div class="pv-kpi-foot">
                 <span class="pv-kpi-delta up">
-                    <span class="material-symbols-rounded">trending_up</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">trending_up</span>
                     {{ counters.users_active_30d }} активных / 30 дн.
                 </span>
             </div>
@@ -44,7 +44,7 @@
 
         <div class="pv-kpi">
             <div class="pv-kpi-label">
-                <span class="material-symbols-rounded">checklist</span>
+                <span class="material-symbols-rounded" aria-hidden="true">checklist</span>
                 Прогнозов всего
             </div>
             <div class="pv-kpi-value">
@@ -52,7 +52,7 @@
             </div>
             <div class="pv-kpi-foot">
                 <span class="pv-kpi-delta up">
-                    <span class="material-symbols-rounded">trending_up</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">trending_up</span>
                     +{{ counters.predictions_24h }} за сутки
                 </span>
             </div>
@@ -60,7 +60,7 @@
 
         <div class="pv-kpi">
             <div class="pv-kpi-label">
-                <span class="material-symbols-rounded">event</span>
+                <span class="material-symbols-rounded" aria-hidden="true">event</span>
                 События
             </div>
             <div class="pv-kpi-value">{{ counters.events_total }}</div>
@@ -71,7 +71,7 @@
 
         <div class="pv-kpi">
             <div class="pv-kpi-label">
-                <span class="material-symbols-rounded">folder</span>
+                <span class="material-symbols-rounded" aria-hidden="true">folder</span>
                 Категорий
             </div>
             <div class="pv-kpi-value">{{ counters.categories }}</div>
@@ -89,7 +89,7 @@
                     <span class="pv-card-meta">приём прогнозов открыт или только что закрыт</span>
                 </div>
                 <a href="/events" class="pv-btn pv-btn-ghost pv-btn-sm">
-                    <span class="material-symbols-rounded">open_in_new</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>
                     Все
                 </a>
             </div>
@@ -131,7 +131,7 @@
                     <h3>Последние действия</h3>
                 </div>
                 <a href="/audit" class="pv-btn pv-btn-ghost pv-btn-sm">
-                    <span class="material-symbols-rounded">open_in_new</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>
                     Журнал
                 </a>
             </div>
