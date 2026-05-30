@@ -79,7 +79,9 @@ class RequireAdminMiddleware:
             await self.app(scope, receive, send)
             return
 
-        token = request.cookies.get(SESSION_COOKIE_NAME)
+        s = get_settings()
+        session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
+        token = request.cookies.get(session_name)
         admin_id = verify_session_token(token) if token else None
         if admin_id is None:
             await RedirectResponse(url="/login", status_code=302)(scope, receive, send)
