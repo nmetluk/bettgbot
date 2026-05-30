@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.shared.build_info import get_build_info
 from src.shared.db import SessionLocal
 from src.shared.models import AdminUser
 from src.shared.services import DashboardService
@@ -45,5 +46,6 @@ async def dashboard(
             "active_events": active_events,
             "audit_logs": audit_logs,
             "admin": admin,
+            "build": get_build_info(),
         },
     )
