@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "_layout_shell.html" %}
 
 {% block title %}Новая рассылка — Betting Bot Admin{% endblock %}
 
@@ -6,8 +6,6 @@
 <script src="/static/js/broadcasts.js" defer></script>
 {% endblock %}
 
-{% block body %}
-{% include "_layout_shell.html" %}
 
 {% block pv_content %}
 <div class="pv-page">
@@ -101,5 +99,4 @@
     </div>
 
 </div>
-{% endblock %}
 {% endblock %}

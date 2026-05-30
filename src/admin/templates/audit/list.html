@@ -1,9 +1,7 @@
-{% extends "base.html" %}
+{% extends "_layout_shell.html" %}
 
 {% block title %}Аудит-лог — Betting Bot Admin{% endblock %}
 
-{% block body %}
-{% include "_layout_shell.html" %}
 
 {% block pv_content %}
 <div class="pv-page">
@@ -134,5 +132,4 @@
     <div class="pv-empty" data-icon="receipt_long">Записей по выбранным фильтрам нет.</div>
     {% endif %}
 </div>
-{% endblock %}
 {% endblock %}

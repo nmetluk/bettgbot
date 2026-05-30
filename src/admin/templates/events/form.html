@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "_layout_shell.html" %}
 
 {% block title %}
     {% if event and event.id is defined %}
@@ -49,8 +49,6 @@
 </style>
 {% endblock %}
 
-{% block body %}
-{% include "_layout_shell.html" %}
 
 {% block pv_content %}
 {% set isNew = not event or event.id is not defined %}
@@ -295,5 +293,4 @@
     </div>
     {% endif %}
 </div>
-{% endblock %}
 {% endblock %}

@@ -1,9 +1,7 @@
-{% extends "base.html" %}
+{% extends "_layout_shell.html" %}
 
 {% block title %}{{ user.first_name }} {{ user.last_name or "" }} — Betting Bot Admin{% endblock %}
 
-{% block body %}
-{% include "_layout_shell.html" %}
 
 {% block pv_content %}
 <div class="pv-page">
@@ -133,5 +131,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
 {% endblock %}

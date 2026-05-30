@@ -1,9 +1,7 @@
-{% extends "base.html" %}
+{% extends "_layout_shell.html" %}
 
 {% block title %}Аналитика — Betting Bot Admin{% endblock %}
 
-{% block body %}
-{% include "_layout_shell.html" %}
 
 {% block pv_content %}
 <div class="pv-page">
@@ -137,5 +135,4 @@
     "category_accuracy": {{ category_accuracy | tojson }}
 }
 </script>
-{% endblock %}
 {% endblock %}
