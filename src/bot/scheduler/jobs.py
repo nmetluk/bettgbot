@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.shared.logging import get_logger
 from src.shared.repositories import BroadcastRepository, ReminderDispatchLogRepository
 from src.shared.services import EventService, ReminderService
+from src.shared.time import utcnow
 
 from .. import keyboards, texts
 from .._text_safety import safe_format
@@ -40,7 +41,7 @@ async def dispatch_reminders(
     Параметр `window_minutes` передаётся из scheduler (TASK-049), default
     обеспечивает совместимость при прямом вызове в тестах.
     """
-    now = datetime.now(tz=UTC)
+    now = utcnow()
     async with session_maker() as session:
         service = ReminderService(session)
         candidates = await service.find_candidates(now=now, window_minutes=window_minutes)
@@ -104,7 +105,7 @@ async def cleanup_old_dispatch_logs(
     Без TG-side-effects — только DELETE в БД. Логирует количество удалённых строк
     даже при нуле (sysadmin'у нужен sanity check «job отработал»).
     """
-    cutoff = datetime.now(tz=UTC) - timedelta(days=retention_days)
+    cutoff = utcnow() - timedelta(days=retention_days)
     async with session_maker() as session:
         dispatch_log = ReminderDispatchLogRepository(session)
         count = await dispatch_log.delete_older_than(cutoff)

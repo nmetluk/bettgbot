@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +13,7 @@ from ..exceptions import (
 )
 from ..models import Prediction
 from ..repositories import EventRepository, PredictionRepository
+from ..time import utcnow
 
 __all__ = ["PredictionService"]
 
@@ -32,7 +32,7 @@ class PredictionService:
             raise EventNotPredictableError(reason="archived")
         if not event.is_published:
             raise EventNotPredictableError(reason="not_published")
-        if datetime.now(tz=UTC) > event.predictions_close_at:
+        if utcnow() > event.predictions_close_at:
             raise PredictionDeadlinePassedError(f"deadline for event {event_id} has passed")
         if outcome_id not in {o.id for o in event.outcomes}:
             raise OutcomeNotForEventError(event_id, outcome_id)

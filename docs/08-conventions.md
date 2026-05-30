@@ -288,6 +288,79 @@ uv run python -m src.bot.main
 nohup uv run python -m src.bot.main >> bot.log 2>&1 &
 ```
 
+## Время и timezone
+
+**Стратегия проекта: aware UTC везде.**
+
+- Колонки времени в БД: `TIMESTAMP(timezone=True)` → хранят时刻 в UTC, возвращают aware datetime.
+- В коде: `datetime.now(tz=UTC)` или helper `src/shared/time.utcnow()`.
+- **Запрещено:** `datetime.utcnow()` (deprecated в Python 3.12) и naive datetime.
+- Сравнения: aware с aware, naive с naive. Смешение → `TypeError: can't compare offset-naive and offset-aware`.
+
+### Helper для текущего времени
+
+```python
+from src.shared.time import utcnow
+
+now = utcnow()  # aware datetime в UTC
+```
+
+Не используй `datetime.now(tz=UTC)` напрямую — `utcnow()` даёт единую точку замещения и легче для grep.
+
+### Почему aware UTC
+
+1. **Схема БД уже aware:** `Base.type_annotation_map` маппит `datetime` → `TIMESTAMP(timezone=True)`.
+2. **PostgreSQL `timestamptz`** хранит момент времени без ambiguity — часовой пояс вычисляется при чтении.
+3. **asyncpg возвращает aware** для `timestamptz` — т.е. SQLAlchemy вернёт aware datetime с `tzinfo=timezone.utc`.
+
+### Миграция типов колонок
+
+Если нужно изменить тип колонки с/на timezone-aware — отдельная миграция с `ALTER COLUMN ... TYPE timestamptz`:
+
+```sql
+ALTER COLUMN event.starts_at TYPE timestamptz
+  USING start_at AT TIME ZONE 'UTC';  -- если данные были в UTC
+```
+
+Покрой миграцию тестом в `tests/integration/test_migrations.py`.
+
+## Миграции Alembic
+
+### Переименование ревизий
+
+**НЕ переименовывай файлы миграций после деплоя на прод.** Имя ревизии (ID из имени файла) записано в `alembic_version` в БД. При переименовании файл перестаёт совпадать с записью в БД → `FAILED: Can't locate revision identified by '...'`.
+
+Если нужно переименовать:
+- Создай новую миграцию, которая обновляет `alembic_version` → новый ID.
+- Или: downgrade → переименуй → upgrade (только в dev, не в prod).
+
+### Чек-лист «Новое обязательное поле в Settings»
+
+При добавлении required-поля в `src/shared/config.py` (например, `ADMIN_SECRET_KEY`, `ADMIN_CSRF_SECRET`):
+
+1. **Проверь все сервисы в `docker-compose.yml`:**
+   - Добавь поле в `environment:` или `env_file:` для всех сервисов, которые используют `Settings`.
+   - Бот и админка могут читать один и тот же `Settings` — пропущенная переменная → ValidationError при старте.
+
+2. **Обнови примеры `.env`:**
+   - `.env.example`
+   - `.env.dev.example`
+   - `.env.prod.example` (если есть)
+
+3. **Проверь через `docker compose config`:**
+   ```bash
+   docker compose -f docker-compose.yml config | grep NEW_FIELD
+   ```
+   Убедись что переменная есть во всех сервисах.
+
+4. **Протестируй локально:**
+   ```bash
+   docker compose up --build bot admin
+   ```
+   Сервисы должны стартовать без `ValidationError`.
+
+Исторически: TASK-067, баг №2 — `ADMIN_SECRET_KEY`/`ADMIN_CSRF_SECRET` не были проброшены в `bot` → бот не стартовал на проде.
+
 ## Связанное
 
 - [01-architecture.md](01-architecture.md), [02-tech-stack.md](02-tech-stack.md)

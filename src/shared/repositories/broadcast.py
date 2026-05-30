@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models import Broadcast, BroadcastDelivery, Category, Event, Prediction, User
+from ..time import utcnow
 
 __all__ = ["BroadcastRepository"]
 
@@ -69,7 +70,7 @@ class BroadcastRepository:
 
         # Обновляем статус и started_at
         broadcast.status = "sending"
-        broadcast.started_at = datetime.now(tz=UTC)
+        broadcast.started_at = utcnow()
         await self._session.flush()
         return broadcast
 
@@ -81,7 +82,7 @@ class BroadcastRepository:
         - `active`: is_blocked=False AND last_seen_at >= now() - 30 days
         - `category`: distinct user_id с прогнозами в событиях данной категории
         """
-        cutoff_active = datetime.now(tz=UTC) - timedelta(days=30)
+        cutoff_active = utcnow() - timedelta(days=30)
 
         if segment == "all":
             stmt = select(User.id).where(User.is_blocked.is_(False)).order_by(User.id)
@@ -116,7 +117,7 @@ class BroadcastRepository:
 
     async def count_recipients_for(self, segment: str, category_id: int | None = None) -> int:
         """Считает число получателей для сегмента (для предпросмотра в форме)."""
-        cutoff_active = datetime.now(tz=UTC) - timedelta(days=30)
+        cutoff_active = utcnow() - timedelta(days=30)
 
         if segment == "all":
             stmt = select(func.count(User.id)).where(User.is_blocked.is_(False))

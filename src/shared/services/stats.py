@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repositories import PredictionRepository
+from ..time import utcnow
 
 __all__ = [
     "AnalyticsDayRow",
@@ -128,7 +129,7 @@ class StatsService:
         raw_by_date: dict[str, int] = dict(raw_rows)
 
         for i in range(days):
-            date = datetime.now(tz=UTC) - timedelta(days=days - 1 - i)
+            date = utcnow() - timedelta(days=days - 1 - i)
             date_str = date.strftime("%Y-%m-%d")
             count = raw_by_date.get(date_str, 0)
             result.append(AnalyticsDayRow(date=date_str, count=count))

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.filters.callback_data import CallbackData
@@ -12,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.shared.models import User
 from src.shared.services import CategoryService, EventService, PredictionService
+from src.shared.time import utcnow
 
 from .. import keyboards, texts
 from .._text_safety import safe_format
@@ -167,7 +166,7 @@ async def render_event_card(
         prediction_block=prediction_block,
     )
 
-    can_predict = event.predictions_close_at > datetime.now(tz=UTC)
+    can_predict = event.predictions_close_at > utcnow()
 
     if isinstance(query.message, Message):
         await query.message.edit_text(

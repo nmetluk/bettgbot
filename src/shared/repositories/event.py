@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models import Event, Prediction
+from ..time import utcnow
 
 __all__ = ["AdminEventPeriod", "AdminEventStatus", "EventRepository"]
 
@@ -184,11 +185,11 @@ class EventRepository:
     def _period_filters(self, period: AdminEventPeriod) -> list:  # type: ignore[type-arg]
         clauses: list = []  # type: ignore[type-arg]
         if period == "next7":
-            now = datetime.utcnow()
+            now = utcnow()
             clauses.append(Event.starts_at >= now)
             clauses.append(Event.starts_at < now + timedelta(days=7))
         elif period == "past":
-            clauses.append(Event.starts_at < datetime.utcnow())
+            clauses.append(Event.starts_at < utcnow())
         # "all" — no extra filter
         return clauses
 

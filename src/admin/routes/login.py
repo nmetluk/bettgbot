@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -15,6 +15,7 @@ from src.shared.db import SessionLocal
 from src.shared.exceptions import AdminInactiveError, AdminInvalidCredentialsError
 from src.shared.logging import get_logger
 from src.shared.services import AdminAuthService
+from src.shared.time import utcnow
 
 from ..app import templates
 from ..auth.security import (
@@ -139,7 +140,7 @@ async def login_submit(
 
     token = create_session_token(admin_id=admin.id)
     s = get_settings()
-    expires = datetime.now(tz=UTC) + timedelta(hours=s.admin.session_hours)
+    expires = utcnow() + timedelta(hours=s.admin.session_hours)
 
     session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME
     redirect = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)

@@ -6,14 +6,13 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..exceptions import AdminInactiveError, AdminInvalidCredentialsError
 from ..models import AdminUser
+from ..time import utcnow
 
 __all__ = ["AdminAuthService"]
 
@@ -53,6 +52,6 @@ class AdminAuthService:
         if not admin.is_active:
             raise AdminInactiveError(admin_id=admin.id)
 
-        admin.last_login_at = datetime.now(tz=UTC)
+        admin.last_login_at = utcnow()
         await self._session.commit()
         return admin
