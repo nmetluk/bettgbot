@@ -23,7 +23,7 @@ pytestmark = pytest.mark.integration
 async def _create_authenticated_session(session: AsyncSession) -> str:
     """Создаёт админа и возвращает валидный session token."""
     admin = await make_admin(session, login="test_admin", password_hash="hash")
-    return create_session_token(admin_id=admin.id, secret="test-secret")
+    return create_session_token(admin_id=admin.id)
 
 
 @pytest.mark.asyncio
@@ -118,12 +118,15 @@ async def test_event_detail_result_tab_loads_without_error(nested_session: Async
 
     admin = await make_admin(nested_session)
     category = await make_category(nested_session)
+    # Создаём событие в прошлом (закрыто для фиксации итога)
+    starts_at = datetime.now(tz=UTC) - timedelta(days=1)
     event = await make_event(
         nested_session,
         category=category,
         admin=admin,
         is_published=True,
-        starts_at=datetime.now(tz=UTC) - timedelta(days=1),  # закрыт для фиксации итога
+        starts_at=starts_at,
+        predictions_close_at=starts_at - timedelta(hours=1),  # <= starts_at для CHECK constraint
     )
     await make_outcome(nested_session, event_id=event.id, label="Outcome 1")
     await make_outcome(nested_session, event_id=event.id, label="Outcome 2")
