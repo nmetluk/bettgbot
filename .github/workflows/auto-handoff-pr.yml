@@ -42,8 +42,7 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "$TITLE" \
-            --body "$BODY" \
-            --label auto-handoff
+            --body "$BODY"
         env:
           GH_TOKEN: ${{ secrets.REPO_PAT }}
 
