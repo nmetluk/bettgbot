@@ -1,78 +1,64 @@
-# TASK-078 Report: вернуть рабочую интеграционную регрессию на `GET /events/{id}`
+---
+task: TASK-078
+completed: 2026-05-30
+agent: claude-code-local
+status: done
+pr: https://github.com/nmetluk/bettgbot/pull/136
+branch: feature/TASK-078-restore-event-detail-test
+commits:
+  - 687cef8 feat(handoff): TASK-078 — restore event detail integration regression test
+  - 84d6618 fix(handoff): TASK-078 — use httpx.AsyncClient + ASGITransport for event loop safety
+---
 
-## Выполнено
+# Отчёт по TASK-078: вернуть рабочую интеграционную регрессию на GET /events/{id}
 
-### Восстановлен интеграционный тест
+## Сводка
 
-- Создан файл `tests/integration/services/test_event_detail_admin.py` с 4 тестами:
-  - `test_event_detail_returns_200_for_draft_without_outcomes` — черновик без исходов
-  - `test_event_detail_returns_200_for_published_with_outcomes` — опубликованное событие с исходами
-  - `test_event_detail_returns_404_for_nonexistent` — 404 на несуществующий id
-  - `test_event_detail_result_tab_loads_without_error` — вкладка «Результат»
+Восстановлен интеграционный тест `tests/integration/services/test_event_detail_admin.py` (удалённый в TASK-076).
+Исправлен дефект харнесса: синхронный `TestClient` заменён на `httpx.AsyncClient` + `ASGITransport`,
+что решило проблему "Event loop is closed" при совместном прогоне тестов.
 
-### Auth через dependency_overrides
-
-Вместо подделки cookie с неверным секретом (как было в удалённом тесте) теперь используется паттерн из unit-тестов:
-
-- `app.dependency_overrides[current_admin]` подменяет dependency для хендлера
-- Патч `SessionLocal` в middleware для аутентификации
-- Валидная session-cookie через `create_session_token` с боевым секретом
-
-### Cleanup данных
-
-Каждый тест создаёт данные в реальной БД и удаляет их после завершения, чтобы не засорять БД.
-
-## Результаты тестирования
-
-```
-$ uv run pytest tests/integration/services/test_event_detail_admin.py -v -m integration
-
-tests/integration/services/test_event_detail_admin.py::test_event_detail_returns_200_for_draft_without_outcomes PASSED
-tests/integration/services/test_event_detail_admin.py::test_event_detail_returns_200_for_published_with_outcomes FAILED
-tests/integration/services/test_event_detail_admin.py::test_event_detail_returns_404_for_nonexistent PASSED
-tests/integration/services/test_event_detail_admin.py::test_event_detail_result_tab_loads_without_error FAILED
-```
-
-**Все тесты проходят изолированно** (при запуске по одному):
-
-```
-$ uv run pytest tests/integration/services/test_event_detail_admin.py::test_event_detail_returns_200_for_published_with_outcomes -v -m integration
-tests/integration/services/test_event_detail_admin.py::test_event_detail_returns_200_for_published_with_outcomes PASSED
-```
-
-### Flaky при совместном запуске
-
-При запуске всех тестов вместе 2 из 4 падают с `RuntimeError: Event loop is closed`. Это известная проблема с `TestClient` и `pytest-asyncio` — TestClient запускает FastAPI в отдельном thread, и при закрытии одного loop следующий тест падает.
-
-**Решение для CI**: запускать тесты по одному или добавить `pytest -k "test_event_detail"` для последовательного запуска.
-
-## Проверено
-
-- ✅ Линт (`ruff check`) — чистый
-- ✅ Типы (`mypy`) — чистый
-- ✅ Все тесты проходят изолированно
-
-## Sanity check
-
-Тест **действительно ловит** баг, который был в TASK-074/TASK-076. Если временно убрать eager-load в `get_for_admin_detail`, тест упадёт с 500 вместо 200. (Проверено локально, изменения в main не вносятся.)
+Все 4 тест-кейса проходят в СОВМЕСТНОМ прогоне `pytest tests/integration -m integration`:
+- черновик без исходов (главный регресс на MissingGreenlet);
+- опубликованное событие с ≥2 исходами;
+- вкладка `?tab=result` у закрытого события;
+- 404 на несуществующий id.
 
 ## Изменённые файлы
 
-- `tests/integration/services/test_event_detail_admin.py` (восстановлен)
-- `handoff/inbox/TASK-078.in-progress.md` → `handoff/archive/TASK-078.md`
-
-## Команды для воспроизведения
-
-```bash
-# Запуск одного теста (проходит)
-uv run pytest tests/integration/services/test_event_detail_admin.py::test_event_detail_returns_200_for_draft_without_outcomes -v -m integration
-
-# Запуск всех тестов (2 из 4 упадут с event loop issue)
-uv run pytest tests/integration/services/test_event_detail_admin.py -v -m integration
+```
+* tests/integration/services/test_event_detail_admin.py  # восстановлен с httpx.AsyncClient
++ handoff/archive/TASK-078-restore-event-detail-test/TASK-078.md
++ handoff/outbox/TASK-078-report.md
 ```
 
-## Вопросы к проектировщику
+## Как воспроизвести / запустить
 
-1. **Flaky с event loop** — при совместном запуске 2 теста падают. Приемлемо ли для интеграционных тестов запускать их по одному в CI, или нужно дополнительное исследование?
+```bash
+# все интеграционные тесты (совместный прогон)
+uv run pytest tests/integration -m integration -v
 
-2. **Cleanup данных** — текущий подход удаляет данные после каждого теста. Альтернатива — использовать транзакционный rollback, но это не работает с TestClient (разные event loops). Подходит ли текущий подход?
+# только этот файл
+uv run pytest tests/integration/services/test_event_detail_admin.py -v
+```
+
+## Фактический вывод combined-прогона
+
+```
+tests/integration/services/test_event_detail_admin.py ....               [ 49%]
+======================== 167 passed in 66.90s (0:01:06) ========================
+```
+
+## Что не сделано
+
+Ничего — все требования задачи выполнены.
+
+## Открытые вопросы для проектировщика
+
+Нет.
+
+## Предложение для PROJECT_STATUS.md
+
+```markdown
+- 2026-05-30 — TASK-078: восстановлена интеграционная регрессия на GET /events/{id}, исправлен event loop харнесс (PR #136)
+```
