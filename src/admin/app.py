@@ -103,9 +103,10 @@ def create_app() -> FastAPI:
     s = get_settings()
     configure_logging(s.log_level, s.log_format)
 
+    info = get_build_info()
     app = FastAPI(
         title="Betting Bot Admin",
-        version="0.0.0",
+        version=info.app_version,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
