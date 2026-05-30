@@ -16,7 +16,7 @@
         margin-bottom: var(--pv-s-20);
     }
     .pv-tab {
-        padding: 10px 16px;
+        padding: var(--pv-s-10) var(--pv-s-16);
         background: transparent; border: none;
         color: var(--pv-fg-muted);
         font: inherit; font-size: var(--pv-fs-14); font-weight: 500;
@@ -38,7 +38,7 @@
 
     .result-opt {
         display: flex; align-items: center; gap: var(--pv-s-12);
-        padding: 12px 16px;
+        padding: var(--pv-s-12) var(--pv-s-16);
         border: 1px solid var(--pv-border);
         border-radius: var(--pv-r-8);
         cursor: pointer;
@@ -105,7 +105,7 @@
 
     {% if error %}
     <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-red); background: rgba(230,64,58,0.06);">
-        <div class="pv-card-body" style="padding: 12px 20px;">
+        <div class="pv-card-body">
             <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-red);" aria-hidden="true">error</span>
             {{ error }}
         </div>
@@ -128,7 +128,7 @@
     {% if event.result_outcome_id %}
         {% set _result_outcome = (event.outcomes | selectattr('id', 'equalto', event.result_outcome_id) | first) %}
         <div class="pv-card" style="max-width: 620px; border-color: var(--pv-green); background: rgba(41,180,115,0.06);">
-            <div class="pv-card-body" style="padding: 20px;">
+            <div class="pv-card-body">
                 <div class="pv-row" style="gap: var(--pv-s-12);">
                     <span class="material-symbols-rounded" style="color: var(--pv-green); font-size: 24px;" aria-hidden="true">check_circle</span>
                     <div>
@@ -147,8 +147,9 @@
     {% else %}
         <div class="pv-stack" style="max-width: 620px;">
             <div class="pv-card">
-                <div class="pv-section-title">Итоговый исход</div>
-                <form method="post" action="/events/{{ event.id }}/result" class="pv-stack" style="gap: 8px;">
+                <div class="pv-card-body">
+                    <div class="pv-section-title">Итоговый исход</div>
+                    <form method="post" action="/events/{{ event.id }}/result" class="pv-stack" style="gap: var(--pv-s-8);">
                     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     {% for outcome in event.outcomes %}
                     <label class="result-opt">
@@ -169,6 +170,7 @@
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     {% endif %}
@@ -178,8 +180,9 @@
     {# Данные события #}
     <div class="pv-grid c-2-1">
         <div class="pv-card">
-            <div class="pv-section-title">Данные события</div>
-            <form method="post" action="{{ form_action }}" class="pv-stack" style="gap: var(--pv-s-16);">
+            <div class="pv-card-body">
+                <div class="pv-section-title">Данные события</div>
+                <form method="post" action="{{ form_action }}" class="pv-stack" style="gap: var(--pv-s-16);">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
                 <div>
@@ -232,13 +235,15 @@
                     </button>
                 </div>
             </form>
+            </div>
         </div>
 
         {% if not isNew %}
         <div class="pv-stack">
             <div class="pv-card">
-                <div class="pv-section-title">Состояние</div>
-                <div class="pv-stack" style="gap: 10px;">
+                <div class="pv-card-body">
+                    <div class="pv-section-title">Состояние</div>
+                    <div class="pv-stack" style="gap: var(--pv-s-10);">
                     <div class="pv-row"><span class="pv-muted pv-grow">Статус</span>
                         {% if event.is_archived %}
                             <span class="pv-badge neutral">архив</span>
@@ -256,7 +261,7 @@
                     <div class="pv-row"><span class="pv-muted pv-grow">Создано</span><span class="pv-mono">{{ event.created_at.strftime('%Y-%m-%d %H:%M') if event.created_at else '—' }}</span></div>
                 </div>
                 <div class="pv-divider"></div>
-                <div class="pv-stack" style="gap: 8px;">
+                <div class="pv-stack" style="gap: var(--pv-s-8);">
                     <button type="submit" form="data-form" class="pv-btn pv-btn-primary">
                         <span class="material-symbols-rounded" aria-hidden="true">check</span>
                         Сохранить
@@ -280,12 +285,13 @@
                             </button>
                         </form>
                         {% if event.outcomes|length < 2 %}
-                        <div class="pv-field-help" style="color: var(--pv-gold); margin-top: 10px;">
+                        <div class="pv-field-help" style="color: var(--pv-gold); margin-top: var(--pv-s-10);">
                             <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px;" aria-hidden="true">info</span>
                             Публикация недоступна: нужно ≥ 2 исхода.
                         </div>
                         {% endif %}
                     {% endif %}
+                </div>
                 </div>
             </div>
         </div>
