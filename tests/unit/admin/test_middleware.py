@@ -113,8 +113,8 @@ def test_session_cookie_name_depends_on_environment(
 
     Этот тест проверяет, что логика выбора имени куки по окружению работает правильно.
     """
-    from src.shared.config import Settings, get_settings
     from src.admin.auth.middleware import SESSION_COOKIE_NAME, SESSION_COOKIE_NAME_PROD
+    from src.shared.config import Settings, get_settings
 
     # Получаем текущие настройки и создаём копию с изменённым environment
     original_settings = get_settings()
@@ -142,8 +142,8 @@ def test_prod_env_round_trip_with_correct_cookie_name(
 
     Фикс TASK-063: middleware теперь выбирает имя куки по окружению.
     """
-    from src.shared.config import Settings, get_settings
     from sqlalchemy.ext.asyncio import AsyncSession
+    from src.shared.config import Settings, get_settings
 
     # Создаём fake settings с нужным environment
     original_settings = get_settings()
