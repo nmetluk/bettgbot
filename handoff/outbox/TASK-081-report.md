@@ -3,11 +3,13 @@ task: TASK-081
 completed: 2026-05-31
 author: claude-code-local
 status: done
-pr: https://github.com/nmetluk/bettgbot/pull/148
-branch: feat/build-info-and-deploy-observability
+pr: https://github.com/nmetluk/bettgbot/pull/150   # will be set on create
+branch: feature/TASK-081-build-info-ci-prod-path
 related_commits:
-  - ac3288a (original)
-  - <new-fix-commits>
+  - 44f8a75 chore(handoff): take TASK-081 in progress
+  - c74f99f feat: add build metadata system and improve deploy observability
+  - 298c643 fix(TASK-081): make build-info work for GHCR images from CI
+  - 8e61cef fix(TASK-081): ruff format new files + polish report verification section
 ---
 
 # Отчёт по TASK-081: build-info должен работать в проде (CI/GHCR-образы)
@@ -128,7 +130,12 @@ scripts/generate_build_info.sh              # безопасная запись 
 
 ## Готовность к review
 
-Ветка `feat/build-info-and-deploy-observability` обновлена всеми правками по TASK-081.
-Готова к повторному review архитектора (тот же PR #148).
+Работа выполнена строго по протоколу handoff:
+- Задача взята на канонической ветке `feature/TASK-081-build-info-ci-prod-path`
+- Все quality gates зелёные (ruff, ruff format, mypy src/shared --strict, полная pytest 100%)
+- Отчёт финализирован
+- Готова к созданию PR `TASK-081: ...` с auto-merge.
+
+Изменения портированы с exploratory-ветки пользователя + отполированы (форматирование + уточнения в отчёте).
 
 Рекомендую смёржить после зелёного CI.
