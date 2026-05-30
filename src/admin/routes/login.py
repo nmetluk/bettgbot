@@ -18,6 +18,8 @@ from src.shared.services import AdminAuthService
 
 from ..app import templates
 from ..auth.security import (
+    CSRF_COOKIE_NAME,
+    CSRF_COOKIE_NAME_PROD,
     SESSION_COOKIE_NAME,
     SESSION_COOKIE_NAME_PROD,
     create_session_token,
@@ -78,7 +80,43 @@ def _render_login_error(
     error: str,
     status_code: int,
 ) -> Response:
-    """Re-render формы логина с ошибкой; генерирует CSRF (middleware POST не покрывает)."""
+    """Re-render формы логина с ошибкой; использует существующую CSRF-куку если есть.
+
+    TASK-068: если валидная CSRF-кука уже есть — извлекаем токен из неё и
+    НЕ перезаписываем куку. Это предотвращает рассинхрон при повторном сабмите.
+    """
+    from itsdangerous import BadData, URLSafeTimedSerializer
+
+    s = get_settings()
+    csrf_name = CSRF_COOKIE_NAME_PROD if s.environment != "dev" else CSRF_COOKIE_NAME
+    existing_cookie = request.cookies.get(csrf_name)
+
+    csrf_token: str
+    signed_token: str
+
+    if existing_cookie:
+        # Пробуем извлечь токен из существующей куки
+        try:
+            serializer = URLSafeTimedSerializer(
+                s.admin.csrf_secret.get_secret_value(), salt="fastapi-csrf-token"
+            )
+            token: str | None = serializer.loads(existing_cookie, max_age=None)
+            if token:
+                csrf_token = token
+                signed_token = existing_cookie
+                # Используем существующую куку — не ставим новую
+                request.state.csrf_token = csrf_token
+                return templates.TemplateResponse(
+                    request=request,
+                    name="login.html",
+                    context={"error": error},
+                    status_code=status_code,
+                )
+        except (BadData, Exception):
+            # Кука невалидна — упадём до генерации новой
+            pass
+
+    # Куки нет или невалидна — генерируем новую пару
     csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
     request.state.csrf_token = csrf_token
     response = templates.TemplateResponse(

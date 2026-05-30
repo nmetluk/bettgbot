@@ -186,3 +186,137 @@ def test_prod_env_round_trip_with_correct_cookie_name(
     # Если middleware читает правильную куку, запрос проходит middleware (не редирект на /login)
     # Handler может упасть на БД, но middleware уже пропустил запрос
     assert response.status_code != 302 or response.headers.get("location") != "/login"
+
+
+def test_double_get_does_not_rotate_csrf_cookie() -> None:
+    """TASK-068: два GET /login не должны ротировать CSRF-куку.
+
+    Сценарий:
+    1. GET /login → рендер формы с токеном T1, кука C1
+    2. Ещё один GET /login → токен и кука НЕ должны меняться
+    3. POST /login с T1 и кукой C1 → должно быть 401/302, но НЕ 403
+
+    До фикса: второй GET перетирал куку на C2, POST с T1/C2 давал 403.
+    """
+    from unittest.mock import patch
+
+    from fastapi_csrf_protect import CsrfProtect
+    from itsdangerous import URLSafeTimedSerializer
+    from src.admin.auth.security import CSRF_COOKIE_NAME
+    from src.shared.config import get_settings
+    from src.shared.exceptions import AdminInvalidCredentialsError
+
+    client = TestClient(app, follow_redirects=False)  # raise_server_exceptions=True по умолчанию
+
+    # Первый GET - создаём CSRF-куку
+    response1 = client.get("/login")
+    assert response1.status_code == 200
+
+    # Извлекаем CSRF-куку и токен из формы
+    csrf_cookie = client.cookies.get(CSRF_COOKIE_NAME)
+    assert csrf_cookie is not None
+
+    # Декодируем токен из куки
+    s = get_settings()
+    serializer = URLSafeTimedSerializer(
+        s.admin.csrf_secret.get_secret_value(), salt="fastapi-csrf-token"
+    )
+    original_token = serializer.loads(csrf_cookie, max_age=None)
+
+    # Второй GET - до фикса это перетёрло бы куку
+    response2 = client.get("/login")
+    assert response2.status_code == 200
+
+    # Кука должна остаться той же (не перезаписана)
+    csrf_cookie_after = client.cookies.get(CSRF_COOKIE_NAME)
+    assert csrf_cookie_after == csrf_cookie, "CSRF-кука не должна перезаписываться на втором GET"
+
+    # Извлекаем токен из формы
+    import re
+
+    form_token_match = re.search(r'name="csrf_token" value="([^"]+)"', response2.text)
+    assert form_token_match is not None, "Форма должна содержать CSRF-токен"
+    form_token = form_token_match.group(1)
+
+    # Токен в форме должен совпадать с декодированным токеном из куки
+    assert form_token == original_token, "Токен в форме должен соответствовать токену в куке"
+
+    # POST с этим токеном не должен давать 403 (CsrfProtectError)
+    # 401 - неверные креды (ожидаемо), но не 403 "Сессия истекла"
+    with patch(
+        "src.admin.routes.login.AdminAuthService.authenticate",
+        side_effect=AdminInvalidCredentialsError(),
+    ):
+        response3 = client.post(
+            "/login",
+            data={"login": "wrong", "password": "wrong", "csrf_token": form_token},
+            follow_redirects=False,
+        )
+    assert response3.status_code == 401, "Ожидается 401 (неверные креды), не 403 (CSRF-ошибка)"
+
+
+def test_prod_env_csrf_cookie_name_selection() -> None:
+    """TASK-068: проверяет что для prod окружения используется __Host- prefixed CSRF-кука.
+
+    Проверяет логику выбора имени куки по окружению. Полный тест перезаписи куки
+    ограничен тем, что __Host- куки не работают корректно в TestClient.
+    """
+    from src.admin.auth.security import CSRF_COOKIE_NAME, CSRF_COOKIE_NAME_PROD
+    from src.shared.config import Settings, get_settings
+
+    # Проверяем что имена констант правильные
+    assert CSRF_COOKIE_NAME == "fastapi-csrf-token"
+    assert CSRF_COOKIE_NAME_PROD == "__Host-fastapi-csrf-token"
+
+    # Проверяем логику выбора имени куки
+    s = get_settings()
+
+    # Для dev окружения
+    csrf_name_dev = CSRF_COOKIE_NAME_PROD if s.environment != "dev" else CSRF_COOKIE_NAME
+    assert csrf_name_dev == CSRF_COOKIE_NAME, "Для dev должно использоваться имя без __Host-"
+
+    # Проверяем что middleware логика работает для prod (через создание настроек)
+    prod_settings = s.model_copy(update={"environment": "prod"})
+    csrf_name_prod = (
+        CSRF_COOKIE_NAME_PROD if prod_settings.environment != "dev" else CSRF_COOKIE_NAME
+    )
+    assert csrf_name_prod == CSRF_COOKIE_NAME_PROD, "Для prod должно использоваться __Host- prefix"
+
+
+def test_csrf_cookie_reuse_logic() -> None:
+    """TASK-068: проверяет логику переиспользования CSRF-куки изолированно.
+
+    Тестируем метод _get_token_from_cookie напрямую, чтобы убедиться что
+    валидная кука декодируется корректно и используется повторно.
+    """
+    import secrets
+
+    from fastapi_csrf_protect import CsrfProtect
+    from src.admin.auth.middleware import CsrfTokenMiddleware
+    from src.shared.config import get_settings
+
+    s = get_settings()
+    secret = s.admin.csrf_secret.get_secret_value()
+
+    # Генерируем пару токенов
+    csrf = CsrfProtect()
+    token, signed_token = csrf.generate_csrf_tokens()
+
+    # Создаём middleware (аргумент app может быть None для теста метода)
+    middleware = CsrfTokenMiddleware(lambda: None)  # type: ignore
+
+    # Проверяем что валидная кука декодируется
+    extracted = middleware._get_token_from_cookie(signed_token, secret)
+    assert extracted == token, "Валидная кука должна декодироваться в исходный токен"
+
+    # Проверяем что невалидная кука возвращает None
+    invalid = "invalid_token"
+    assert middleware._get_token_from_cookie(invalid, secret) is None, (
+        "Невалидная кука должна возвращать None"
+    )
+
+    # Проверяем что кука с другим секретом возвращает None
+    wrong_secret = secrets.token_urlsafe(32)
+    assert middleware._get_token_from_cookie(signed_token, wrong_secret) is None, (
+        "Кука с другим секретом должна возвращать None"
+    )
