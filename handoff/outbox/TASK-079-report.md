@@ -3,7 +3,7 @@ task: TASK-079
 completed: 2026-05-30
 agent: claude-code-local
 status: done
-pr: https://github.com/nmetluk/bettgbot/pull/XXX
+pr: https://github.com/nmetluk/bettgbot/pull/146
 branch: feature/TASK-079-csp-sri-selfhost-cdn
 commits:
   - 1a44db6 feat(admin): self-host vendored CDN assets for CSP/SRI hardening (TASK-079)
@@ -74,7 +74,7 @@ curl -sI http://localhost:8888/ | grep -i content-security
 ## Предложение для PROJECT_STATUS.md
 
 ```markdown
-- 2026-05-30 — TASK-079: self-host vendored CDN assets (Alpine/HTMX/Chart/Bootstrap) + tightened CSP without jsdelivr (PR #XXX)
+- 2026-05-30 — TASK-079: self-host vendored CDN assets (Alpine/HTMX/Chart/Bootstrap) + tightened CSP without jsdelivr (PR #146)
 ```
 
 ## Метрики (опционально)
