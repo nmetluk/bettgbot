@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.filters.callback_data import CallbackData
@@ -19,6 +17,7 @@ from src.shared.exceptions import (
 from src.shared.logging import get_logger
 from src.shared.models import User
 from src.shared.services import EventService, PredictionService
+from src.shared.time import utcnow
 
 from .. import keyboards, texts
 from .._text_safety import safe_format
@@ -71,7 +70,7 @@ async def on_predict_start(
         await query.answer(texts.EVENT_NOT_AVAILABLE, show_alert=True)
         await state.clear()
         return
-    if event.predictions_close_at <= datetime.now(tz=UTC):
+    if event.predictions_close_at <= utcnow():
         await query.answer(texts.PREDICT_DEADLINE_PASSED, show_alert=True)
         await state.clear()
         return
@@ -104,7 +103,7 @@ async def on_predict_pick(
         await query.answer(texts.EVENT_NOT_AVAILABLE, show_alert=True)
         await state.clear()
         return
-    if event.predictions_close_at <= datetime.now(tz=UTC):
+    if event.predictions_close_at <= utcnow():
         await query.answer(texts.PREDICT_DEADLINE_PASSED, show_alert=True)
         await state.clear()
         return

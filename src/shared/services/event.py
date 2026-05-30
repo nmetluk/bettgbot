@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -28,6 +28,7 @@ from ..repositories import (
     PredictionRepository,
 )
 from ..repositories.event import AdminEventPeriod, AdminEventStatus
+from ..time import utcnow
 
 # Регулярка для поиска HTML-тегов — любой < или > (защита от XSS/DoS)
 _HTML_CHARS_PATTERN = re.compile(r"[<>]")
@@ -134,7 +135,7 @@ class EventService:
         if outcome_id not in {o.id for o in event.outcomes}:
             raise OutcomeNotForEventError(event_id, outcome_id)
 
-        archived_at = datetime.now(tz=UTC)
+        archived_at = utcnow()
         await self._events.set_result(event_id, outcome_id, archived_at)
         marked = await self._predictions.mark_correctness(event_id, outcome_id)
         await self._audit.add(
@@ -231,7 +232,7 @@ class EventService:
         автоматическое действие без `admin_id`.
         """
         if now is None:
-            now = datetime.now(tz=UTC)
+            now = utcnow()
         cutoff = now - timedelta(days=threshold_days)
         archived_count = await self._events.archive_stale(cutoff=cutoff)
         if archived_count > 0:

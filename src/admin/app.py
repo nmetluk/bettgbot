@@ -27,6 +27,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from src.shared.config import get_settings
 from src.shared.logging import configure_logging, get_logger
 from src.shared.observability import init_sentry
+from src.shared.time import utcnow
 
 from ._security_headers import SecurityHeadersMiddleware
 from .auth.middleware import CsrfTokenMiddleware, RequireAdminMiddleware
@@ -40,7 +41,7 @@ logger = get_logger(__name__)
 _BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_BASE_DIR / "templates"))
 # `now()` доступен в шаблонах для расчёта статус-бэйджей событий.
-templates.env.globals["now"] = datetime.utcnow
+templates.env.globals["now"] = utcnow
 
 
 # Кастомный фильтр для форматирования даты

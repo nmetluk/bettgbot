@@ -10,7 +10,7 @@ sliding TTL.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from fastapi_csrf_protect import CsrfProtect
@@ -23,6 +23,7 @@ from src.shared.config import get_settings
 from src.shared.db import SessionLocal
 from src.shared.logging import get_logger
 from src.shared.models import AdminUser
+from src.shared.time import utcnow
 
 from .security import (
     CSRF_COOKIE_NAME,
@@ -109,7 +110,7 @@ class RequireAdminMiddleware:
         # Sliding TTL: переоформляем cookie на каждом запросе.
         new_token = create_session_token(admin_id=admin.id)
         s = get_settings()
-        expires = datetime.now(tz=UTC) + timedelta(hours=s.admin.session_hours)
+        expires = utcnow() + timedelta(hours=s.admin.session_hours)
 
         # В prod используем __Host- prefix (browser enforce'ит Secure, Path=/)
         session_name = SESSION_COOKIE_NAME_PROD if s.environment != "dev" else SESSION_COOKIE_NAME

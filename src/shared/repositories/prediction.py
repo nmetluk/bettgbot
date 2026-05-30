@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy import and_, case, cast, func, not_, select, update
 from sqlalchemy.dialects.postgresql import NUMERIC
@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models import Category, Event, Prediction, User
+from ..time import utcnow
 
 __all__ = ["PredictionRepository"]
 
@@ -144,7 +145,7 @@ class PredictionRepository:
 
     async def count_24h(self) -> int:
         """Количество прогнозов за последние 24 часа."""
-        cutoff = datetime.now(tz=UTC) - timedelta(hours=24)
+        cutoff = utcnow() - timedelta(hours=24)
         stmt = select(func.count()).select_from(Prediction).where(Prediction.created_at >= cutoff)
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
@@ -188,7 +189,7 @@ class PredictionRepository:
         )
 
         if period_days is not None:
-            cutoff = datetime.now(tz=UTC) - timedelta(days=period_days)
+            cutoff = utcnow() - timedelta(days=period_days)
             stmt = stmt.where(Prediction.created_at >= cutoff)
 
         stmt = (
@@ -219,7 +220,7 @@ class PredictionRepository:
         формат ``YYYY-MM-DD``. Дни без прогнозов не включаются в результат
         (заполняются нулями на уровне сервиса).
         """
-        cutoff = datetime.now(tz=UTC) - timedelta(days=days)
+        cutoff = utcnow() - timedelta(days=days)
         stmt = (
             select(
                 func.date(Prediction.created_at).label("day"),
