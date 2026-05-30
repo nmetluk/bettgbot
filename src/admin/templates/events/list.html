@@ -10,7 +10,7 @@
             <p class="pv-page-sub">Создание, публикация и фиксация итогов</p>
         </div>
         <a href="/events/new" class="pv-btn pv-btn-primary">
-            <span class="material-symbols-rounded">add</span>
+            <span class="material-symbols-rounded" aria-hidden="true">add</span>
             Новое событие
         </a>
     </div>
@@ -18,7 +18,7 @@
     <div class="pv-card pv-card-flush">
         <form method="get" class="pv-toolbar">
             <div class="pv-toolbar-search">
-                <span class="material-symbols-rounded ms">search</span>
+                <span class="material-symbols-rounded ms" aria-hidden="true">search</span>
                 <input type="text" name="search" placeholder="Поиск по названию…" value="{{ request.query_params.get('search', '') }}">
             </div>
             <div class="pv-toolbar-grow"></div>
@@ -78,7 +78,7 @@
                     </td>
                     <td class="pv-c-num">{{ pred_count }}</td>
                     <td class="pv-c-actions">
-                        <span class="material-symbols-rounded" style="color: var(--pv-fg-subtle);">chevron_right</span>
+                        <span class="material-symbols-rounded" style="color: var(--pv-fg-subtle);" aria-hidden="true">chevron_right</span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -101,7 +101,7 @@
         {% endif %}
         {% else %}
         <div class="pv-empty">
-            <span class="material-symbols-rounded" style="font-size: 48px; display: block; margin-bottom: var(--pv-s-12);">event_busy</span>
+            <span class="material-symbols-rounded" style="font-size: 48px; display: block; margin-bottom: var(--pv-s-12);" aria-hidden="true">event_busy</span>
             <p>Ничего не найдено</p>
             <p class="pv-muted">Попробуйте изменить фильтры или создать событие</p>
         </div>

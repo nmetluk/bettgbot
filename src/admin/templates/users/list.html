@@ -15,7 +15,7 @@
     <div class="pv-card pv-card-flush">
         <div class="pv-toolbar">
             <form method="get" class="pv-toolbar-search" style="flex: 1;">
-                <span class="material-symbols-rounded ms">search</span>
+                <span class="material-symbols-rounded ms" aria-hidden="true">search</span>
                 <input type="text" name="query" placeholder="Телефон, username или имя…" value="{{ query }}" minlength="1">
             </form>
             {% if query %}
@@ -63,7 +63,7 @@
                         {% endif %}
                     </td>
                     <td class="pv-c-actions">
-                        <span class="material-symbols-rounded" style="color: var(--pv-fg-subtle);">chevron_right</span>
+                        <span class="material-symbols-rounded" style="color: var(--pv-fg-subtle);" aria-hidden="true">chevron_right</span>
                     </td>
                 </tr>
                 {% endfor %}
