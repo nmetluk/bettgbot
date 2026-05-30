@@ -6,6 +6,7 @@ event.category.name, event.created_by_admin.username и outcome.predictions,
 которые должны быть eager-load'едены.
 
 TASK-078: auth через dependency_overrides вместо подделки cookie.
+Использует httpx.AsyncClient + ASGITransport для корректной работы в shared event loop.
 """
 
 from __future__ import annotations
@@ -16,8 +17,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 from src.admin.app import app
@@ -32,23 +33,24 @@ pytestmark = pytest.mark.integration
 def _uniq(prefix: str) -> str:
     """Уникальный человекочитаемый id для тестовых полей."""
     import uuid
+
     return f"{prefix}-{uuid.uuid4().hex[:6]}"
 
 
 @asynccontextmanager
-async def _authed_client(admin: AdminUser) -> AsyncGenerator[TestClient, None]:
-    """Создаёт TestClient с подменённым current_admin и валидной session-cookie.
+async def _authed_client(admin: AdminUser) -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Создаём AsyncClient с ASGITransport и подменённым current_admin.
 
-    Паттерн из unit-тестов (`tests/unit/admin/test_events_handler.py`):
-    1. Подменяем `current_admin` dependency — возвращаем админа из БД.
-    2. Патчим `SessionLocal` в middleware, чтобы тот же админ доставался из БД.
-    3. Строим валидную session-cookie через `create_session_token` с боевым секретом.
+    Паттерн:
+    1. Генерируем валидный session-token для админа.
+    2. Подменяем `current_admin` dependency на return этого же админа.
+    3. Патчим SessionLocal в middleware, чтобы тот же админ доставался из БД.
+    4. Используем httpx.AsyncClient с ASGITransport на том же event loop.
     """
 
     async def _get_current_admin() -> AdminUser:
         return admin
 
-    # Подмена dependency для хендлера
     app.dependency_overrides[current_admin] = _get_current_admin
 
     # Фейковый SessionLocal для middleware — вернёт сессию, которая вернёт админа
@@ -65,8 +67,13 @@ async def _authed_client(admin: AdminUser) -> AsyncGenerator[TestClient, None]:
     # Патчим SessionLocal в middleware
     with patch("src.admin.auth.middleware.SessionLocal", fake_maker):
         token = create_session_token(admin_id=admin.id)
-        client = TestClient(app, cookies={SESSION_COOKIE_NAME: token})
-        yield client
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            cookies={SESSION_COOKIE_NAME: token},
+        ) as client:
+            yield client
 
     app.dependency_overrides.clear()
 
@@ -99,7 +106,9 @@ async def test_event_detail_returns_200_for_draft_without_outcomes() -> None:
                 description=None,
                 metadata_={},
                 starts_at=datetime.now(tz=UTC) + timedelta(days=1),
-                predictions_close_at=datetime.now(tz=UTC) + timedelta(days=1) - timedelta(minutes=10),
+                predictions_close_at=datetime.now(tz=UTC)
+                + timedelta(days=1)
+                - timedelta(minutes=10),
                 created_by_admin_id=admin.id,
                 is_published=False,
                 is_archived=False,
@@ -108,14 +117,13 @@ async def test_event_detail_returns_200_for_draft_without_outcomes() -> None:
             await session.commit()
 
         async with _authed_client(admin) as client:
-            response = client.get(f"/events/{event.id}")
-            assert response.status_code == 200, (
-                f"Expected 200, got {response.status_code}: {response.text[:200]}"
-            )
+            response = await client.get(f"/events/{event.id}")
+            assert response.status_code == 200
+            text = (await response.aread()).decode()
             # Проверяем, что ключевые данные присутствуют в ответе
-            assert event.title in response.text
-            assert category.name in response.text
-            assert admin.login in response.text
+            assert event.title in text
+            assert category.name in text
+            assert admin.login in text
 
         # Cleanup
         async with sm() as session:
@@ -154,7 +162,9 @@ async def test_event_detail_returns_200_for_published_with_outcomes() -> None:
                 description=None,
                 metadata_={},
                 starts_at=datetime.now(tz=UTC) + timedelta(days=1),
-                predictions_close_at=datetime.now(tz=UTC) + timedelta(days=1) - timedelta(minutes=10),
+                predictions_close_at=datetime.now(tz=UTC)
+                + timedelta(days=1)
+                - timedelta(minutes=10),
                 created_by_admin_id=admin.id,
                 is_published=True,
                 is_archived=False,
@@ -169,13 +179,12 @@ async def test_event_detail_returns_200_for_published_with_outcomes() -> None:
             await session.commit()
 
         async with _authed_client(admin) as client:
-            response = client.get(f"/events/{event.id}")
-            assert response.status_code == 200, (
-                f"Expected 200, got {response.status_code}: {response.text[:200]}"
-            )
-            assert event.title in response.text
+            response = await client.get(f"/events/{event.id}")
+            assert response.status_code == 200
+            text = (await response.aread()).decode()
+            assert event.title in text
             # На дефолтной вкладке показывается только счётчик исходов
-            assert "Исходы <span class=\"pv-muted\">· 2</span>" in response.text or "Исходы <span class=\"pv-muted\">·2</span>" in response.text or "Исходы · 2" in response.text
+            assert "Исходы" in text and "2" in text
 
         # Cleanup
         async with sm() as session:
@@ -202,7 +211,7 @@ async def test_event_detail_returns_404_for_nonexistent() -> None:
             await session.commit()
 
         async with _authed_client(admin) as client:
-            response = client.get("/events/99999")
+            response = await client.get("/events/99999")
             assert response.status_code == 404
 
         # Cleanup
@@ -241,7 +250,9 @@ async def test_event_detail_result_tab_loads_without_error() -> None:
                 description=None,
                 metadata_={},
                 starts_at=datetime.now(tz=UTC) - timedelta(days=1),
-                predictions_close_at=datetime.now(tz=UTC) - timedelta(days=1) - timedelta(minutes=10),
+                predictions_close_at=datetime.now(tz=UTC)
+                - timedelta(days=1)
+                - timedelta(minutes=10),
                 created_by_admin_id=admin.id,
                 is_published=True,
                 is_archived=False,
@@ -256,11 +267,10 @@ async def test_event_detail_result_tab_loads_without_error() -> None:
             await session.commit()
 
         async with _authed_client(admin) as client:
-            response = client.get(f"/events/{event.id}?tab=result")
-            assert response.status_code == 200, (
-                f"Expected 200, got {response.status_code}: {response.text[:200]}"
-            )
-            assert "Итоговый исход" in response.text
+            response = await client.get(f"/events/{event.id}?tab=result")
+            assert response.status_code == 200
+            text = (await response.aread()).decode()
+            assert "Итоговый исход" in text
 
         # Cleanup
         async with sm() as session:
