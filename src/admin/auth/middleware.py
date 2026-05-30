@@ -1,4 +1,4 @@
-"""Auth middlewares админки (TASK-020 + TASK-022).
+"""Auth middlewares админки (TASK-020 + TASK-022 + TASK-068).
 
 `RequireAdminMiddleware`: защищает все пути, кроме whitelisted. ASGI-callable,
 sliding TTL.
@@ -6,6 +6,10 @@ sliding TTL.
 `CsrfTokenMiddleware`: для GET-под-auth генерирует `csrf_token` в `request.state`
 + ставит `fastapi-csrf-token` cookie. Шаблоны читают `{{ request.state.csrf_token }}`
 без необходимости генерировать в каждом handler'е.
+
+TASK-068: НЕ ротирует существующую валидную CSRF-куку на каждый GET — извлекает
+токен из уже стоящей куки, чтобы пара (форма-токен ↔ кука) не разрушалась
+фоновыми запросами (favicon, второй GET, HTMX).
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from datetime import timedelta
 from typing import Any
 
 from fastapi_csrf_protect import CsrfProtect
+from itsdangerous import BadData, URLSafeTimedSerializer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
@@ -143,6 +148,10 @@ class CsrfTokenMiddleware:
     генерировать токен вручную. POST/PUT/PATCH/DELETE по-прежнему verify'ятся
     через `csrf_protect.validate_csrf(request)` в handler'ах.
 
+    TASK-068: если валидная CSRF-кука уже есть — НЕ перезаписывает её, а
+    извлекает unsigned-токен из подписанной куки для формы. Это предотвращает
+    рассинхрон (форма-токен ↔ кука) при фоновых GET-запросах (favicon, второй GET).
+
     Порядок: `RequireAdminMiddleware` должен отработать ДО этого middleware,
     чтобы `scope["state"]["admin"]` был выставлен. В `app.add_middleware`
     добавляй CsrfTokenMiddleware ПЕРВЫМ (он inner), RequireAdminMiddleware
@@ -151,6 +160,21 @@ class CsrfTokenMiddleware:
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
+
+    def _get_token_from_cookie(self, signed_token: str, secret_key: str) -> str | None:
+        """Декодирует подписанную CSRF-куку и возвращает unsigned токен.
+
+        Если кука невалидна/истекла — возвращает None. Использует тот же
+        serializer, что и CsrfProtect (URLSafeTimedSerializer с salt="fastapi-csrf-token").
+        """
+        try:
+            serializer = URLSafeTimedSerializer(secret_key, salt="fastapi-csrf-token")
+            # max_age=None чтобы проверка срока была только при POST (validate_csrf)
+            token: str | None = serializer.loads(signed_token, max_age=None)
+            return token
+        except (BadData, Exception):
+            # Кука невалидна, истекла или повреждена — сгенерируем новую
+            return None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -168,12 +192,41 @@ class CsrfTokenMiddleware:
             await self.app(scope, receive, send)
             return
 
-        csrf_protect = CsrfProtect()
-        csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
-        state["csrf_token"] = csrf_token
-
         s = get_settings()
         csrf_name = CSRF_COOKIE_NAME_PROD if s.environment != "dev" else CSRF_COOKIE_NAME
+        existing_cookie = request.cookies.get(csrf_name)
+
+        csrf_token: str
+        signed_token: str
+        set_new_cookie = False
+
+        if existing_cookie:
+            # TASK-068: пробуем извлечь токен из существующей куки
+            secret_key = s.admin.csrf_secret.get_secret_value()
+            extracted = self._get_token_from_cookie(existing_cookie, secret_key)
+            if extracted:
+                # Кука валидна — используем её токен, НЕ перезаписываем
+                csrf_token = extracted
+                signed_token = existing_cookie
+                # set_new_cookie остаётся False
+            else:
+                # Кука невалидна/истекла — генерируем новую пару
+                csrf_protect = CsrfProtect()
+                csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
+                set_new_cookie = True
+        else:
+            # Куки нет — генерируем новую пару
+            csrf_protect = CsrfProtect()
+            csrf_token, signed_token = csrf_protect.generate_csrf_tokens()
+            set_new_cookie = True
+
+        state["csrf_token"] = csrf_token
+
+        if not set_new_cookie:
+            # Кука уже есть и валидна — не перезаписываем
+            await self.app(scope, receive, send)
+            return
+
         cookie_parts = [
             f"{csrf_name}={signed_token}",
             "HttpOnly",
