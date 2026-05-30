@@ -10,7 +10,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models import Event, Prediction
+from ..models import Event, Outcome, Prediction
 from ..time import utcnow
 
 __all__ = ["AdminEventPeriod", "AdminEventStatus", "EventRepository"]
@@ -41,16 +41,17 @@ class EventRepository:
         """Загружает событие со всеми relationships, нужными для страницы редактирования.
 
         Eager-loads:
-        - Event.outcomes (с Outcome.predictions для отображения числа прогнозов)
+        - Event.outcomes с Outcome.predictions (для отображения числа прогнозов)
         - Event.category (для отображения имени категории)
         - Event.created_by_admin (для карточки «Состояние»)
 
         TASK-074: исправляет MissingGreenlet на странице деталей.
+        TASK-076: исправляет строковый loader на class-bound (SA 2.0+).
         """
         stmt = (
             select(Event)
             .options(
-                selectinload(Event.outcomes).selectinload("predictions"),  # type: ignore[arg-type]
+                selectinload(Event.outcomes).selectinload(Outcome.predictions),
                 selectinload(Event.category),
                 selectinload(Event.created_by_admin),
             )
