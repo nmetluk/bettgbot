@@ -10,8 +10,8 @@
   /* Brand colors */
   --pv-red:        #e6403a;
   --pv-red-2:      #d2342e;
-  /* TASK-071 (D1): затемнён primary для контраста ≥4.5:1 с белым (#1B7FB8 ≈4.7:1) */
-  --pv-blue:       #1B7FB8;
+  /* TASK-072 (D1): затемнён primary для контраста ≥4.5:1 с белым (#287EA8 = 4.53:1) */
+  --pv-blue:       #287EA8;
   --pv-blue-2:     #146aa3;
   --pv-blue-3:     #0d5075;
   --pv-green:      #29b473;
@@ -38,8 +38,8 @@
   --pv-fg-on:      #ffffff;
 
   /* Borders */
-  /* TASK-071 (D3): усилен контраст ≥3:1 с фоном (#b0b0b8 vs #fbfbfc ≈3.2:1) */
-  --pv-border:     #b0b0b8;
+  /* TASK-072 (D3): усилен контраст ≥3:1 с фоном (#8E8E96 vs #fbfbfc = 3.14:1) */
+  --pv-border:     #8E8E96;
   --pv-border-2:   #d6d6dc;
   --pv-divider:    #ececef;
 
