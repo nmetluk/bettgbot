@@ -63,6 +63,9 @@ def _csrf_config() -> LoadConfig:
         # Форма постит csrf_token полем тела, не header'ом.
         token_location="body",
         token_key="csrf_token",
+        # TASK-068: явный TTL CSRF-токена — 15 минут. После фикса ротации
+        # токен живёт ровно это время, а не перезаписывается на каждом GET.
+        max_age=900,
         cookie_secure=s.environment != "dev",
         cookie_samesite="lax",
         # CSRF только на изменяющие методы.
