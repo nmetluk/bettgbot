@@ -230,7 +230,8 @@ async def edit_form(
     admin: AdminUser = Depends(current_admin),
     session: AsyncSession = Depends(_session_dep),
 ) -> HTMLResponse:
-    event = await EventService(session).get_event(event_id, with_outcomes=True)
+    # TASK-074: eager-load все relationships для формы редактирования
+    event = await EventService(session).get_event(event_id, for_admin_detail=True)
     if event is None:
         raise HTTPException(status_code=404)
     cat_rows = await CategoryService(session).list_all_with_counts(include_inactive=True)

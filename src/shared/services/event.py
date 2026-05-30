@@ -247,7 +247,10 @@ class EventService:
         *,
         with_outcomes: bool = False,
         with_result: bool = False,
+        for_admin_detail: bool = False,
     ) -> Event | None:
+        if for_admin_detail:
+            return await self._events.get_for_admin_detail(event_id)
         if with_outcomes:
             return await self._events.get_with_outcomes(event_id)
         if with_result:

@@ -37,6 +37,28 @@ class EventRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_for_admin_detail(self, event_id: int) -> Event | None:
+        """Загружает событие со всеми relationships, нужными для страницы редактирования.
+
+        Eager-loads:
+        - Event.outcomes (с Outcome.predictions для отображения числа прогнозов)
+        - Event.category (для отображения имени категории)
+        - Event.created_by_admin (для карточки «Состояние»)
+
+        TASK-074: исправляет MissingGreenlet на странице деталей.
+        """
+        stmt = (
+            select(Event)
+            .options(
+                selectinload(Event.outcomes).selectinload("predictions"),  # type: ignore[arg-type]
+                selectinload(Event.category),
+                selectinload(Event.created_by_admin),
+            )
+            .where(Event.id == event_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     def _active_filters(self, category_id: int | None) -> list:  # type: ignore[type-arg]
         clauses: list = [  # type: ignore[type-arg]
             Event.is_published.is_(True),
