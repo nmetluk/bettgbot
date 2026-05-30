@@ -35,6 +35,7 @@ jobs:
           images: ghcr.io/nmetluk/bettgbot-bot
           tags: |
             type=sha,prefix=
+            type=sha,prefix=,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Prepare build args (for build-info in GHCR images)
@@ -89,6 +90,7 @@ jobs:
           images: ghcr.io/nmetluk/bettgbot-web
           tags: |
             type=sha,prefix=
+            type=sha,prefix=,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Prepare build args (for build-info in GHCR images)
