@@ -10,7 +10,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models import Event, Prediction
+from ..models import Event, Outcome, Prediction
 from ..time import utcnow
 
 __all__ = ["AdminEventPeriod", "AdminEventStatus", "EventRepository"]
@@ -50,7 +50,7 @@ class EventRepository:
         stmt = (
             select(Event)
             .options(
-                selectinload(Event.outcomes).selectinload("predictions"),  # type: ignore[arg-type]
+                selectinload(Event.outcomes).selectinload(Outcome.predictions),
                 selectinload(Event.category),
                 selectinload(Event.created_by_admin),
             )
