@@ -73,7 +73,7 @@
                             <span class="pv-badge neutral">архив</span>
                         {% elif not event.is_published %}
                             <span class="pv-badge draft">черновик</span>
-                        {% elif event.predictions_close_at.replace(tzinfo=None) > now() %}
+                        {% elif event.predictions_close_at > now() %}
                             <span class="pv-badge success dot">открыт</span>
                         {% else %}
                             <span class="pv-badge danger dot">закрыт</span>

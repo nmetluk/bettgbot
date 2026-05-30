@@ -40,7 +40,7 @@ logger = get_logger(__name__)
 _BASE_DIR = Path(__file__).parent
 templates = Jinja2Templates(directory=str(_BASE_DIR / "templates"))
 # `now()` доступен в шаблонах для расчёта статус-бэйджей событий.
-templates.env.globals["now"] = lambda: datetime.now(tz=UTC)
+templates.env.globals["now"] = datetime.utcnow
 
 
 # Кастомный фильтр для форматирования даты
