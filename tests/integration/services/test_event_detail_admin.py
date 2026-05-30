@@ -23,10 +23,10 @@ pytestmark = pytest.mark.integration
 async def _create_authenticated_session(session: AsyncSession) -> str:
     """Создаёт админа и возвращает валидный session token."""
     admin = await make_admin(session, login="test_admin", password_hash="hash")
-    return create_session_token(admin_id=admin.id, secret="test-secret")
+    return create_session_token(admin_id=admin.id)
 
 
-@pytest.mark.asyncio(loop_scope="module")
+@pytest.mark.asyncio()
 async def test_event_detail_returns_200_for_draft_without_outcomes(
     nested_session: AsyncSession,
 ) -> None:
@@ -60,7 +60,7 @@ async def test_event_detail_returns_200_for_draft_without_outcomes(
     assert admin.login in response.text
 
 
-@pytest.mark.asyncio(loop_scope="module")
+@pytest.mark.asyncio()
 async def test_event_detail_returns_200_for_published_with_outcomes(
     nested_session: AsyncSession,
 ) -> None:
@@ -96,7 +96,7 @@ async def test_event_detail_returns_200_for_published_with_outcomes(
     assert "Outcome 2" in response.text
 
 
-@pytest.mark.asyncio(loop_scope="module")
+@pytest.mark.asyncio()
 async def test_event_detail_returns_404_for_nonexistent(nested_session: AsyncSession) -> None:
     """GET /events/{nonexistent_id} → 404."""
     token = await _create_authenticated_session(nested_session)
@@ -106,7 +106,7 @@ async def test_event_detail_returns_404_for_nonexistent(nested_session: AsyncSes
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio(loop_scope="module")
+@pytest.mark.asyncio()
 async def test_event_detail_result_tab_loads_without_error(nested_session: AsyncSession) -> None:
     """TASK-074: вкладка «Результат» тоже не должна стрелять MissingGreenlet.
 
