@@ -154,7 +154,7 @@
                     <label class="result-opt">
                         <input type="radio" name="outcome_id" value="{{ outcome.id }}" required>
                         <span style="font-weight: 700; color: var(--pv-fg); flex: 1;">{{ outcome.label }}</span>
-                        <span class="pv-muted pv-mono">{{ outcome.predictions|default(0) }} прогн.</span>
+                        <span class="pv-muted pv-mono">{{ outcome.predictions|length }} прогн.</span>
                     </label>
                     {% endfor %}
                     <div class="pv-divider"></div>
