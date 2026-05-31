@@ -27,7 +27,7 @@
 
     <div class="pv-card">
         <form method="POST" action="/broadcasts" hx-post="/broadcasts" hx-target="#pv-main" hx-swap="innerHTML">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
 
             <div class="pv-form-group">
                 <label class="pv-form-label">Сегмент получателей</label>

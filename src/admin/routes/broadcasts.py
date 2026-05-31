@@ -74,7 +74,6 @@ async def new_broadcast_form(
             "admin": admin,
             "segments": segments,
             "categories": categories,
-            "csrf_token": request.state.csrf_token,
         },
     )
 
@@ -120,7 +119,6 @@ async def create_broadcast(
                 "admin": admin,
                 "segments": segments,
                 "categories": categories,
-                "csrf_token": request.state.csrf_token,
                 "error": str(exc),
                 "form_data": {
                     "segment": segment,
