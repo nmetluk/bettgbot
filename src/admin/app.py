@@ -120,11 +120,11 @@ def create_app() -> FastAPI:
         name="static",
     )
 
-    # Порядок: add_middleware добавляет в обратном порядке выполнения.
-    # ProxyHeadersMiddleware ПЕРВЫЙ → outermost, применяет X-Forwarded-*/Proto.
-    # CsrfTokenMiddleware ВТОРОЙ → он inner (после Require).
-    # RequireAdminMiddleware ТРЕТИЙ → он outer, обрабатывает запрос первым.
-    # SecurityHeadersMiddleware ЧЕТВЁРТЫМ → добавляет headers ко всем response.
+    # Порядок middleware (Starlette/FastAPI правило):
+    # Последний вызов add_middleware становится outermost (выполняется первым на входящем запросе).
+    # Здесь outermost = SecurityHeadersMiddleware (добавлен последним).
+    # Далее (в порядке выполнения на request): RequireAdmin → CsrfToken → ProxyHeaders (innermost).
+    # ProxyHeaders применяет X-Forwarded-* (полезно, если за nginx/uvicorn с --proxy-headers).
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
     app.add_middleware(CsrfTokenMiddleware)
     app.add_middleware(RequireAdminMiddleware)
