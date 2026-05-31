@@ -125,8 +125,16 @@ document.addEventListener('alpine:init', () => {
     accentTitle(acc) { return 'Акцент ' + acc; },
 
     toggleDark() { Alpine.store('ui').toggleDark(); },
-    setDensity(val) { Alpine.store('ui').setDensity(val); },
-    setAccent(val) { Alpine.store('ui').setAccent(val); },
+    setDensity() {
+      // CSP-safe: called as @click="setDensity" (no args/()). Read intent from data-* on the element.
+      // this.$el is provided by Alpine in directive handler context (TASK-093).
+      const val = this.$el && this.$el.dataset ? this.$el.dataset.density : null;
+      if (val) Alpine.store('ui').setDensity(val);
+    },
+    setAccent() {
+      const val = this.$el && this.$el.dataset ? this.$el.dataset.accent : null;
+      if (val) Alpine.store('ui').setAccent(val);
+    },
     toggleRail() { Alpine.store('ui').toggleRail(); }
   }));
 });
