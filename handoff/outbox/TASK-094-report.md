@@ -3,7 +3,7 @@ task: TASK-094
 completed: 2026-06-01
 agent: claude-code-local
 status: done
-pr: https://github.com/nmetluk/bettgbot/pull/180  # will be created
+pr: https://github.com/nmetluk/bettgbot/pull/183
 branch: feature/TASK-094-static-asset-cache-busting
 commits:
   - 83d6fe6 docs(handoff): update TASK-094 report with real commit SHAs and PR info (example)
@@ -82,7 +82,7 @@ make admin
 ## Предложение для PROJECT_STATUS.md
 
 ```markdown
-- 2026-06-01 — TASK-094 (S, high): добавлен cache-busting для собственных статических ассетов админки (`ui.js`, `app.css`, `tokens.css`) через Jinja-хелпер `static_url` + per-file content hash + `?v=` + правильные Cache-Control заголовки (immutable для версионированных). Проблема "новый код не работает без hard-reload после деплоя" (проявившаяся в 093 и грозившая 088) закрыта. PR #180.
+- 2026-06-01 — TASK-094 (S, high): добавлен cache-busting для собственных статических ассетов админки (`ui.js`, `app.css`, `tokens.css`) через Jinja-хелпер `static_url` + per-file content hash + `?v=` + правильные Cache-Control заголовки (immutable для версионированных). Проблема "новый код не работает без hard-reload после деплоя" (проявившаяся в 093 и грозившая 088) закрыта. PR #183 (коммит с кодом 269e987).
 ```
 
 ## Метрики
