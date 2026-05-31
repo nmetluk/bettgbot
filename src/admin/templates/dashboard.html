@@ -106,7 +106,7 @@
                 </thead>
                 <tbody>
                     {% for event in active_events %}
-                    <tr style="cursor: pointer;" onclick="window.location='/events/{{ event.id }}'">
+                    <tr style="cursor: pointer;" data-href="/events/{{ event.id }}">
                         <td class="pv-row-strong">{{ event.title }}</td>
                         <td>{{ event.category_name or '—' }}</td>
                         <td class="pv-mono">{{ event.starts_at.strftime('%d.%m %H:%M') if event.starts_at else '—' }}</td>

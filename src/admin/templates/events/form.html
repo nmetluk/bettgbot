@@ -22,7 +22,9 @@
         font: inherit; font-size: var(--pv-fs-14); font-weight: 500;
         cursor: pointer; position: relative;
         transition: 0.12s;
+        text-decoration: none;
     }
+    a.pv-tab { display: inline-block; }
     .pv-tab:hover { color: var(--pv-fg); }
     .pv-tab.active {
         color: var(--pv-accent); font-weight: 700;
@@ -31,8 +33,10 @@
         content: ""; position: absolute; bottom: -1px; left: 0; right: 0;
         height: 2px; background: var(--pv-accent);
     }
-    .pv-tab:disabled {
+    .pv-tab:disabled,
+    .pv-tab.disabled {
         color: var(--pv-fg-subtle); cursor: not-allowed;
+        pointer-events: none;
     }
     .pv-tab span.pv-muted { color: inherit; opacity: 0.7; }
 
@@ -85,20 +89,18 @@
     </div>
 
     <div class="pv-tabs">
-        <button class="pv-tab{% if active_tab == 'data' %} active{% endif %}"
-                onclick="{% if isNew %}return false;{% else %}window.location='/events/{{ event.id }}?tab=data'{% endif %}">
-            Данные
-        </button>
-        {% if not isNew %}
-        <button class="pv-tab{% if active_tab == 'outcomes' %} active{% endif %}"
-                onclick="window.location='/events/{{ event.id }}?tab=outcomes'">
+        {% if isNew %}
+        <span class="pv-tab active">Данные</span>
+        {% else %}
+        <a class="pv-tab{% if active_tab == 'data' %} active{% endif %}" href="/events/{{ event.id }}?tab=data">Данные</a>
+        <a class="pv-tab{% if active_tab == 'outcomes' %} active{% endif %}" href="/events/{{ event.id }}?tab=outcomes">
             Исходы <span class="pv-muted">· {{ event.outcomes|length }}</span>
-        </button>
-        <button class="pv-tab{% if active_tab == 'result' %} active{% endif %}"
-                {% if not _result_enabled %}disabled{% endif %}
-                onclick="{% if _result_enabled %}window.location='/events/{{ event.id }}?tab=result'{% else %}return false;{% endif %}">
-            Результат
-        </button>
+        </a>
+        {% if _result_enabled %}
+        <a class="pv-tab{% if active_tab == 'result' %} active{% endif %}" href="/events/{{ event.id }}?tab=result">Результат</a>
+        {% else %}
+        <span class="pv-tab disabled">Результат</span>
+        {% endif %}
         {% endif %}
     </div>
     {% endif %}
@@ -164,7 +166,7 @@
                             <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: -2px; color: var(--pv-gold);" aria-hidden="true">warning</span>
                             Действие необратимо: все прогнозы получат отметку «сбылся / нет».
                         </span>
-                        <button type="submit" class="pv-btn pv-btn-accent" onclick="return confirm('Зафиксировать итог? Это действие необратимо.');">
+                        <button type="submit" class="pv-btn pv-btn-accent" data-confirm="Зафиксировать итог? Это действие необратимо.">
                             <span class="material-symbols-rounded" aria-hidden="true">task_alt</span>
                             Зафиксировать
                         </button>

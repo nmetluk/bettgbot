@@ -113,7 +113,7 @@
             </thead>
             <tbody>
                 {% for event in top_events %}
-                <tr style="cursor: pointer;" onclick="window.location='/events/{{ event.event_id }}'">
+                <tr style="cursor: pointer;" data-href="/events/{{ event.event_id }}">
                     <td><span class="pv-mono pv-muted">{{ loop.index }}</span></td>
                     <td class="pv-row-strong">{{ event.event_title }}</td>
                     <td>

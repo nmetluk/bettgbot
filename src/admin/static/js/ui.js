@@ -130,3 +130,75 @@ document.addEventListener('alpine:init', () => {
     toggleRail() { Alpine.store('ui').toggleRail(); }
   }));
 });
+
+// ============================================================
+// CSP-safe delegated UI handlers (TASK-084)
+// Replaces ALL inline on*= handlers in admin templates.
+// - data-href on <tr> (or other) → window.location (skips clicks on interactive children)
+// - data-confirm on <button>/<form> → window.confirm before submit/click
+// Coexists with confirm.js (which handles .js-confirm-delete + data-name for rich messages)
+// ============================================================
+(function () {
+  "use strict";
+
+  // Row / element navigation via data-href (clickable rows in lists)
+  document.addEventListener("click", function (e) {
+    const target = e.target;
+    const navEl = target.closest("[data-href]");
+    if (!navEl) return;
+
+    // Ignore clicks inside links, buttons, form controls, or explicit action elements
+    if (target.closest("a, button, input, select, textarea, label, .pv-btn, .js-confirm-delete, [data-no-nav]")) {
+      return;
+    }
+
+    const href = navEl.getAttribute("data-href");
+    if (href) {
+      window.location.assign(href);
+    }
+  });
+
+  // Confirm-before-action via data-confirm (general case for buttons and forms)
+  function confirmBeforeAction(ev, el) {
+    const msg = el.getAttribute("data-confirm");
+    if (!msg) return true;
+
+    if (el.hasAttribute("data-confirmed")) {
+      el.removeAttribute("data-confirmed");
+      return true;
+    }
+
+    if (!window.confirm(msg)) {
+      ev.preventDefault();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      return false;
+    }
+
+    el.setAttribute("data-confirmed", "true");
+    return true;
+  }
+
+  // Capture-phase click for buttons with data-confirm (before any other handlers)
+  document.addEventListener(
+    "click",
+    function (e) {
+      const trigger = e.target.closest("button[data-confirm], input[data-confirm][type='submit']");
+      if (trigger) {
+        confirmBeforeAction(e, trigger);
+      }
+    },
+    true
+  );
+
+  // Submit handler for forms carrying data-confirm
+  document.addEventListener(
+    "submit",
+    function (e) {
+      const form = e.target.closest("form[data-confirm]");
+      if (form) {
+        confirmBeforeAction(e, form);
+      }
+    },
+    true
+  );
+})();

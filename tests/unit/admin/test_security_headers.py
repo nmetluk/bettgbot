@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from fastapi import FastAPI
@@ -181,3 +183,33 @@ class TestSecurityHeaders:
             value = response.headers.get(header)
             assert value is not None, f"Header {header} is missing"
             assert validator(value), f"Header {header} has unexpected value: {value}"
+
+    def test_no_inline_event_handlers_in_templates(self):
+        """CSP guard: no inline on*= handlers allowed in admin templates (TASK-084).
+
+        Prevents regression of script-src 'self' violations (blocks navigation, confirms etc).
+        Uses static scan so it catches even unrendered templates.
+        """
+        templates_dir = Path(__file__).resolve().parents[3] / "src" / "admin" / "templates"
+        assert templates_dir.exists(), f"Templates dir not found at {templates_dir}"
+
+        pattern = re.compile(r"on(?:click|change|submit|input|load)\s*=", re.IGNORECASE)
+        offenders: list[str] = []
+
+        for html_file in sorted(templates_dir.rglob("*.html")):
+            try:
+                content = html_file.read_text(encoding="utf-8")
+            except Exception as exc:
+                offenders.append(f"{html_file.name}: read error: {exc}")
+                continue
+            for lineno, line in enumerate(content.splitlines(), 1):
+                if pattern.search(line):
+                    offenders.append(
+                        f"{html_file.relative_to(templates_dir)}:{lineno}: {line.strip()[:100]}"
+                    )
+
+        assert not offenders, (
+            "Inline event handlers (onclick= etc) found in admin templates — this violates strict CSP "
+            "`script-src 'self'` (no 'unsafe-inline'). Use data-href / data-confirm + delegation in "
+            "ui.js (or plain <a href> for tabs). Offenders:\n" + "\n".join(offenders)
+        )

@@ -59,7 +59,7 @@
             </thead>
             <tbody>
                 {% for event, pred_count in rows %}
-                <tr style="cursor: pointer;" onclick="window.location='/events/{{ event.id }}'">
+                <tr style="cursor: pointer;" data-href="/events/{{ event.id }}">
                     <td class="pv-mono pv-muted">{{ event.id }}</td>
                     <td class="pv-row-strong">{{ event.title }}</td>
                     <td>{{ event.category.name if event.category else '—' }}</td>
