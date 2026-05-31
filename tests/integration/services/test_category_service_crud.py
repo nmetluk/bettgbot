@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.exceptions import (
+    CategoryHasBroadcastsError,
     CategoryHasEventsError,
     CategoryNotFoundError,
     CategorySlugConflictError,
@@ -113,3 +114,30 @@ async def test_list_all_with_counts_returns_zero_for_empty_category(
     found = [(c, n) for (c, n) in rows if c.id == category.id]
     assert len(found) == 1
     assert found[0][1] == 0
+
+
+async def test_delete_category_with_broadcasts_raises_has_broadcasts(
+    nested_session: AsyncSession,
+) -> None:
+    """Регресс-тест TASK-085: RESTRICT FK + pre-check в сервисе."""
+    from src.shared.models import Broadcast
+
+    admin = await make_admin(nested_session)
+    category = await make_category(nested_session)
+    # Историческая рассылка по сегменту категории — должна блокировать удаление.
+    b = Broadcast(
+        segment="category",
+        category_id=category.id,
+        message_text="Тестовая рассылка по категории (TASK-085)",
+        status="done",
+        created_by_admin_id=admin.id,
+        total_recipients=5,
+        sent_count=5,
+        failed_count=0,
+    )
+    nested_session.add(b)
+    await nested_session.flush()
+
+    with pytest.raises(CategoryHasBroadcastsError) as exc_info:
+        await CategoryService(nested_session).delete_category(category.id, by_admin_id=admin.id)
+    assert exc_info.value.category_id == category.id

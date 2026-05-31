@@ -12,6 +12,7 @@ from typing import Literal
 __all__ = [
     "AdminInactiveError",
     "AdminInvalidCredentialsError",
+    "CategoryHasBroadcastsError",
     "CategoryHasEventsError",
     "CategoryInvalidContentError",
     "CategoryNotFoundError",
@@ -137,6 +138,14 @@ class CategoryHasEventsError(DomainError):
 
     def __init__(self, category_id: int) -> None:
         super().__init__(f"category {category_id} has events; cannot delete")
+        self.category_id = category_id
+
+
+class CategoryHasBroadcastsError(DomainError):
+    """Удаление категории невозможно — есть связанные рассылки (segment=category, FK RESTRICT)."""
+
+    def __init__(self, category_id: int) -> None:
+        super().__init__(f"category {category_id} has broadcasts; cannot delete")
         self.category_id = category_id
 
 
