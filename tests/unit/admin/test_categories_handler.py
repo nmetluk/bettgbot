@@ -20,6 +20,7 @@ from src.admin.auth.security import SESSION_COOKIE_NAME, create_session_token
 from src.admin.deps import current_admin
 from src.admin.routes.categories import _session_dep
 from src.shared.exceptions import (
+    CategoryHasBroadcastsError,
     CategoryHasEventsError,
     CategorySlugConflictError,
 )
@@ -189,6 +190,24 @@ def test_delete_category_with_events_redirects_with_error_param(
     )
     assert response.status_code == 302
     assert "error=has_events" in response.headers["location"]
+    assert "category_id=7" in response.headers["location"]
+
+
+def test_delete_category_with_broadcasts_redirects_with_error_param(
+    fake_admin_middleware_session,
+) -> None:
+    """TASK-085: новый доменный error для RESTRICT FK broadcast→category."""
+    service = MagicMock()
+    service.delete_category = AsyncMock(side_effect=CategoryHasBroadcastsError(7))
+
+    client = _client(service)
+    csrf_token, _ = _get_csrf(client, "/categories/new")
+    response = client.post(
+        "/categories/7/delete",
+        data={"csrf_token": csrf_token},
+    )
+    assert response.status_code == 302
+    assert "error=has_broadcasts" in response.headers["location"]
     assert "category_id=7" in response.headers["location"]
 
 

@@ -41,7 +41,7 @@ class Broadcast(Base):
     )
     category_id: Mapped[int | None] = mapped_column(
         BigInteger,
-        ForeignKey("category.id", ondelete="SET NULL", name="fk_broadcast_category_id"),
+        ForeignKey("category.id", ondelete="RESTRICT", name="fk_broadcast_category_id"),
         nullable=True,
     )
 

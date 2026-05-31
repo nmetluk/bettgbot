@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Category, Event
+from ..models import Broadcast, Category, Event
 
 __all__ = ["CategoryRepository"]
 
@@ -83,3 +83,15 @@ class CategoryRepository:
             stmt = stmt.where(Category.is_active.is_(True))
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
+
+    async def has_events(self, category_id: int) -> bool:
+        """Есть ли события, ссылающиеся на категорию (для guard delete)."""
+        stmt = select(func.count(Event.id)).where(Event.category_id == category_id)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one() or 0) > 0
+
+    async def has_broadcasts(self, category_id: int) -> bool:
+        """Есть ли рассылки (segment=category), ссылающиеся на категорию (для guard delete)."""
+        stmt = select(func.count(Broadcast.id)).where(Broadcast.category_id == category_id)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one() or 0) > 0

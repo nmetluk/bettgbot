@@ -24,6 +24,14 @@
         </div>
     </div>
     {% endif %}
+    {% if request.query_params.get("error") == "has_broadcasts" %}
+    <div class="pv-card" style="margin-bottom: var(--pv-s-20); border-color: var(--pv-gold); background: rgba(230,155,58,0.06);">
+        <div class="pv-card-body" style="padding: 12px 20px;">
+            <span class="material-symbols-rounded" style="font-size: 18px; vertical-align: -4px; color: var(--pv-gold);" aria-hidden="true">warning</span>
+            Нельзя удалить категорию #{{ request.query_params.get("category_id") }}: на неё есть рассылки (исторические анонсы по сегменту).
+        </div>
+    </div>
+    {% endif %}
 
     {% if rows %}
     <div class="pv-card pv-card-flush">
