@@ -26,76 +26,77 @@
     {% endif %}
 
     <div class="pv-card">
-        <form method="POST" action="/broadcasts" hx-post="/broadcasts" hx-target="#pv-main" hx-swap="innerHTML">
-            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
+        <div class="pv-card-body">
+            <form method="POST" action="/broadcasts" hx-post="/broadcasts" hx-target="#pv-main" hx-swap="innerHTML" class="pv-stack">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state and request.state.csrf_token is defined else '' }}">
 
-            <div class="pv-form-group">
-                <label class="pv-form-label">Сегмент получателей</label>
-
-                <div class="pv-segment-choices">
-                    {% for seg in segments %}
-                    <label class="pv-segment-choice">
-                        <input type="radio" name="segment" value="{{ seg.value }}"
-                               {% if (not form_data and loop.first) or (form_data and form_data.segment == seg.value) %}checked{% endif %}
-                               hx-get="/broadcasts/preview-count?segment={{ seg.value }}"
-                               hx-target="#preview-count"
-                               hx-swap="innerHTML">
-                        <div class="pv-segment-label">
-                            <div class="pv-segment-title">{{ seg.label }}</div>
-                            <div class="pv-segment-desc">{{ seg.description }}</div>
-                        </div>
-                    </label>
-                    {% endfor %}
+                <div>
+                    <label class="pv-field-label">Сегмент получателей</label>
+                    <div class="pv-segment-choices">
+                        {% for seg in segments %}
+                        <label class="pv-segment-choice">
+                            <input type="radio" name="segment" value="{{ seg.value }}"
+                                   {% if (not form_data and loop.first) or (form_data and form_data.segment == seg.value) %}checked{% endif %}
+                                   hx-get="/broadcasts/preview-count?segment={{ seg.value }}"
+                                   hx-target="#preview-count"
+                                   hx-swap="innerHTML">
+                            <div class="pv-segment-label">
+                                <div class="pv-segment-title">{{ seg.label }}</div>
+                                <div class="pv-segment-desc">{{ seg.description }}</div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
 
-            {% if categories %}
-            <div class="pv-form-group {% if not form_data or (form_data and form_data.segment != 'category') %}pv-hidden{% endif %}" id="category-group">
-                <label class="pv-form-label">Категория</label>
-                <select name="category_id" class="pv-form-control">
-                    <option value="">— выберите категорию —</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}" {% if form_data and form_data.category_id == cat.id %}selected{% endif %}>
-                        {{ cat.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-
-            <div class="pv-form-group">
-                <label class="pv-form-label">Текст сообщения</label>
-                <textarea name="message_text" class="pv-form-control" rows="6"
-                          placeholder="Введите текст сообщения..."
-                          maxlength="4096"
-                          hx-trigger="keyup changed delay:300ms"
-                          hx-get="/broadcasts/preview-char-count?message={this.value}"
-                          hx-target="#char-counter"
-                          hx-swap="innerHTML">{{ form_data.message_text or '' if form_data else '' }}</textarea>
-                <div class="pv-form-help">
-                    <span id="char-counter">{{ (form_data.message_text|length if form_data and form_data.message_text else 0) }}</span> / 4096 байт
+                {% if categories %}
+                <div id="category-group" class="{% if not form_data or (form_data and form_data.segment != 'category') %}pv-hidden{% endif %}">
+                    <label class="pv-field-label">Категория</label>
+                    <select name="category_id" class="pv-select">
+                        <option value="">— выберите категорию —</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if form_data and form_data.category_id == cat.id %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
+                {% endif %}
 
-            <div class="pv-form-group">
-                <label class="pv-form-label">Предпросмотр</label>
-                <div class="pv-broadcast-preview">
-                    <div class="pv-bubble">{{ form_data.message_text or 'Текст сообщения...' if form_data else 'Текст сообщения...' }}</div>
+                <div>
+                    <label class="pv-field-label">Текст сообщения</label>
+                    <textarea name="message_text" class="pv-textarea" rows="6"
+                              placeholder="Введите текст сообщения..."
+                              maxlength="4096"
+                              hx-trigger="keyup changed delay:300ms"
+                              hx-get="/broadcasts/preview-char-count?message={this.value}"
+                              hx-target="#char-counter"
+                              hx-swap="innerHTML">{{ form_data.message_text or '' if form_data else '' }}</textarea>
+                    <div class="pv-field-help">
+                        <span id="char-counter">{{ (form_data.message_text|length if form_data and form_data.message_text else 0) }}</span> / 4096 байт
+                    </div>
                 </div>
-            </div>
 
-            <div class="pv-form-group">
-                <label class="pv-form-label">Получателей</label>
-                <div id="preview-count">
-                    <span class="pv-muted">Выберите сегмент</span>
+                <div>
+                    <label class="pv-field-label">Предпросмотр</label>
+                    <div class="pv-broadcast-preview">
+                        <div class="pv-bubble">{{ form_data.message_text or 'Текст сообщения...' if form_data else 'Текст сообщения...' }}</div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="pv-form-actions">
-                <button type="submit" class="pv-btn pv-btn-primary">Отправить рассылку</button>
-                <a href="/broadcasts" class="pv-btn pv-btn-ghost">Отмена</a>
-            </div>
-        </form>
+                <div>
+                    <label class="pv-field-label">Получателей</label>
+                    <div id="preview-count">
+                        <span class="pv-muted">Выберите сегмент</span>
+                    </div>
+                </div>
+
+                <div class="pv-row" style="justify-content: flex-end; gap: var(--pv-s-8);">
+                    <button type="submit" class="pv-btn pv-btn-primary">Отправить рассылку</button>
+                    <a href="/broadcasts" class="pv-btn pv-btn-ghost">Отмена</a>
+                </div>
+            </form>
+        </div>
     </div>
 
 </div>
