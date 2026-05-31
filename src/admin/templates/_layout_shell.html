@@ -26,14 +26,17 @@
             <a href="/categories" class="pv-sb-item {{ 'active' if '/categories' in request.path else '' }}">
                 <span class="material-symbols-rounded" aria-hidden="true">folder</span>
                 <span class="pv-sb-label">Категории</span>
+                {% if cat_count is defined %}<span class="pv-sb-badge">{{ cat_count }}</span>{% endif %}
             </a>
             <a href="/events" class="pv-sb-item {{ 'active' if '/events' in request.path else '' }}">
                 <span class="material-symbols-rounded" aria-hidden="true">event</span>
                 <span class="pv-sb-label">События</span>
+                {% if event_count is defined %}<span class="pv-sb-badge">{{ event_count }}</span>{% endif %}
             </a>
             <a href="/users" class="pv-sb-item {{ 'active' if '/users' in request.path else '' }}">
                 <span class="material-symbols-rounded" aria-hidden="true">groups</span>
                 <span class="pv-sb-label">Пользователи</span>
+                {% if user_count is defined %}<span class="pv-sb-badge">{{ user_count }}</span>{% endif %}
             </a>
             <a href="/leaderboard" class="pv-sb-item {{ 'active' if '/leaderboard' in request.path else '' }}">
                 <span class="material-symbols-rounded" aria-hidden="true">leaderboard</span>
@@ -55,7 +58,7 @@
             <div class="pv-sb-foot">
                 <div class="pv-sb-foot-card">
                     <div class="pv-sb-foot-text">
-                        <span class="pv-status-dot"></span>
+                        <span class="pv-status online"></span>
                         <b>Бот подключён</b>
                     </div>
                     <div class="pv-sb-foot-bar"><i style="width: 100%"></i></div>

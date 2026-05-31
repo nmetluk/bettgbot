@@ -6,10 +6,10 @@
 {% block pv_content %}
 <div class="pv-page">
     <div class="pv-page-header">
-        <div class="pv-crumbs">
+        <div class="pv-breadcrumb">
             <a href="/users">Пользователи</a>
-            <span class="pv-crumbs-sep">/</span>
-            <span class="pv-crumbs-current">#{{ user.id }}</span>
+            <span class="pv-breadcrumb-sep">/</span>
+            <span class="pv-breadcrumb-current">#{{ user.id }}</span>
         </div>
         <div style="display: flex; gap: var(--pv-s-8); align-items: center; width: 100%;">
             <div>
@@ -46,13 +46,13 @@
         <!-- Профиль -->
         <div class="pv-card">
             <div class="pv-row" style="gap: 14px; margin-bottom: 16px;">
-                <div class="pv-avatar" style="width: 48px; height: 48px; font-size: 18px;">{{ user.first_name[0]|upper }}</div>
+                <div class="pv-avatar lg a{{ user.id % 8 }}{% if user.is_blocked %} offline{% endif %}">{{ user.first_name[0]|upper }}</div>
                 <div>
                     <div style="font-weight: 700; color: var(--pv-fg); font-size: 16px;">{{ user.first_name }} {{ user.last_name or "" }}</div>
                     {% if user.is_blocked %}
-                    <span class="pv-badge danger" data-dot>доступ ограничен</span>
+                    <span class="pv-badge danger dot">доступ ограничен</span>
                     {% else %}
-                    <span class="pv-badge success" data-dot>активен</span>
+                    <span class="pv-badge success dot">активен</span>
                     {% endif %}
                 </div>
             </div>
@@ -116,9 +116,9 @@
                                 <span class="pv-muted">—</span>
                                 {% endif %}
                             {% elif p.is_correct %}
-                            <span class="pv-badge success" data-icon="check">сбылся</span>
+                            <span class="pv-badge success">сбылся <span class="material-symbols-rounded" aria-hidden="true">check</span></span>
                             {% else %}
-                            <span class="pv-badge danger" data-icon="close">не сбылся</span>
+                            <span class="pv-badge danger">не сбылся <span class="material-symbols-rounded" aria-hidden="true">close</span></span>
                             {% endif %}
                         </td>
                     </tr>
@@ -126,7 +126,7 @@
                 </tbody>
             </table>
             {% else %}
-            <div class="pv-empty" data-icon="checklist">Пока нет прогнозов</div>
+            <div class="pv-empty-state" data-icon="checklist">Пока нет прогнозов</div>
             {% endif %}
         </div>
     </div>

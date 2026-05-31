@@ -41,7 +41,7 @@
                     <td class="pv-mono pv-muted">{{ user.id }}</td>
                     <td>
                         <div class="pv-row" style="gap: 10px;">
-                            <div class="pv-avatar">{{ user.first_name[0]|upper }}</div>
+                            <div class="pv-avatar a{{ user.id % 8 }}{% if user.is_blocked %} offline{% endif %}">{{ user.first_name[0]|upper }}</div>
                             <span class="pv-row-strong">{{ user.first_name }} {{ user.last_name or "" }}</span>
                         </div>
                     </td>
@@ -57,9 +57,9 @@
                     <td class="pv-mono pv-muted">{{ user.created_at.strftime('%d.%m.%Y') }}</td>
                     <td>
                         {% if user.is_blocked %}
-                        <span class="pv-badge danger" data-dot>заблокирован</span>
+                        <span class="pv-badge danger dot">заблокирован</span>
                         {% else %}
-                        <span class="pv-badge success" data-dot>активен</span>
+                        <span class="pv-badge success dot">активен</span>
                         {% endif %}
                     </td>
                     <td class="pv-c-actions">
@@ -73,11 +73,11 @@
         <div class="pv-pagination">
             {% set qs_query = "&query=" ~ query if query else "" %}
             {% if page > 0 %}
-            <a href="?page={{ page - 1 }}{{ qs_query }}" class="pv-btn pv-btn-ghost pv-btn-sm">‹</a>
+            <a href="?page={{ page - 1 }}{{ qs_query }}" class="pv-pagination-item">‹</a>
             {% endif %}
             <span class="pv-pagination-current">{{ page + 1 }}</span>
             {% if (page + 1) * page_size < total %}
-            <a href="?page={{ page + 1 }}{{ qs_query }}" class="pv-btn pv-btn-ghost pv-btn-sm">›</a>
+            <a href="?page={{ page + 1 }}{{ qs_query }}" class="pv-pagination-item">›</a>
             {% endif %}
         </div>
         {% endif %}
@@ -86,7 +86,7 @@
     {% if rows %}
     <p class="pv-muted">Всего: {{ total }} пользователей.</p>
     {% else %}
-    <div class="pv-empty" data-icon="person_off">Пользователей по выбранным критериям нет.</div>
+    <div class="pv-empty-state" data-icon="person_off">Пользователей по выбранным критериям нет.</div>
     {% endif %}
 </div>
 {% endblock %}

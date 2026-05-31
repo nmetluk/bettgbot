@@ -12,17 +12,17 @@
         </div>
     </div>
 
-    <!-- KPI: Воронка -->
-    <div class="pv-kpi-row">
-        <div class="pv-kpi-card">
+    <!-- KPI: Воронка (TASK-088 C3 - standard pv-kpi inside pv-grid c4) -->
+    <div class="pv-grid c4">
+        <div class="pv-kpi">
             <div class="pv-kpi-label">Всего пользователей</div>
             <div class="pv-kpi-value">{{ funnel.total_users }}</div>
         </div>
-        <div class="pv-kpi-card">
+        <div class="pv-kpi">
             <div class="pv-kpi-label">Сделали прогноз</div>
             <div class="pv-kpi-value">{{ funnel.users_with_predictions }}</div>
         </div>
-        <div class="pv-kpi-card">
+        <div class="pv-kpi">
             <div class="pv-kpi-label">Конверсия</div>
             <div class="pv-kpi-value">{{ funnel.conversion_percent }}%</div>
         </div>
@@ -31,8 +31,8 @@
     <!-- График: Динамика по дням -->
     {% if daily_counts %}
     <div class="pv-card">
-        <div class="pv-card-header">
-            <h2 class="pv-card-title">Динамика прогнозов за 30 дней</h2>
+        <div class="pv-card-head">
+            <h3>Динамика прогнозов за 30 дней</h3>
         </div>
         <div class="pv-card-body">
             <canvas id="dailyChart" class="pv-chart"></canvas>
@@ -49,8 +49,8 @@
     <!-- Точность по категориям -->
     {% if category_accuracy %}
     <div class="pv-card">
-        <div class="pv-card-header">
-            <h2 class="pv-card-title">Точность по категориям</h2>
+        <div class="pv-card-head">
+            <h3>Точность по категориям</h3>
         </div>
         <div class="pv-card-body">
             <canvas id="categoryChart" class="pv-chart pv-chart-sm"></canvas>
@@ -99,8 +99,8 @@
     <!-- Топ событий -->
     {% if top_events %}
     <div class="pv-card pv-card-flush">
-        <div class="pv-card-header">
-            <h2 class="pv-card-title">Топ-10 событий по числу прогнозов</h2>
+        <div class="pv-card-head">
+            <h3>Топ-10 событий по числу прогнозов</h3>
         </div>
         <table class="pv-table">
             <thead>
