@@ -8,7 +8,7 @@ rate-limit на /login через Redis, CSRF на POST.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from hashlib import md5
@@ -25,6 +25,7 @@ from fastapi_csrf_protect.load_config import LoadConfig
 from fastapi_limiter import FastAPILimiter
 from redis.asyncio import Redis
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.shared.build_info import get_build_info
@@ -66,7 +67,8 @@ def _static_version(path: str) -> str:
     if not full_path.exists():
         return "dev"
     data = full_path.read_bytes()
-    return md5(data).hexdigest()[:8]
+    # MD5 is safe here: used only for cache-busting / content fingerprinting, not cryptography.
+    return md5(data, usedforsecurity=False).hexdigest()[:8]
 
 
 STATIC_VERSIONS: dict[str, str] = {
@@ -94,7 +96,9 @@ class StaticCacheControlMiddleware(BaseHTTPMiddleware):
     - Others → short cache with revalidate.
     """
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[StarletteResponse]]
+    ) -> StarletteResponse:
         response = await call_next(request)
         if request.url.path.startswith("/static/"):
             query = str(request.url.query)
