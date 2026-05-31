@@ -67,13 +67,13 @@
                     <td class="pv-mono pv-muted">{{ event.predictions_close_at.strftime('%d.%m %H:%M') if event.predictions_close_at else '—' }}</td>
                     <td>
                         {% if event.is_archived %}
-                            <span class="pv-badge neutral">архив</span>
+                            <span class="pv-badge info">архив</span>
                         {% elif not event.is_published %}
                             <span class="pv-badge draft">черновик</span>
                         {% elif event.predictions_close_at > now() %}
                             <span class="pv-badge success dot">открыт</span>
                         {% else %}
-                            <span class="pv-badge danger dot">закрыт</span>
+                            <span class="pv-badge warning dot">закрыт</span>
                         {% endif %}
                     </td>
                     <td class="pv-c-num">{{ pred_count }}</td>
@@ -86,22 +86,19 @@
         </table>
 
         {% if total > page_size %}
-        <div class="pv-toolbar" style="border-top: 1px solid var(--pv-divider); border-bottom: none; justify-content: center;">
-            <div class="pv-row" style="gap: var(--pv-s-8);">
-                {% set qs_prefix = "category_id=" ~ (selected_category_id if selected_category_id else "") ~ "&status=" ~ selected_status ~ "&period=" ~ selected_period %}
-                {% if page > 0 %}
-                <a href="?{{ qs_prefix }}&page={{ page - 1 }}" class="pv-btn pv-btn-sm pv-btn-ghost">← Назад</a>
-                {% endif %}
-                <span class="pv-muted">Страница {{ page + 1 }}</span>
-                {% if (page + 1) * page_size < total %}
-                <a href="?{{ qs_prefix }}&page={{ page + 1 }}" class="pv-btn pv-btn-sm pv-btn-ghost">Вперёд →</a>
-                {% endif %}
-            </div>
+        <div class="pv-pagination">
+            {% set qs_prefix = "category_id=" ~ (selected_category_id if selected_category_id else "") ~ "&status=" ~ selected_status ~ "&period=" ~ selected_period %}
+            {% if page > 0 %}
+            <a href="?{{ qs_prefix }}&page={{ page - 1 }}" class="pv-pagination-item">‹</a>
+            {% endif %}
+            <span class="pv-pagination-current">{{ page + 1 }}</span>
+            {% if (page + 1) * page_size < total %}
+            <a href="?{{ qs_prefix }}&page={{ page + 1 }}" class="pv-pagination-item">›</a>
+            {% endif %}
         </div>
         {% endif %}
         {% else %}
-        <div class="pv-empty">
-            <span class="material-symbols-rounded" style="font-size: 48px; display: block; margin-bottom: var(--pv-s-12);" aria-hidden="true">event_busy</span>
+        <div class="pv-empty-state" data-icon="event_busy">
             <p>Ничего не найдено</p>
             <p class="pv-muted">Попробуйте изменить фильтры или создать событие</p>
         </div>

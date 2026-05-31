@@ -65,7 +65,7 @@
                     </td>
                     <td>
                         <div class="pv-row" style="gap: 10px;">
-                            <div class="pv-avatar">{{ row.display_name[0]|upper }}</div>
+                            <div class="pv-avatar a{{ row.display_name | length % 8 }}">{{ row.display_name[0]|upper }}</div>
                             <span class="pv-row-strong">{{ row.display_name }}</span>
                         </div>
                     </td>
@@ -82,7 +82,7 @@
         </table>
     </div>
     {% else %}
-    <div class="pv-empty" data-icon="leaderboard">
+    <div class="pv-empty-state" data-icon="leaderboard">
         <p>В рейтинге пока никто не участвует — нужно минимум 5 разрешённых прогнозов.</p>
     </div>
     {% endif %}

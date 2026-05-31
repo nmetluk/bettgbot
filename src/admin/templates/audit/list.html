@@ -73,7 +73,7 @@
                     <td class="pv-mono pv-muted">{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                     <td>
                         <div class="pv-row" style="gap: 8px;">
-                            <div class="pv-avatar">{{ (entry.admin.full_name or entry.admin.login)[0]|upper }}</div>
+                            <div class="pv-avatar a{{ (entry.admin.id or 0) % 8 }}">{{ (entry.admin.full_name or entry.admin.login)[0]|upper }}</div>
                             <span>{{ entry.admin.full_name or entry.admin.login }}</span>
                         </div>
                     </td>
@@ -118,11 +118,11 @@
             {% set qs_extra = ("&" ~ (qs_parts | join("&"))) if qs_parts else "" %}
 
             {% if page > 0 %}
-            <a href="?page={{ page - 1 }}{{ qs_extra }}" class="pv-btn pv-btn-ghost pv-btn-sm">‹</a>
+            <a href="?page={{ page - 1 }}{{ qs_extra }}" class="pv-pagination-item">‹</a>
             {% endif %}
             <span class="pv-pagination-current">{{ page + 1 }}</span>
             {% if (page + 1) * page_size < total %}
-            <a href="?page={{ page + 1 }}{{ qs_extra }}" class="pv-btn pv-btn-ghost pv-btn-sm">›</a>
+            <a href="?page={{ page + 1 }}{{ qs_extra }}" class="pv-pagination-item">›</a>
             {% endif %}
         </div>
         {% endif %}
@@ -131,7 +131,7 @@
     {% if rows %}
     <p class="pv-muted">Всего записей: {{ total }}.</p>
     {% else %}
-    <div class="pv-empty" data-icon="receipt_long">Записей по выбранным фильтрам нет.</div>
+    <div class="pv-empty-state" data-icon="receipt_long">Записей по выбранным фильтрам нет.</div>
     {% endif %}
 </div>
 {% endblock %}

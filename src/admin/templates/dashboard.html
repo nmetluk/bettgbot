@@ -121,7 +121,7 @@
                 </tbody>
             </table>
             {% else %}
-            <div class="pv-empty">Нет активных событий</div>
+            <div class="pv-empty-state" data-icon="event_busy">Нет активных событий</div>
             {% endif %}
         </div>
 
@@ -139,7 +139,7 @@
                 {% if audit_logs %}
                 {% for log in audit_logs %}
                 <div class="pv-list-row" style="padding: 9px 20px;">
-                    <div class="pv-avatar">{{ log.admin_username[0]|upper }}</div>
+                    <div class="pv-avatar a{{ log.admin_username | length % 8 }}">{{ log.admin_username[0]|upper }}</div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="color: var(--pv-fg); font-weight: 700; font-size: 13px;">
                             {{ log.action }}
@@ -151,7 +151,7 @@
                 </div>
                 {% endfor %}
                 {% else %}
-                <div class="pv-empty">Нет записей аудита</div>
+                <div class="pv-empty-state" data-icon="receipt_long">Нет записей аудита</div>
                 {% endif %}
             </div>
         </div>

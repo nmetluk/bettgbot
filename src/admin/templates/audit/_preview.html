@@ -5,7 +5,7 @@
         <td class="pv-mono pv-muted">{{ entry.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
         <td>
             <div class="pv-row" style="gap: 8px;">
-                <div class="pv-avatar">{{ (entry.admin.full_name or entry.admin.login)[0]|upper }}</div>
+                <div class="pv-avatar a{{ (entry.admin.id or 0) % 8 }}">{{ (entry.admin.full_name or entry.admin.login)[0]|upper }}</div>
                 <span>{{ entry.admin.full_name or entry.admin.login }}</span>
             </div>
         </td>

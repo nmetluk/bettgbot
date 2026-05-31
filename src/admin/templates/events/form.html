@@ -118,8 +118,7 @@
     <div hx-get="/events/{{ event.id }}/outcomes"
          hx-trigger="load"
          hx-swap="outerHTML">
-        <div class="pv-empty">
-            <span class="material-symbols-rounded" style="font-size: 32px;" aria-hidden="true">downloading</span>
+        <div class="pv-empty-state" data-icon="downloading" style="padding: var(--pv-s-24) var(--pv-s-16);">
             <p>Загрузка исходов…</p>
         </div>
     </div>
@@ -248,13 +247,13 @@
                     <div class="pv-stack" style="gap: var(--pv-s-10);">
                     <div class="pv-row"><span class="pv-muted pv-grow">Статус</span>
                         {% if event.is_archived %}
-                            <span class="pv-badge neutral">архив</span>
+                            <span class="pv-badge info">архив</span>
                         {% elif not event.is_published %}
                             <span class="pv-badge draft">черновик</span>
                         {% elif event.predictions_close_at > now() %}
                             <span class="pv-badge success dot">открыт</span>
                         {% else %}
-                            <span class="pv-badge danger dot">закрыт</span>
+                            <span class="pv-badge warning dot">закрыт</span>
                         {% endif %}
                     </div>
                     <div class="pv-row"><span class="pv-muted pv-grow">Исходов</span><b>{{ event.outcomes|length }}</b></div>
