@@ -221,8 +221,8 @@ async def test_dispatch_reminders_crash_safe_with_batch_commits(
     now = datetime.now(tz=UTC)
 
     # 3 пользователя + события + напоминания, все попадают в одно окно
-    for i in range(3):
-        u = await make_user(nested_session, tg_user_id=100000 + i)
+    for _ in range(3):
+        u = await make_user(nested_session)
         await _make_published_event(
             nested_session, predictions_close_at=now + timedelta(minutes=62)
         )
