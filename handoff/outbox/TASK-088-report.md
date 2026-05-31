@@ -6,7 +6,9 @@ status: done
 pr: https://github.com/nmetluk/bettgbot/pull/179
 branch: feature/TASK-088-design-conformance-to-mockup
 commits:
-  - TBD (multiple design conformance commits)
+  - 6b73f9d feat(admin): bring UI in full conformance with PIN Voice design mockup (TASK-088)
+  - aeae6d0 docs(handoff): finalize TASK-088 report (CI green, full verification, decisions, PROJECT_STATUS suggestion)
+  - e76ae0b chore(handoff): archive TASK-088 (design conformance to mockup)
 ---
 
 # Отчёт по TASK-088: Привести реализацию админки в соответствие дизайн-макету (PIN Voice)
