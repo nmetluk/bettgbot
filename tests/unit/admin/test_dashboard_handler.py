@@ -127,6 +127,49 @@ def test_dashboard_with_zero_counters(fake_admin_middleware_session: None) -> No
     response = client.get("/")
 
     assert response.status_code == 200
+
+
+def test_alpine_ui_store_registration_order(fake_admin_middleware_session: None) -> None:
+    """Regression for TASK-090: ui.js (Alpine.store + alpine:init listener) MUST load before alpine-csp.
+
+    If reversed, the 'alpine:init' event is missed (both defer), store never registers,
+    and all theme/density/rail/accent controls are dead (as observed in prod audit).
+    """
+    from src.shared.services.dashboard import ActiveEventInfo, AuditLogInfo
+
+    service = MagicMock()
+    service.get_counters = AsyncMock(
+        return_value={
+            "users_total": 0,
+            "users_active_30d": 0,
+            "predictions_total": 0,
+            "predictions_24h": 0,
+            "events_total": 0,
+            "events_published": 0,
+            "events_archived": 0,
+            "categories": 0,
+            "categories_hidden": 0,
+        }
+    )
+    service.get_active_events = AsyncMock(return_value=[])
+    service.get_recent_audit_logs = AsyncMock(return_value=[])
+
+    client = _client(service)
+    response = client.get("/")
+    html = response.text
+
+    assert response.status_code == 200
+
+    # Find positions of the two critical scripts
+    ui_js_pos = html.find('src="/static/js/ui.js"')
+    alpine_pos = html.find('src="/static/vendor/alpine-csp-3.14.1.min.js"')
+
+    assert ui_js_pos != -1, "ui.js script tag missing"
+    assert alpine_pos != -1, "alpine-csp script tag missing"
+    assert ui_js_pos < alpine_pos, (
+        "ui.js must appear BEFORE alpine-csp in the document so the alpine:init listener "
+        "is registered in time (TASK-090 / TASK-057 CSP risk)"
+    )
     content = response.text
     # Проверяем, что нули есть на странице (как минимум в нескольких местах)
     assert "0" in content
