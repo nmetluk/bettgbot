@@ -67,27 +67,31 @@
 
     <!-- Topbar -->
     <header class="pv-topbar">
-        <button @click="toggleRail()" class="pv-tb-iconbtn" title="Свернуть меню">
+        <button @click="toggleRail" class="pv-tb-iconbtn" title="Свернуть меню">
             <span class="material-symbols-rounded" aria-hidden="true">menu</span>
         </button>
         <div class="pv-tb-grow"></div>
         <div class="pv-tb-actions">
             <!-- Density controls -->
             <div class="pv-density-controls">
-                <button @click="setDensity('compact')"
+                <button @click="setDensity"
+                        data-density="compact"
                         class="pv-density-btn {{ 'active' if density == 'compact' else '' }}"
                         title="Компактная">C</button>
-                <button @click="setDensity('regular')"
+                <button @click="setDensity"
+                        data-density="regular"
                         class="pv-density-btn {{ 'active' if density == 'regular' else '' }}"
                         title="Обычная">R</button>
-                <button @click="setDensity('comfortable')"
+                <button @click="setDensity"
+                        data-density="comfortable"
                         class="pv-density-btn {{ 'active' if density == 'comfortable' else '' }}"
                         title="Комфорт">K</button>
             </div>
             <!-- Accent controls -->
             <div class="pv-accent-controls">
                 <template x-for="acc in accents" :key="acc">
-                    <button @click="setAccent(acc)"
+                    <button @click="setAccent"
+                            :data-accent="acc"
                             class="pv-accent-swatch"
                             :style="accentStyle(acc)"
                             x-bind:class="accentClass(acc)"
@@ -95,7 +99,7 @@
                 </template>
             </div>
             <!-- Dark mode toggle -->
-            <button @click="toggleDark()" class="pv-tb-iconbtn" :title="themeTitle">
+            <button @click="toggleDark" class="pv-tb-iconbtn" :title="themeTitle">
                 <span class="material-symbols-rounded" x-text="themeIcon" aria-hidden="true"></span>
             </button>
             <div class="pv-tb-divider"></div>
