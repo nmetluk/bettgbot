@@ -19,11 +19,13 @@
     <!-- HTMX — vendored (TASK-079) -->
     <script src="/static/vendor/htmx-2.0.4.min.js"></script>
 
+    <!-- Admin UI delegation (data-href nav, data-confirm) + Alpine.store('ui') registration.
+         MUST load BEFORE Alpine CSP build so the 'alpine:init' listener is attached in time
+         (both defer — order is preserved at execution). See TASK-090. -->
+    <script defer src="/static/js/ui.js"></script>
+
     <!-- Alpine.js CSP build — vendored (TASK-079 self-host, no jsdelivr in CSP) -->
     <script defer src="/static/vendor/alpine-csp-3.14.1.min.js"></script>
-
-    <!-- Admin UI delegation (data-href nav, data-confirm) — CSP-safe, no inline handlers (TASK-084) -->
-    <script defer src="/static/js/ui.js"></script>
 
     {% block head_extra %}{% endblock %}
 </head>
