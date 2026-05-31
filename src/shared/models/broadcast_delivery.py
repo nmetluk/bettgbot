@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, UniqueConstraint
+from sqlalchemy import BigInteger, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -29,7 +29,7 @@ class BroadcastDelivery(Base):
         BigInteger,
         primary_key=True,
     )
-    delivered_at: Mapped[datetime] = mapped_column(server_default="now()", nullable=False)
+    delivered_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
     # Инварианты
     __table_args__ = (UniqueConstraint("broadcast_id", "user_id", name="uq_broadcast_delivery"),)

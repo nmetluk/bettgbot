@@ -6,6 +6,7 @@ __all__ = [
     "ACCESS_DENIED",
     "ALREADY_REGISTERED",
     "CATEGORIES_PROMPT",
+    "CATEGORY_PAGE_TITLE",
     "EVENT_CARD",
     "EVENT_NOT_AVAILABLE",
     "HELP",
@@ -22,6 +23,7 @@ __all__ = [
     "NO_EVENTS_AT_ALL",
     "NO_EVENTS_IN_CATEGORY",
     "PHONE_NOT_FOUND",
+    "PREDICTION_YOUR_CHOICE",
     "PREDICT_CONFIRM",
     "PREDICT_DEADLINE_PASSED",
     "PREDICT_EVENT_UNAVAILABLE",
@@ -190,3 +192,9 @@ REMINDER_NOTIFICATION = (
     "Дедлайн: <b>{close_at_fmt}</b>.\n\n"
     "Сделать прогноз: /events"
 )
+
+# Заголовок списка событий в категории (с пагинацией). Placeholder'ы: {category_name}, {page}
+CATEGORY_PAGE_TITLE = "<b>{category_name}</b> — страница {page}"
+
+# Блок «Ваш прогноз» в карточке события. Placeholder: {label}
+PREDICTION_YOUR_CHOICE = "\n\n✅ Ваш прогноз: «{label}»"

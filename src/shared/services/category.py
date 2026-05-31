@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..exceptions import (
+    CategoryHasBroadcastsError,
     CategoryHasEventsError,
     CategoryInvalidContentError,
     CategoryNotFoundError,
@@ -114,16 +115,20 @@ class CategoryService:
         if existing is None:
             raise CategoryNotFoundError(category_id)
 
-        try:
-            await self._categories.delete(category_id)
-            await self._audit.add(
-                admin_id=by_admin_id,
-                action="category.delete",
-                payload={"category_id": category_id, "name": existing.name},
-            )
-            await self._session.commit()
-        except IntegrityError as exc:
-            raise CategoryHasEventsError(category_id) from exc
+        # Явные pre-check'и до DELETE — избегаем хрупкого catch IntegrityError
+        # (ранее ловил только от Event; теперь есть и от Broadcast).
+        if await self._categories.has_events(category_id):
+            raise CategoryHasEventsError(category_id)
+        if await self._categories.has_broadcasts(category_id):
+            raise CategoryHasBroadcastsError(category_id)
+
+        await self._categories.delete(category_id)
+        await self._audit.add(
+            admin_id=by_admin_id,
+            action="category.delete",
+            payload={"category_id": category_id, "name": existing.name},
+        )
+        await self._session.commit()
 
     # -- validation helpers --
 

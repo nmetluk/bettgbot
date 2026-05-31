@@ -97,7 +97,7 @@ async def on_category(
         if cat is not None:
             category_name = cat.name
 
-    title = f"<b>{category_name}</b> — страница {page + 1}"
+    title = safe_format(texts.CATEGORY_PAGE_TITLE, category_name=category_name, page=page + 1)
     if isinstance(query.message, Message):
         await query.message.edit_text(
             title,
@@ -153,7 +153,7 @@ async def render_event_card(
     if existing is not None:
         chosen = next((o for o in event.outcomes if o.id == existing.outcome_id), None)
         if chosen is not None:
-            prediction_block = f"\n\n✅ Ваш прогноз: «{chosen.label}»"
+            prediction_block = safe_format(texts.PREDICTION_YOUR_CHOICE, label=chosen.label)
 
     text = safe_format(
         texts.EVENT_CARD,

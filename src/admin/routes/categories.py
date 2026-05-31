@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.shared.db import SessionLocal
 from src.shared.exceptions import (
+    CategoryHasBroadcastsError,
     CategoryHasEventsError,
     CategoryInvalidContentError,
     CategoryNotFoundError,
@@ -242,6 +243,12 @@ async def delete_category(
         # Flash через query-string: list.html рендерит alert.
         return RedirectResponse(
             url=f"/categories?error=has_events&category_id={category_id}",
+            status_code=status.HTTP_302_FOUND,
+        )
+    except CategoryHasBroadcastsError:
+        # Аналогично has_events, но отдельный код ошибки для шаблона.
+        return RedirectResponse(
+            url=f"/categories?error=has_broadcasts&category_id={category_id}",
             status_code=status.HTTP_302_FOUND,
         )
     return RedirectResponse(url="/categories", status_code=status.HTTP_302_FOUND)
