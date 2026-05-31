@@ -224,9 +224,7 @@ async def test_dispatch_reminders_crash_safe_with_batch_commits(
     # find_candidates даёт декартово произведение (пользователи с напоминанием) ×
     # (события в окне) и не требует привязки прогнозом, поэтому одно событие на
     # 3 юзеров = 3 кандидата (3 события дали бы 3×3=9 — причина прежнего падения).
-    await _make_published_event(
-        nested_session, predictions_close_at=now + timedelta(minutes=62)
-    )
+    await _make_published_event(nested_session, predictions_close_at=now + timedelta(minutes=62))
     for _ in range(3):
         u = await make_user(nested_session)
         await _set_reminder(nested_session, user_id=u.id, offsets=[60])
