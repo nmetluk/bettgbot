@@ -123,7 +123,10 @@ def test_new_broadcast_form_renders_200(fake_admin_middleware_session_for_broadc
                 assert "Все пользователи" in resp.text  # from segments
                 assert "category-group" in resp.text
                 # The safe pattern (no bare {{ csrf_token }} var) is present
-                assert "request.state.csrf_token if request.state and request.state.csrf_token is defined" in resp.text
+                assert (
+                    "request.state.csrf_token if request.state and request.state.csrf_token is defined"
+                    in resp.text
+                )
             # Always: no crash in handler (no "Internal Server Error" or python traceback)
             assert "Internal Server Error" not in resp.text
             assert "Traceback" not in resp.text
