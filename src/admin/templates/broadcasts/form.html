@@ -36,7 +36,7 @@
                     {% for seg in segments %}
                     <label class="pv-segment-choice">
                         <input type="radio" name="segment" value="{{ seg.value }}"
-                               {% if form_data.segment == seg.value or (not form_data and loop.first) %}checked{% endif %}
+                               {% if (not form_data and loop.first) or (form_data and form_data.segment == seg.value) %}checked{% endif %}
                                hx-get="/broadcasts/preview-count?segment={{ seg.value }}"
                                hx-target="#preview-count"
                                hx-swap="innerHTML">
@@ -50,12 +50,12 @@
             </div>
 
             {% if categories %}
-            <div class="pv-form-group {% if not form_data or form_data.segment != 'category' %}pv-hidden{% endif %}" id="category-group">
+            <div class="pv-form-group {% if not form_data or (form_data and form_data.segment != 'category') %}pv-hidden{% endif %}" id="category-group">
                 <label class="pv-form-label">Категория</label>
                 <select name="category_id" class="pv-form-control">
                     <option value="">— выберите категорию —</option>
                     {% for cat in categories %}
-                    <option value="{{ cat.id }}" {% if form_data.category_id == cat.id %}selected{% endif %}>
+                    <option value="{{ cat.id }}" {% if form_data and form_data.category_id == cat.id %}selected{% endif %}>
                         {{ cat.name }}
                     </option>
                     {% endfor %}
@@ -71,16 +71,16 @@
                           hx-trigger="keyup changed delay:300ms"
                           hx-get="/broadcasts/preview-char-count?message={this.value}"
                           hx-target="#char-counter"
-                          hx-swap="innerHTML">{{ form_data.message_text or '' }}</textarea>
+                          hx-swap="innerHTML">{{ form_data.message_text or '' if form_data else '' }}</textarea>
                 <div class="pv-form-help">
-                    <span id="char-counter">{{ (form_data.message_text|length if form_data.message_text else 0) }}</span> / 4096 байт
+                    <span id="char-counter">{{ (form_data.message_text|length if form_data and form_data.message_text else 0) }}</span> / 4096 байт
                 </div>
             </div>
 
             <div class="pv-form-group">
                 <label class="pv-form-label">Предпросмотр</label>
                 <div class="pv-broadcast-preview">
-                    <div class="pv-bubble">{{ form_data.message_text or 'Текст сообщения...' }}</div>
+                    <div class="pv-bubble">{{ form_data.message_text or 'Текст сообщения...' if form_data else 'Текст сообщения...' }}</div>
                 </div>
             </div>
 
