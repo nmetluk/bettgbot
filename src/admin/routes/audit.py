@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.shared.db import SessionLocal
 from src.shared.models import AdminUser, AuditLog
@@ -95,7 +96,7 @@ async def details_fragment(
     session: AsyncSession = Depends(_session_dep),
 ) -> HTMLResponse:
     """HTMX-fragment: полный payload одной записи (JSON pretty-print)."""
-    entry = await session.get(AuditLog, entry_id)
+    entry = await session.get(AuditLog, entry_id, options=[selectinload(AuditLog.admin)])
     if entry is None:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(
@@ -116,7 +117,7 @@ async def details_collapse(
     session: AsyncSession = Depends(_session_dep),
 ) -> HTMLResponse:
     """HTMX-fragment: возврат в preview-режим (collapsed row)."""
-    entry = await session.get(AuditLog, entry_id)
+    entry = await session.get(AuditLog, entry_id, options=[selectinload(AuditLog.admin)])
     if entry is None:
         raise HTTPException(status_code=404)
     return templates.TemplateResponse(
