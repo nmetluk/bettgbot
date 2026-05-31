@@ -74,6 +74,7 @@ async def new_broadcast_form(
             "admin": admin,
             "segments": segments,
             "categories": categories,
+            "form_data": None,
         },
     )
 

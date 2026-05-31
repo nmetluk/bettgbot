@@ -88,7 +88,13 @@ def fake_admin_middleware_session_for_broadcasts():
 
 
 def test_new_broadcast_form_renders_200(fake_admin_middleware_session_for_broadcasts):
-    """GET /broadcasts/new must return 200 (not 500). Regression for TASK-089."""
+    """GET /broadcasts/new must return 200 (not 500). Regression for TASK-089 + TASK-092-amendment.
+
+    Strengthened to exercise the exact GET path without `form_data` in context (None passed).
+    This reproduces the prod 500 (Jinja StrictUndefined on bare form_data.* accesses) that
+    previous heavy-mock version missed (false-positive). Template guards + context=None now
+    ensure fresh form renders with first segment pre-checked, category hidden, safe defaults.
+    """
     admin = fake_admin_middleware_session_for_broadcasts
 
     # Fake categories so list_active succeeds without real DB
@@ -127,6 +133,14 @@ def test_new_broadcast_form_renders_200(fake_admin_middleware_session_for_broadc
                     "request.state.csrf_token if request.state and request.state.csrf_token is defined"
                     in resp.text
                 )
+                # TASK-092-amendment: fresh form (form_data=None) renders correctly
+                # (exercises all guarded accesses that previously caused UndefinedError on prod)
+                assert (
+                    "checked" in resp.text
+                )  # first segment pre-selected via (not form_data and loop.first)
+                assert "pv-hidden" in resp.text  # category group hidden on fresh load
+                assert "Текст сообщения..." in resp.text  # default preview when no form_data
+                assert "0 / 4096" in resp.text  # char counter safe default
             # Always: no crash in handler (no "Internal Server Error" or python traceback)
             assert "Internal Server Error" not in resp.text
             assert "Traceback" not in resp.text
