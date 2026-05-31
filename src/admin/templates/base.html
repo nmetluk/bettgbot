@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Betting Bot Admin{% endblock %}</title>
 
-    <!-- Design tokens -->
-    <link rel="stylesheet" href="/static/css/tokens.css">
-    <link rel="stylesheet" href="/static/css/app.css">
+    <!-- Design tokens (TASK-094: cache-busting via static_url) -->
+    <link rel="stylesheet" href="{{ static_url('css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
 
     <!-- Bootstrap 5 (base for components) — vendored (TASK-079 self-host for CSP/SRI) -->
     <link rel="stylesheet" href="/static/vendor/bootstrap-5.3.3.min.css">
@@ -22,7 +22,7 @@
     <!-- Admin UI delegation (data-href nav, data-confirm) + Alpine.store('ui') registration.
          MUST load BEFORE Alpine CSP build so the 'alpine:init' listener is attached in time
          (both defer — order is preserved at execution). See TASK-090. -->
-    <script defer src="/static/js/ui.js"></script>
+    <script defer src="{{ static_url('js/ui.js') }}"></script>
 
     <!-- Alpine.js CSP build — vendored (TASK-079 self-host, no jsdelivr in CSP) -->
     <script defer src="/static/vendor/alpine-csp-3.14.1.min.js"></script>

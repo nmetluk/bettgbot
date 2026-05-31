@@ -160,8 +160,8 @@ def test_alpine_ui_store_registration_order(fake_admin_middleware_session: None)
 
     assert response.status_code == 200
 
-    # Find positions of the two critical scripts
-    ui_js_pos = html.find('src="/static/js/ui.js"')
+    # Find positions of the two critical scripts (TASK-094: allow ?v= cache-busting param)
+    ui_js_pos = html.find('src="/static/js/ui.js')
     alpine_pos = html.find('src="/static/vendor/alpine-csp-3.14.1.min.js"')
 
     assert ui_js_pos != -1, "ui.js script tag missing"
