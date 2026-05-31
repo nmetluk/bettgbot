@@ -3,7 +3,7 @@ task: TASK-088
 completed: 2026-05-31
 agent: claude-code-local
 status: done
-pr: https://github.com/nmetluk/bettgbot/pull/178   # placeholder, will be updated on push
+pr: https://github.com/nmetluk/bettgbot/pull/179
 branch: feature/TASK-088-design-conformance-to-mockup
 commits:
   - TBD (multiple design conformance commits)
