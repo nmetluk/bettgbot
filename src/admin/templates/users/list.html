@@ -37,7 +37,7 @@
             </thead>
             <tbody>
                 {% for user, pred_count in rows %}
-                <tr style="cursor: pointer;" onclick="window.location='/users/{{ user.id }}'">
+                <tr style="cursor: pointer;" data-href="/users/{{ user.id }}">
                     <td class="pv-mono pv-muted">{{ user.id }}</td>
                     <td>
                         <div class="pv-row" style="gap: 10px;">

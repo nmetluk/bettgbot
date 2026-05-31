@@ -23,7 +23,7 @@
             <span class="pv-badge success">Пользователь разблокирован</span>
             {% endif %}
             {% if user.is_blocked %}
-            <form method="post" action="/users/{{ user.id }}/unblock" onsubmit="return confirm('Разблокировать пользователя?');">
+            <form method="post" action="/users/{{ user.id }}/unblock" data-confirm="Разблокировать пользователя?">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <button type="submit" class="pv-btn pv-btn-primary pv-btn-sm">
                     <span class="material-symbols-rounded" aria-hidden="true">lock_open</span>
@@ -31,7 +31,7 @@
                 </button>
             </form>
             {% else %}
-            <form method="post" action="/users/{{ user.id }}/block" onsubmit="return confirm('Заблокировать пользователя? Он не сможет делать прогнозы и получать напоминания.');">
+            <form method="post" action="/users/{{ user.id }}/block" data-confirm="Заблокировать пользователя? Он не сможет делать прогнозы и получать напоминания.">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <button type="submit" class="pv-btn pv-btn-danger pv-btn-sm">
                     <span class="material-symbols-rounded" aria-hidden="true">block</span>

@@ -42,7 +42,7 @@
             </thead>
             <tbody>
                 {% for row in rows %}
-                <tr style="cursor: pointer;" onclick="window.location='/users/{{ row.user_id }}'">
+                <tr style="cursor: pointer;" data-href="/users/{{ row.user_id }}">
                     <td>
                         {% if row.rank == 1 %}
                         <span class="pv-badge" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #000;">

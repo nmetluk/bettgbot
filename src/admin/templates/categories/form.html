@@ -66,9 +66,8 @@
                             <div>
                                 <label class="pv-field-label">Видимость</label>
                                 <div class="pv-row" style="height: 36px;">
-                                    <div class="pv-toggle{% if category is none or category.is_active %} on{% endif %}"
-                                         onclick="document.querySelector('#is_active').click()"
-                                         style="cursor: pointer;"></div>
+                                    <label for="is_active" class="pv-toggle{% if category is none or category.is_active %} on{% endif %}"
+                                           style="cursor: pointer;"></label>
                                     <span class="pv-muted">
                                         {% if category is none or category.is_active %}Видна пользователям{% else %}Скрыта от бота{% endif %}
                                     </span>

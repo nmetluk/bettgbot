@@ -22,6 +22,9 @@
     <!-- Alpine.js CSP build — vendored (TASK-079 self-host, no jsdelivr in CSP) -->
     <script defer src="/static/vendor/alpine-csp-3.14.1.min.js"></script>
 
+    <!-- Admin UI delegation (data-href nav, data-confirm) — CSP-safe, no inline handlers (TASK-084) -->
+    <script defer src="/static/js/ui.js"></script>
+
     {% block head_extra %}{% endblock %}
 </head>
 <body x-data="uiState">
