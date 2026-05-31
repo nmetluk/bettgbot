@@ -206,3 +206,31 @@ def test_details_collapse_returns_preview_fragment(fake_admin_middleware_session
     # Preview-fragment — кнопка с hx-get на /details (раскрыть), не «Свернуть».
     assert "Свернуть" not in response.text
     assert 'hx-get="/audit/42/details"' in response.text
+
+
+def test_audit_list_rows_have_matching_wrapper_divs_for_htmx_details(
+    fake_admin_middleware_session,
+) -> None:
+    """Regression for TASK-091: each audit row must be wrapped in <div id="audit-row-{{id}}">
+
+    The hx-target="#audit-row-{{id}}" on the expand button (and in _details/_preview fragments)
+    had no matching element in the initial DOM → HTMX swap never happened.
+    """
+    audit_service = MagicMock()
+    audit_service.list = AsyncMock(return_value=[_make_audit_entry(id=7), _make_audit_entry(id=42)])
+    audit_service.count = AsyncMock(return_value=2)
+    admin_repo = MagicMock()
+    admin_repo.list_all = AsyncMock(return_value=[])
+
+    client = _client(audit_service=audit_service, admin_repo=admin_repo)
+    response = client.get("/audit")
+
+    assert response.status_code == 200
+    html = response.text
+
+    # Both rows must have the wrapper div that the hx-target points to
+    assert 'id="audit-row-7"' in html
+    assert 'id="audit-row-42"' in html
+    # And the button must still target it (defensive)
+    assert 'hx-target="#audit-row-7"' in html
+    assert 'hx-target="#audit-row-42"' in html
