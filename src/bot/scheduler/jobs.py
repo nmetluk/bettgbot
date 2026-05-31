@@ -29,7 +29,11 @@ logger = get_logger(__name__)
 
 
 async def dispatch_reminders(
-    *, bot: Bot, session_maker: async_sessionmaker[AsyncSession], window_minutes: int = 10
+    *,
+    bot: Bot,
+    session_maker: async_sessionmaker[AsyncSession],
+    window_minutes: int = 10,
+    commit_batch_size: int = 50,
 ) -> None:
     """Один тик scheduler'а: найти кандидатов и отправить им сообщения.
 
@@ -40,12 +44,23 @@ async def dispatch_reminders(
 
     Параметр `window_minutes` передаётся из scheduler (TASK-049), default
     обеспечивает совместимость при прямом вызове в тестах.
+
+    Crash-safety (TASK-086): записи в reminder_dispatch_log фиксируются
+    порциями (`commit_batch_size`). При рестарте бота в середине батча
+    уже обработанные кандидаты не отправляются повторно (UNIQUE + ON CONFLICT).
+    Кандидаты материализуются в список до цикла отправок (иначе commit
+    может повлиять на ленивую выборку).
     """
     now = utcnow()
     async with session_maker() as session:
         service = ReminderService(session)
         candidates = await service.find_candidates(now=now, window_minutes=window_minutes)
+        # Важно: материализуем до цикла. После первого commit() ленивая
+        # выборка из find_candidates может быть в неконсистентном состоянии.
+        candidates = list(candidates)
+
         dispatch_log = ReminderDispatchLogRepository(session)
+        batch_counter = 0
 
         for cand in candidates:
             recorded = await dispatch_log.record(
@@ -82,6 +97,12 @@ async def dispatch_reminders(
                     error=str(exc),
                 )
 
+            batch_counter += 1
+            if batch_counter >= commit_batch_size:
+                await session.commit()
+                batch_counter = 0
+
+        # Финальный коммит для остатка батча (< commit_batch_size)
         await session.commit()
 
 
