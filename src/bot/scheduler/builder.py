@@ -26,7 +26,8 @@ def build_scheduler(
     - `dispatch_reminders`: каждые 5 минут UTC, `misfire_grace_time=3600`
       (TASK-049 — extended для catchup при restart/misfire), `coalesce=True`,
       `max_instances=1`. Окно поиска кандидатов — `reminder_window_minutes` из
-      settings (default 10 минут = tick + запас).
+      settings (default 10 минут = tick + запас). Crash-safe батчевые коммиты
+      (TASK-086) по образцу dispatch_broadcasts.
     - `dispatch_broadcasts`: каждую минуту UTC, `misfire_grace_time=300`,
       `coalesce=True`, `max_instances=1`. Забирает одну queued рассылку
       и отправляет с пейсингом (TASK-061).
@@ -46,6 +47,7 @@ def build_scheduler(
             "bot": bot,
             "session_maker": session_maker,
             "window_minutes": settings.reminder_window_minutes,
+            "commit_batch_size": 50,
         },
         id="dispatch_reminders",
         replace_existing=True,

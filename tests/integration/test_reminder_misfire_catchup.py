@@ -204,3 +204,54 @@ async def test_window_boundary_lower_inclusive(
 
     assert len(candidates) == 1
     assert candidates[0].event_id == event.id
+
+
+async def test_dispatch_reminders_crash_safe_with_batch_commits(
+    nested_session: AsyncSession,
+) -> None:
+    """TASK-086: батчевые коммиты + материализация защищают от дублей при рестарте.
+
+    Создаём 3 кандидата. Вызываем dispatch_reminders с маленьким batch_size=2.
+    Все 3 доставляются (с 2 коммитами в середине + финальным).
+    Повторный вызов с тем же now — 0 отправок (идемпотентность через record).
+
+    На старой реализации (один commit() в конце jobs.py) при краше после 2-й
+    отправки третья запись лога потерялась бы → на рестарте 3-я ушла бы повторно.
+    """
+    now = datetime.now(tz=UTC)
+
+    # 3 пользователя + события + напоминания, все попадают в одно окно
+    for i in range(3):
+        u = await make_user(nested_session, tg_user_id=100000 + i)
+        await _make_published_event(
+            nested_session, predictions_close_at=now + timedelta(minutes=62)
+        )
+        await _set_reminder(nested_session, user_id=u.id, offsets=[60])
+
+    bot = MagicMock(spec=Bot)
+    bot.send_message = AsyncMock()
+
+    # Первый тик с батчингом (упражняем новый код)
+    await dispatch_reminders(
+        bot=bot,
+        session_maker=_make_session_maker(nested_session),
+        window_minutes=10,
+        commit_batch_size=2,  # 2 + 1 (финальный)
+    )
+
+    # Все 3 отправлены
+    assert bot.send_message.await_count == 3
+
+    # Симуляция рестарта + следующий тик (тот же now)
+    bot2 = MagicMock(spec=Bot)
+    bot2.send_message = AsyncMock()
+
+    await dispatch_reminders(
+        bot=bot2,
+        session_maker=_make_session_maker(nested_session),
+        window_minutes=10,
+        commit_batch_size=2,
+    )
+
+    # Никаких дублей — все уже записаны в dispatch_log
+    assert bot2.send_message.await_count == 0
