@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
+from hashlib import md5
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ from fastapi_csrf_protect.exceptions import CsrfProtectError
 from fastapi_csrf_protect.load_config import LoadConfig
 from fastapi_limiter import FastAPILimiter
 from redis.asyncio import Redis
+from starlette.middleware.base import BaseHTTPMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.shared.build_info import get_build_info
@@ -54,6 +56,54 @@ def _strftime_filter(dt: datetime, fmt: str = "%d.%m %H:%M") -> str:
 
 
 templates.env.filters["strftime"] = _strftime_filter
+
+
+def _static_version(path: str) -> str:
+    """Compute short content hash for cache-busting of own admin static assets.
+    Called once at startup. Only for our editable files (ui.js, app.css, tokens.css).
+    """
+    full_path = _BASE_DIR / "static" / path
+    if not full_path.exists():
+        return "dev"
+    data = full_path.read_bytes()
+    return md5(data).hexdigest()[:8]
+
+
+STATIC_VERSIONS: dict[str, str] = {
+    "css/tokens.css": _static_version("css/tokens.css"),
+    "css/app.css": _static_version("css/app.css"),
+    "js/ui.js": _static_version("js/ui.js"),
+}
+
+
+def static_url(path: str) -> str:
+    """Jinja helper for versioned static URLs (TASK-094 cache-busting).
+    Usage in templates: {{ static_url('css/app.css') }}
+    """
+    v = STATIC_VERSIONS.get(path, "dev")
+    return f"/static/{path}?v={v}"
+
+
+templates.env.globals["static_url"] = static_url
+
+
+class StaticCacheControlMiddleware(BaseHTTPMiddleware):
+    """TASK-094: proper Cache-Control for /static.
+
+    - Assets with ?v= (our busting) or versioned vendor filenames → immutable long cache.
+    - Others → short cache with revalidate.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            query = str(request.url.query)
+            path = request.url.path
+            if "v=" in query or any(x in path for x in ("bootstrap", "htmx", "alpine")):
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=3600, must-revalidate"
+        return response
 
 
 @CsrfProtect.load_config  # type: ignore[arg-type]
@@ -129,6 +179,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CsrfTokenMiddleware)
     app.add_middleware(RequireAdminMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(StaticCacheControlMiddleware)  # TASK-094: after others for /static responses
 
     @app.exception_handler(CsrfProtectError)
     async def _csrf_error_handler(request: Request, exc: CsrfProtectError) -> Any:
