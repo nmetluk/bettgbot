@@ -4,6 +4,12 @@ from __future__ import annotations
 
 __all__ = [
     "ACCESS_DENIED",
+    # TASK-097 admin stats via bot
+    "ADMIN_DAILY_DIGEST",
+    "ADMIN_EVENT_RESULT_CORRECT",
+    "ADMIN_EVENT_RESULT_CSV_NOTE",
+    "ADMIN_EVENT_RESULT_HEADER",
+    "ADMIN_EVENT_RESULT_OUTCOME_LINE",
     "ALREADY_REGISTERED",
     "CATEGORIES_PROMPT",
     "CATEGORY_PAGE_TITLE",
@@ -190,3 +196,30 @@ CATEGORY_PAGE_TITLE = "<b>{category_name}</b> — страница {page}"
 
 # Блок «Ваш прогноз» в карточке события. Placeholder: {label}
 PREDICTION_YOUR_CHOICE = "\n\n✅ Ваш прогноз: «{label}»"
+
+# =============================================================================
+# Админ-статистика через бота (TASK-097)
+# =============================================================================
+
+# Дневной дайджест (cron 16:00 Europe/Moscow). Placeholder'ы:
+# {date} (YYYY-MM-DD), {total}, {new_24h}, {preds_24h}
+ADMIN_DAILY_DIGEST = (
+    "📊 <b>Дневной дайджест бота</b> (МСК, 16:00)\n\n"
+    "Дата: {date}\n"
+    "Всего пользователей: <b>{total}</b>\n"
+    "Новых за 24ч: <b>{new_24h}</b>\n"
+    "Прогнозов за 24ч: <b>{preds_24h}</b>\n\n"
+    "— — —"
+)
+
+# Заголовок пост-итоговой сводки события. Placeholder'ы: {event_id}, {title}
+ADMIN_EVENT_RESULT_HEADER = "📈 <b>Итоги события #{event_id}</b>\n{title}\n"
+
+# Строка распределения по исходу. Placeholder'ы: {emoji}, {label}, {count}, {pct}
+ADMIN_EVENT_RESULT_OUTCOME_LINE = "• {emoji} {label}: {count} ({pct}%)"
+
+# Блок «Угадали» + опционально CSV. Placeholder: {correct}
+ADMIN_EVENT_RESULT_CORRECT = "\n✅ Угадали: <b>{correct}</b>"
+
+# Примечание к CSV (прикладывается отдельным документом)
+ADMIN_EVENT_RESULT_CSV_NOTE = "\n📎 CSV со списком угадавших — во вложении."

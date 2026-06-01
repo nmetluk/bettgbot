@@ -97,6 +97,10 @@ class Event(Base):
     is_published: Mapped[bool] = mapped_column(Boolean, server_default=false(), nullable=False)
     is_archived: Mapped[bool] = mapped_column(Boolean, server_default=false(), nullable=False)
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Когда админ зафиксировал результат — бот отправил пост-итоговую сводку админам.
+    # Используется для идемпотентной рассылки (dispatch_event_result_notifications).
+    # Не участвует в CHECK-инварианте result/archive.
+    result_notified_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     created_by_admin_id: Mapped[int] = mapped_column(
         BigInteger,

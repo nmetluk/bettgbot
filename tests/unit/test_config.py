@@ -109,6 +109,36 @@ def test_prod_env_with_short_secret_fails(monkeypatch: pytest.MonkeyPatch) -> No
         Settings()  # type: ignore[call-arg]
 
 
+# --- TASK-097: ADMIN_TELEGRAM_CHAT_IDS CSV parser tests ---
+
+
+def test_admin_telegram_chat_ids_empty_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Не задан / пусто → []."""
+    _set_minimum_env(monkeypatch)
+    get_settings.cache_clear()
+    s = Settings()  # type: ignore[call-arg]
+    assert s.admin_telegram_chat_ids == []
+
+
+def test_admin_telegram_chat_ids_csv_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """CSV '123, 456,789' → [123,456,789]; single; garbage ignored."""
+    _set_minimum_env(monkeypatch)
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_IDS", "123, 456,789")
+    get_settings.cache_clear()
+    s = Settings()  # type: ignore[call-arg]
+    assert s.admin_telegram_chat_ids == [123, 456, 789]
+
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_IDS", "999")
+    get_settings.cache_clear()
+    s = Settings()  # type: ignore[call-arg]
+    assert s.admin_telegram_chat_ids == [999]
+
+    monkeypatch.setenv("ADMIN_TELEGRAM_CHAT_IDS", " , , ")
+    get_settings.cache_clear()
+    s = Settings()  # type: ignore[call-arg]
+    assert s.admin_telegram_chat_ids == []
+
+
 def test_prod_env_with_dev_bot_token_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     """environment=prod + dev-bot-token → ValueError."""
     get_settings.cache_clear()

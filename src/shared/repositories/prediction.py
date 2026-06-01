@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
+from typing import Any
 
 from sqlalchemy import and_, case, cast, func, not_, select, update
 from sqlalchemy.dialects.postgresql import NUMERIC
@@ -11,7 +12,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models import Category, Event, Prediction, User
+from ..models import Category, Event, Outcome, Prediction, User
 from ..time import utcnow
 
 __all__ = ["PredictionRepository"]
@@ -140,6 +141,16 @@ class PredictionRepository:
     async def count(self) -> int:
         """Общее количество прогнозов."""
         stmt = select(func.count()).select_from(Prediction)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def count_for_event(self, event_id: int) -> int:
+        """Количество прогнозов по конкретному событию."""
+        stmt = (
+            select(func.count())
+            .select_from(Prediction)
+            .where(Prediction.event_id == event_id)
+        )
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
 
@@ -323,5 +334,59 @@ class PredictionRepository:
                 str(row.category_slug),
                 int(row.prediction_count),
             )
+            for row in result
+        ]
+
+    async def outcome_distribution_for_event(self, event_id: int) -> list[tuple[int, str, int]]:
+        """Распределение прогнозов по исходам события: [(outcome_id, label, count), ...] sorted by count desc."""
+        stmt = (
+            select(
+                Outcome.id.label("outcome_id"),
+                Outcome.label.label("label"),
+                func.count(Prediction.id).label("cnt"),
+            )
+            .join(Prediction, Prediction.outcome_id == Outcome.id)
+            .where(Prediction.event_id == event_id)
+            .group_by(Outcome.id, Outcome.label)
+            .order_by(func.count(Prediction.id).desc(), Outcome.id)
+        )
+        result = await self._session.execute(stmt)
+        return [(int(row.outcome_id), str(row.label), int(row.cnt)) for row in result]
+
+    async def correct_users_for_event(self, event_id: int) -> list[dict[str, Any]]:
+        """Список угадавших пользователей (для CSV и текстовой сводки).
+
+        Поля: tg_user_id, first_name, last_name, tg_username, phone, outcome_label, predicted_at.
+        Сортировка по user_id (стабильная).
+        """
+        stmt = (
+            select(
+                User.tg_user_id,
+                User.first_name,
+                User.last_name,
+                User.tg_username,
+                User.phone,
+                Outcome.label.label("outcome_label"),
+                Prediction.created_at.label("predicted_at"),
+            )
+            .join(User, Prediction.user_id == User.id)
+            .join(Outcome, Prediction.outcome_id == Outcome.id)
+            .where(
+                Prediction.event_id == event_id,
+                Prediction.is_correct.is_(True),
+            )
+            .order_by(User.id)
+        )
+        result = await self._session.execute(stmt)
+        return [
+            {
+                "tg_user_id": int(row.tg_user_id),
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "tg_username": row.tg_username,
+                "phone": row.phone,
+                "outcome_label": row.outcome_label,
+                "predicted_at": row.predicted_at,
+            }
             for row in result
         ]

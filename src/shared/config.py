@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     Field,
@@ -20,7 +20,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 __all__ = [
     "AdminSettings",
@@ -155,9 +155,28 @@ class Settings(BaseSettings):
     # `staging`/`prod` — за https, Secure обязателен.
     environment: Environment = "dev"
 
+    # Список chat_id администраторов для получения служебных сообщений от бота
+    # (дневной дайджест + пост-итоговые сводки событий). Пусто → фича выключена.
+    # Только для сервиса bot (web не использует). CSV в env, парсинг как старый MOCK_REGISTRY_ALLOWED.
+    admin_telegram_chat_ids: Annotated[list[int], NoDecode] = Field(
+        default_factory=list, validation_alias="ADMIN_TELEGRAM_CHAT_IDS"
+    )
+
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
     backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)  # type: ignore[arg-type]
+
+    @field_validator("admin_telegram_chat_ids", mode="before")
+    @classmethod
+    def _parse_admin_telegram_chat_ids(cls, value: Any) -> Any:
+        """CSV-строка '123,456' или список → list[int]. Пусто/None/пробелы → []."""
+        if value is None or value == "":
+            return []
+        if isinstance(value, str):
+            return [int(item.strip()) for item in value.split(",") if item.strip()]
+        if isinstance(value, (list, tuple)):
+            return [int(x) for x in value if str(x).strip()]
+        return []
 
     @model_validator(mode="after")
     def _validate_prod_secrets(self) -> Self:
