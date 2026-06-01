@@ -18,6 +18,8 @@
 
 ## Регистрация (`/start`)
 
+> **Открытая регистрация (с 2026-06-01, [ADR-0006](adr/0006-open-registration.md)).** Проверка номера по внешнему реестру **отменена заказчиком**. Любой пользователь, поделившийся **своим** контактом, регистрируется. Внешнего API в этом флоу больше нет.
+
 ### Сценарий «новый пользователь»
 
 ```mermaid
@@ -25,33 +27,24 @@ sequenceDiagram
     participant U as Пользователь
     participant B as Бот
     participant US as UserService
-    participant E as ExternalRegistry
 
     U->>B: /start
     B->>US: get_user(tg_user_id)
     US-->>B: None
     B->>U: Приветствие + ReplyKeyboard [📱 Поделиться контактом] (request_contact=true)
     U->>B: Contact (phone, first_name, last_name)
-    B->>US: register(tg_user_id, phone, first_name, last_name)
-    US->>E: verify(phone)
-    alt подтверждён
-        US->>US: INSERT user, INSERT reminder_setting(default)
-        US-->>B: User
-        B->>U: «Добро пожаловать, {first_name}!» + главное меню
-    else не найден
-        US-->>B: NotAllowedError
-        B->>U: «Ваш номер не найден в реестре. Обратитесь к администратору.» + удалить keyboard
-    else ошибка внешнего API
-        US-->>B: ExternalApiError
-        B->>U: «Не удалось проверить номер прямо сейчас. Попробуйте позже.»
-    end
+    B->>US: register_or_authenticate(tg_user_id, phone, first_name, last_name)
+    US->>US: INSERT user, INSERT reminder_setting(default)
+    US-->>B: User
+    B->>U: «Добро пожаловать, {first_name}!» + главное меню
 ```
 
 **Ключевые правила:**
 
 - Бот **никогда** не просит пользователя ввести номер вручную. Только через `request_contact`.
 - Если пользователь шлёт контакт **не свой** (Telegram такое позволяет), бот это видит по `Contact.user_id != message.from_user.id` — отвечает «Поделитесь, пожалуйста, **своим** контактом».
-- После неудачной проверки кнопка `[📱 Поделиться контактом]` остаётся — пользователь может попробовать снова.
+- Заблокированный админом пользователь (`is_blocked = true`) доступа не получает — это единственный отказной путь, оставшийся в регистрации.
+- Никакой проверки во внешнем реестре больше нет: нет путей `NotAllowedError` / `ExternalApiError`, нет ответов «номер не найден» / «не удалось проверить номер». Эти тексты и исключения удаляются (см. [TASK-096](../handoff/archive/)).
 
 ### Сценарий «уже зарегистрирован»
 
@@ -300,7 +293,7 @@ APScheduler-job ежедневно: помечает `is_archived = true` соб
 WELCOME_NEW = "👋 Привет! ..."
 WELCOME_RETURNING = "С возвращением!"
 NEED_CONTACT = "Чтобы пользоваться ботом, поделитесь, пожалуйста, контактом..."
-PHONE_NOT_FOUND = "Ваш номер не найден в реестре..."
+NEED_OWN_CONTACT = "Поделитесь, пожалуйста, своим контактом."
 ...
 ```
 
