@@ -2,6 +2,7 @@
 
 from .admin_user import AdminUser
 from .audit_log import AuditLog
+from .backup_run import BackupRun
 from .base import Base
 from .broadcast import Broadcast
 from .broadcast_delivery import BroadcastDelivery
@@ -16,6 +17,7 @@ from .user import User
 __all__ = [
     "AdminUser",
     "AuditLog",
+    "BackupRun",
     "Base",
     "Broadcast",
     "BroadcastDelivery",
