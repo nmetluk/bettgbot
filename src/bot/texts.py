@@ -33,6 +33,8 @@ __all__ = [
     "OPERATIONAL_HEARTBEAT_ALERT",
     # TASK-099 backup health heartbeat
     "OPERATIONAL_HEARTBEAT_OK",
+    "OPERATIONAL_HEARTBEAT_ALERT",
+    "OPERATIONAL_HEARTBEAT_NO_RECENT",
     "PREDICTION_YOUR_CHOICE",
     "PREDICT_CONFIRM",
     "PREDICT_DEADLINE_PASSED",
@@ -61,6 +63,7 @@ __all__ = [
     # TASK-099 backup health heartbeat
     "OPERATIONAL_HEARTBEAT_OK",
     "OPERATIONAL_HEARTBEAT_ALERT",
+    "OPERATIONAL_HEARTBEAT_NO_RECENT",
 ]
 
 
@@ -240,11 +243,13 @@ ADMIN_EVENT_RESULT_CSV_NOTE = "\n📎 CSV со списком угадавших
 # {last_success_age} — возраст последнего success (напр. "1h 23m")
 # {size} — размер последнего дампа (напр. "42M")
 # {db_ok}, {redis_ok} — "OK" / "DOWN"
+# {replication} — "реплицирован" / "не реплицирован" (по replicated_at из amendment)
 OPERATIONAL_HEARTBEAT_OK = (
     "✅ Backup heartbeat OK\n"
     "Last success: {last_success_age} ago\n"
     "Size: {size}\n"
-    "DB: {db_ok} | Redis: {redis_ok}"
+    "DB: {db_ok} | Redis: {redis_ok}\n"
+    "Replication: {replication}"
 )
 
 # Алерт.
@@ -253,6 +258,15 @@ OPERATIONAL_HEARTBEAT_ALERT = (
     "🚨 Backup heartbeat ALERT\n"
     "{reason}\n"
     "Last: {last}\n"
+    "DB: {db_ok} | Redis: {redis_ok}\n"
+    "Check db-backup container and logs."
+)
+
+# Нет ни одной успешной записи (всегда шлём отчёт, даже если "no recent").
+# {db_ok}, {redis_ok} — "OK" / "DOWN"
+OPERATIONAL_HEARTBEAT_NO_RECENT = (
+    "⚠️ Backup heartbeat — нет свежих бэкапов\n"
+    "Last success: никогда\n"
     "DB: {db_ok} | Redis: {redis_ok}\n"
     "Check db-backup container and logs."
 )
