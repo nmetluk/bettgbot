@@ -10,6 +10,9 @@ services:
     restart: always
     environment:
       LOG_FORMAT: json
+      # TASK-099: Backup health heartbeat (consumer side)
+      BACKUP_HEARTBEAT_ENABLED: ${BACKUP_HEARTBEAT_ENABLED:-false}
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-2}
     logging:
       driver: json-file
       options:
