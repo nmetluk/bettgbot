@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -128,5 +128,11 @@ class UserRepository:
         """
         cutoff = utcnow() - timedelta(days=30)
         stmt = select(func.count()).select_from(User).where(User.last_seen_at >= cutoff)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def count_new_since(self, since: datetime) -> int:
+        """Количество новых пользователей, зарегистрированных с указанного момента."""
+        stmt = select(func.count()).select_from(User).where(User.created_at >= since)
         result = await self._session.execute(stmt)
         return int(result.scalar_one())

@@ -44,6 +44,8 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       ADMIN_SECRET_KEY: ${ADMIN_SECRET_KEY}
       ADMIN_CSRF_SECRET: ${ADMIN_CSRF_SECRET}
+      # Только bot (не web): для дневного дайджеста и пост-итоговых уведомлений (TASK-097)
+      ADMIN_TELEGRAM_CHAT_IDS: ${ADMIN_TELEGRAM_CHAT_IDS:-}
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }

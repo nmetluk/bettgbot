@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..repositories import PredictionRepository
+from ..repositories import EventRepository, PredictionRepository
 from ..time import utcnow
 
 __all__ = [
@@ -15,6 +15,8 @@ __all__ = [
     "AnalyticsFunnelMetrics",
     "AnalyticsTopEventRow",
     "CategoryAccuracyRow",
+    "CorrectUserRow",
+    "EventResultSummary",
     "LeaderboardRow",
     "StatsService",
 ]
@@ -71,10 +73,35 @@ class AnalyticsTopEventRow:
     prediction_count: int
 
 
+@dataclass(frozen=True, slots=True)
+class CorrectUserRow:
+    """Строка угадавшего пользователя для пост-итоговой сводки/CSV (TASK-097)."""
+
+    tg_user_id: int
+    first_name: str
+    last_name: str | None
+    tg_username: str | None
+    phone: str
+    outcome_label: str
+    predicted_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class EventResultSummary:
+    """Сводка по итогам события для админ-уведомления (TASK-097)."""
+
+    total_predictions: int
+    correct_count: int
+    # (outcome_id, label, count, is_winner)
+    outcome_distribution: list[tuple[int, str, int, bool]]
+    correct_users: list[CorrectUserRow]
+
+
 class StatsService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
         self._predictions = PredictionRepository(session)
+        self._events = EventRepository(session)
 
     async def user_stats(self, user_id: int) -> tuple[int, int, float]:
         """Возвращает `(correct, total, percent)`. `total` — только зафиксированные."""
@@ -173,3 +200,44 @@ class StatsService:
             )
             for event_id, title, slug, count in rows
         ]
+
+    async def event_result_summary(self, event_id: int) -> EventResultSummary:
+        """Пост-итоговая сводка события для рассылки админам (TASK-097).
+
+        total + correct из прогнозов; распределение + список угадавших из PredictionRepo.
+        is_winner — по текущему result_outcome_id события (может быть None если race).
+        """
+        total_predictions = await self._predictions.count_for_event(event_id)
+
+        # Winner outcome (для флага is_winner в распределении)
+        event = await self._events.get_by_id(event_id)
+        winner_id = event.result_outcome_id if event else None
+
+        dist_raw = await self._predictions.outcome_distribution_for_event(event_id)
+        outcome_distribution: list[tuple[int, str, int, bool]] = []
+        for oid, label, cnt in dist_raw:
+            is_winner = oid == winner_id
+            outcome_distribution.append((oid, label, cnt, is_winner))
+
+        # Correct users (и count из длины списка — надёжнее, чем отдельный COUNT с is_correct)
+        correct_raw = await self._predictions.correct_users_for_event(event_id)
+        correct_users = [
+            CorrectUserRow(
+                tg_user_id=r["tg_user_id"],
+                first_name=r["first_name"],
+                last_name=r["last_name"],
+                tg_username=r["tg_username"],
+                phone=r["phone"],
+                outcome_label=r["outcome_label"],
+                predicted_at=r["predicted_at"],
+            )
+            for r in correct_raw
+        ]
+        correct_count = len(correct_users)
+
+        return EventResultSummary(
+            total_predictions=total_predictions,
+            correct_count=correct_count,
+            outcome_distribution=outcome_distribution,
+            correct_users=correct_users,
+        )

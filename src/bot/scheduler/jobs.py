@@ -7,21 +7,27 @@ from datetime import timedelta
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
+from aiogram.types import BufferedInputFile
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.shared.logging import get_logger
+from src.shared.models import Event
 from src.shared.repositories import BroadcastRepository, ReminderDispatchLogRepository
-from src.shared.services import EventService, ReminderService
+from src.shared.services import EventService, ReminderService, StatsService
 from src.shared.time import utcnow
 
 from .. import keyboards, texts
+from .._csv import generate_correct_users_csv
 from .._text_safety import safe_format
 
 __all__ = [
     "archive_stale_events",
     "cleanup_old_dispatch_logs",
     "dispatch_broadcasts",
+    "dispatch_event_result_notifications",
     "dispatch_reminders",
+    "send_daily_admin_digest",
 ]
 
 
@@ -251,3 +257,172 @@ async def dispatch_broadcasts(
             sent_count=broadcast.sent_count,
             failed_count=broadcast.failed_count,
         )
+
+
+# =============================================================================
+# АДМИН-СТАТИСТИКА ЧЕРЕЗ БОТА (TASK-097)
+# =============================================================================
+
+
+async def send_daily_admin_digest(
+    *,
+    bot: Bot,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Ежедневный дайджест админам в 16:00 Europe/Moscow.
+
+    Считает: total users (count_for_admin), new за 24ч, прогнозы за 24ч.
+    Пустой ADMIN_TELEGRAM_CHAT_IDS → warning + return (БД не трогаем).
+    """
+    from src.shared.config import get_settings
+
+    settings = get_settings()
+    chat_ids = settings.admin_telegram_chat_ids
+    if not chat_ids:
+        logger.warning("scheduler.admin_digest.skipped_empty_recipients")
+        return
+
+    async with session_maker() as session:
+        from src.shared.repositories import PredictionRepository, UserRepository
+
+        user_repo = UserRepository(session)
+        pred_repo = PredictionRepository(session)
+
+        total = await user_repo.count_for_admin(query=None)
+        cutoff = utcnow() - timedelta(hours=24)
+        new_24h = await user_repo.count_new_since(cutoff)
+        preds_24h = await pred_repo.count_24h()
+
+        date_str = utcnow().strftime("%Y-%m-%d")
+
+        text = safe_format(
+            texts.ADMIN_DAILY_DIGEST,
+            date=date_str,
+            total=total,
+            new_24h=new_24h,
+            preds_24h=preds_24h,
+        )
+
+        for chat_id in chat_ids:
+            try:
+                await bot.send_message(chat_id, text)
+                logger.info(
+                    "scheduler.admin_digest.sent",
+                    chat_id=chat_id,
+                    total=total,
+                    new_24h=new_24h,
+                )
+            except TelegramAPIError as exc:
+                logger.warning(
+                    "scheduler.admin_digest.send_failed",
+                    chat_id=chat_id,
+                    error=str(exc),
+                )
+
+
+async def dispatch_event_result_notifications(
+    *,
+    bot: Bot,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Пост-итоговые сводки админам после фиксации результата события.
+
+    Ищет события с result_outcome_id IS NOT NULL AND result_notified_at IS NULL.
+    Использует FOR UPDATE SKIP LOCKED (как claim у broadcasts).
+    Для каждого: считает summary через StatsService, шлёт текст + CSV (если есть)
+    во все ADMIN_TELEGRAM_CHAT_IDS, затем result_notified_at=now() и commit (per-event).
+
+    Пустой список получателей → warning, события НЕ трогаем (не помечаем notified).
+    Ошибка отправки в один чат → warning, продолжаем; событие всё равно помечаем
+    (повторная рассылка хуже потери одного чата).
+    """
+    from src.shared.config import get_settings
+
+    settings = get_settings()
+    chat_ids = settings.admin_telegram_chat_ids
+    if not chat_ids:
+        logger.warning("scheduler.event_result_notifications.skipped_empty_recipients")
+        return
+
+    async with session_maker() as session:
+        # Забираем кандидатов под лок (skip locked — не блокируемся на уже обрабатываемых)
+        stmt = (
+            select(Event)
+            .where(
+                Event.result_outcome_id.isnot(None),
+                Event.result_notified_at.is_(None),
+            )
+            .order_by(Event.id)
+            .with_for_update(skip_locked=True)
+            .limit(20)  # небольшой батч на тик
+        )
+        events = (await session.execute(stmt)).scalars().all()
+
+        for event in events:
+            summary = await StatsService(session).event_result_summary(event.id)
+
+            # Форматируем текст (используем константы из texts, не хардкод)
+            header = safe_format(
+                texts.ADMIN_EVENT_RESULT_HEADER,
+                event_id=event.id,
+                title=event.title,
+            )
+
+            # Распределение
+            lines: list[str] = []
+            for _oid, label, cnt, is_winner in summary.outcome_distribution:
+                emoji = "✅" if is_winner else "•"
+                pct = (
+                    round((cnt / summary.total_predictions * 100), 1)
+                    if summary.total_predictions
+                    else 0
+                )
+                line = safe_format(
+                    texts.ADMIN_EVENT_RESULT_OUTCOME_LINE,
+                    emoji=emoji,
+                    label=label,
+                    count=cnt,
+                    pct=pct,
+                )
+                lines.append(line)
+            dist_block = "\n".join(lines) if lines else "—"
+
+            correct_block = safe_format(
+                texts.ADMIN_EVENT_RESULT_CORRECT,
+                correct=summary.correct_count,
+            )
+
+            csv_note = ""
+            csv_file: BufferedInputFile | None = None
+            if summary.correct_count > 0:
+                csv_file = generate_correct_users_csv(summary.correct_users, event.id)
+                if csv_file:
+                    csv_note = texts.ADMIN_EVENT_RESULT_CSV_NOTE
+
+            text = f"{header}\n\nВсего прогнозов: <b>{summary.total_predictions}</b>\n{dist_block}{correct_block}{csv_note}"
+
+            # Отправляем во все чаты (даже если один упадёт — помечаем notified)
+            for chat_id in chat_ids:
+                try:
+                    await bot.send_message(chat_id, text, disable_web_page_preview=True)
+                    if csv_file:
+                        await bot.send_document(chat_id, csv_file)
+                except TelegramAPIError as exc:
+                    logger.warning(
+                        "scheduler.event_result.send_failed",
+                        event_id=event.id,
+                        chat_id=chat_id,
+                        error=str(exc),
+                    )
+
+            # Помечаем как разосланное (даже при частичных ошибках отправки)
+            event.result_notified_at = utcnow()
+            await session.flush()
+            await session.commit()
+
+            logger.info(
+                "scheduler.event_result.notified",
+                event_id=event.id,
+                total=summary.total_predictions,
+                correct=summary.correct_count,
+            )

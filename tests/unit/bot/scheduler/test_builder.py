@@ -40,3 +40,40 @@ def test_build_scheduler_registers_archive_stale_events_job() -> None:
     assert fields["hour"] == "3"
     assert fields["minute"] == "0"
     assert job.misfire_grace_time == 300
+
+
+# =============================================================================
+# TASK-097: регистрация новых админ-джобов (по amendment-2)
+# =============================================================================
+
+
+def test_build_scheduler_registers_send_daily_admin_digest_job() -> None:
+    """Дайджест: id, CronTrigger с timezone=Europe/Moscow, coalesce/max=1."""
+    scheduler = build_scheduler(bot=MagicMock(spec=Bot), session_maker=MagicMock())
+    jobs = {j.id: j for j in scheduler.get_jobs()}
+
+    assert "send_daily_admin_digest" in jobs
+    job = jobs["send_daily_admin_digest"]
+    assert isinstance(job.trigger, CronTrigger)
+    fields = {f.name: str(f) for f in job.trigger.fields}
+    assert fields["hour"] == "16"
+    assert fields["minute"] == "0"
+    # timezone задаётся per-job (не дефолт UTC scheduler'а)
+    assert str(job.trigger.timezone) == "Europe/Moscow"
+    assert job.misfire_grace_time == 3600
+    assert job.coalesce is True
+    assert job.max_instances == 1
+
+
+def test_build_scheduler_registers_dispatch_event_result_notifications_job() -> None:
+    """Нотификации: id, IntervalTrigger(minutes=1), coalesce/max=1."""
+    scheduler = build_scheduler(bot=MagicMock(spec=Bot), session_maker=MagicMock())
+    jobs = {j.id: j for j in scheduler.get_jobs()}
+
+    assert "dispatch_event_result_notifications" in jobs
+    job = jobs["dispatch_event_result_notifications"]
+    assert isinstance(job.trigger, IntervalTrigger)
+    assert job.trigger.interval.total_seconds() == 60
+    assert job.misfire_grace_time == 300
+    assert job.coalesce is True
+    assert job.max_instances == 1
