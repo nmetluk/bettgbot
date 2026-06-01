@@ -120,6 +120,16 @@ class UserRepository:
         result = await self._session.execute(stmt)
         return [(row[0], int(row[1])) for row in result.all()]
 
+    async def count_active_since(self, since: datetime) -> int:
+        """Количество пользователей с активностью с указанного момента.
+
+        Активность определяется по полю `last_seen_at` (обновляется UserMiddleware
+        на каждом запросе пользователя). Используется для DAU в админ-дайджесте (TASK-098).
+        """
+        stmt = select(func.count()).select_from(User).where(User.last_seen_at >= since)
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
+
     async def count_active_30d(self) -> int:
         """Количество пользователей с активностью за последние 30 дней.
 
@@ -127,9 +137,7 @@ class UserRepository:
         считался активным, если `last_seen_at >= now() - interval '30 days'`.
         """
         cutoff = utcnow() - timedelta(days=30)
-        stmt = select(func.count()).select_from(User).where(User.last_seen_at >= cutoff)
-        result = await self._session.execute(stmt)
-        return int(result.scalar_one())
+        return await self.count_active_since(cutoff)
 
     async def count_new_since(self, since: datetime) -> int:
         """Количество новых пользователей, зарегистрированных с указанного момента."""
