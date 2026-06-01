@@ -1,10 +1,10 @@
-"""Handler `/start` и приём контакта при регистрации (TASK-011).
+"""Handler `/start` и приём контакта при регистрации (TASK-011, TASK-096).
 
 Сценарий:
 - `/start` — приветствие (новый → просим контакт; существующий → главное меню;
   заблокированный → отказ без клавиатуры).
-- `Message(F.contact)` — приём контакта, проверка во внешнем реестре через
-  `UserService.register_or_authenticate`, обработка доменных исключений.
+- `Message(F.contact)` — приём контакта (только свой), проверка is_blocked,
+  создание пользователя через `UserService` (открытая регистрация, без внешнего реестра).
 """
 
 from __future__ import annotations
@@ -17,8 +17,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.shared.exceptions import RegistryUnavailableError, UserNotAllowed
-from src.shared.external.registry import ExternalUserRegistryClient
 from src.shared.logging import get_logger
 from src.shared.models import User
 from src.shared.services import UserService
@@ -78,9 +76,13 @@ async def cmd_start(
 async def on_contact(
     message: Message,
     session: AsyncSession,
-    registry: ExternalUserRegistryClient,
     user: User | None,
 ) -> None:
+    """Приём контакта: открытая регистрация (TASK-096).
+
+    Проверки: свой контакт, не заблокирован, не зарегистрирован уже.
+    Успех → User + дефолтные напоминания создаются в UserService.
+    """
     # Narrowing: F.contact гарантирует contact, CommandStart-like context — from_user.
     if message.contact is None or message.from_user is None:
         return
@@ -105,39 +107,15 @@ async def on_contact(
         return
 
     phone = _normalize_phone(message.contact.phone_number)
-    service = UserService(session, registry=registry)
+    service = UserService(session)
 
-    try:
-        created = await service.register_or_authenticate(
-            tg_user_id=message.from_user.id,
-            phone=phone,
-            tg_username=message.from_user.username,
-            first_name=message.contact.first_name,
-            last_name=message.contact.last_name,
-        )
-    except UserNotAllowed as exc:
-        logger.info(
-            "bot.start.not_allowed",
-            tg_user_id=message.from_user.id,
-            phone_hash=_phone_hash(phone),
-            reason=exc.reason,
-        )
-        await message.answer(
-            texts.PHONE_NOT_FOUND,
-            reply_markup=keyboards.contact_request(),
-        )
-        return
-    except RegistryUnavailableError:
-        logger.warning(
-            "bot.start.registry_unavailable",
-            tg_user_id=message.from_user.id,
-            phone_hash=_phone_hash(phone),
-        )
-        await message.answer(
-            texts.REGISTRY_UNAVAILABLE,
-            reply_markup=keyboards.contact_request(),
-        )
-        return
+    created = await service.register_or_authenticate(
+        tg_user_id=message.from_user.id,
+        phone=phone,
+        tg_username=message.from_user.username,
+        first_name=message.contact.first_name,
+        last_name=message.contact.last_name,
+    )
 
     logger.info(
         "bot.start.registered",

@@ -1,8 +1,7 @@
-"""Shared package: models, repositories, services, external clients, config."""
+"""Shared package: models, repositories, services, config (external registry removed in TASK-096)."""
 
 from .config import (
     AdminSettings,
-    ExternalRegistrySettings,
     Settings,
     get_settings,
     settings,
@@ -12,7 +11,6 @@ from .observability import init_sentry
 
 __all__ = [
     "AdminSettings",
-    "ExternalRegistrySettings",
     "Settings",
     "configure_logging",
     "get_logger",

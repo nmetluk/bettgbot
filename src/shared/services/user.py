@@ -6,8 +6,6 @@ from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..exceptions import RegistryUnavailableError, UserNotAllowed
-from ..external.registry import ExternalApiError, ExternalUserRegistryClient
 from ..models import User
 from ..repositories import (
     AuditLogRepository,
@@ -24,21 +22,15 @@ _DEFAULT_REMINDER_OFFSETS = [1440, 60]
 class UserService:
     """Доменная логика регистрации, блокировки и поиска пользователей."""
 
-    def __init__(
-        self,
-        session: AsyncSession,
-        registry: ExternalUserRegistryClient | None = None,
-    ) -> None:
-        """`registry` обязателен только для `register_or_authenticate`.
+    def __init__(self, session: AsyncSession) -> None:
+        """UserService без внешнего реестра (открытая регистрация с 2026-06-01).
 
-        Для `touch_last_seen`/`block`/`unblock`/read-методов он не используется —
-        тогда можно передавать `None` (например, в middleware `UserMiddleware`).
+        Регистрация разрешена любому, кто прислал свой контакт (кроме is_blocked).
         """
         self._session = session
         self._users = UserRepository(session)
         self._reminders = ReminderSettingRepository(session)
         self._audit = AuditLogRepository(session)
-        self._registry = registry
 
     async def register_or_authenticate(
         self,
@@ -49,22 +41,15 @@ class UserService:
         last_name: str | None = None,
         tg_username: str | None = None,
     ) -> User:
-        if self._registry is None:
-            raise RuntimeError("registry is required for register_or_authenticate")
+        """Открытая регистрация: любой с собственным контактом (кроме is_blocked в handler).
+
+        Создаёт User + дефолтные напоминания сразу после проверки «ещё нет».
+        """
         existing = await self._users.get_by_tg_user_id(tg_user_id)
         if existing is not None:
             await self._users.touch_last_seen(existing.id)
             await self._session.commit()
             return existing
-
-        registry = self._registry
-        try:
-            verification = await registry.verify(phone)
-        except ExternalApiError as exc:
-            raise RegistryUnavailableError("registry unavailable") from exc
-
-        if not verification.is_allowed:
-            raise UserNotAllowed(reason=verification.reason)
 
         user = await self._users.create(
             tg_user_id=tg_user_id,

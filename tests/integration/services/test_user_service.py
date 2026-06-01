@@ -5,11 +5,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.shared.exceptions import RegistryUnavailableError, UserNotAllowed
-from src.shared.external.registry import ExternalApiError, VerificationResult
 from src.shared.models import AuditLog, ReminderSetting
 from src.shared.services import UserService
-from tests.integration.services.conftest import StubRegistry
 
 pytestmark = pytest.mark.integration
 
@@ -17,8 +14,8 @@ pytestmark = pytest.mark.integration
 async def test_register_creates_user_with_default_reminders(
     nested_session: AsyncSession,
 ) -> None:
-    registry = StubRegistry(result=VerificationResult(is_allowed=True, external_user_id="u-1"))
-    service = UserService(nested_session, registry)
+    """Открытая регистрация (TASK-096): создаёт User + дефолтные напоминания без реестра."""
+    service = UserService(nested_session)
     user = await service.register_or_authenticate(tg_user_id=111, phone="+71", first_name="Alice")
     assert user.id is not None
 
@@ -31,42 +28,11 @@ async def test_register_creates_user_with_default_reminders(
     assert rs.offsets_minutes == [1440, 60]
 
 
-async def test_register_not_found_raises_user_not_allowed(
-    nested_session: AsyncSession,
-) -> None:
-    registry = StubRegistry(result=VerificationResult(is_allowed=False, reason="not_found"))
-    service = UserService(nested_session, registry)
-    with pytest.raises(UserNotAllowed) as exc:
-        await service.register_or_authenticate(tg_user_id=222, phone="+72", first_name="Bob")
-    assert exc.value.reason == "not_found"
-
-
-async def test_register_blocked_raises_user_not_allowed(
-    nested_session: AsyncSession,
-) -> None:
-    registry = StubRegistry(result=VerificationResult(is_allowed=False, reason="manual"))
-    service = UserService(nested_session, registry)
-    with pytest.raises(UserNotAllowed) as exc:
-        await service.register_or_authenticate(tg_user_id=333, phone="+73", first_name="Carol")
-    assert exc.value.reason == "manual"
-
-
-async def test_register_external_api_error_wrapped(
-    nested_session: AsyncSession,
-) -> None:
-    original = ExternalApiError("network down")
-    registry = StubRegistry(raises=original)
-    service = UserService(nested_session, registry)
-    with pytest.raises(RegistryUnavailableError) as exc:
-        await service.register_or_authenticate(tg_user_id=444, phone="+74", first_name="Dan")
-    assert exc.value.__cause__ is original
-
-
 async def test_register_existing_updates_last_seen(
     nested_session: AsyncSession,
 ) -> None:
-    registry = StubRegistry(result=VerificationResult(is_allowed=True))
-    service = UserService(nested_session, registry)
+    """Повторная регистрация того же tg_user_id → touch last_seen, без дубликата."""
+    service = UserService(nested_session)
     user = await service.register_or_authenticate(tg_user_id=555, phone="+75", first_name="Eve")
     initial = user.last_seen_at
 
@@ -83,8 +49,7 @@ async def test_block_writes_audit(
 
     admin = await make_admin(nested_session)
     user = await make_user(nested_session)
-    registry = StubRegistry(result=VerificationResult(is_allowed=False))
-    service = UserService(nested_session, registry)
+    service = UserService(nested_session)
 
     await service.block(user.id, admin.id)
     await nested_session.refresh(user)
@@ -108,19 +73,8 @@ async def test_unblock_writes_audit(
 
     admin = await make_admin(nested_session)
     user = await make_user(nested_session, is_blocked=True)
-    registry = StubRegistry(result=VerificationResult(is_allowed=False))
-    service = UserService(nested_session, registry)
+    service = UserService(nested_session)
 
     await service.unblock(user.id, admin.id)
     await nested_session.refresh(user)
     assert user.is_blocked is False
-
-
-async def test_register_without_registry_raises_runtimeerror(
-    nested_session: AsyncSession,
-) -> None:
-    # UserService без registry — допустим для touch_last_seen/block/unblock,
-    # но register_or_authenticate должен явно поднять RuntimeError.
-    service = UserService(nested_session)
-    with pytest.raises(RuntimeError, match="registry is required"):
-        await service.register_or_authenticate(tg_user_id=999, phone="+79", first_name="X")

@@ -16,7 +16,6 @@ from aiogram.fsm.storage.redis import RedisStorage
 
 from src.shared.config import get_settings
 from src.shared.db import SessionLocal
-from src.shared.external import get_registry_client
 from src.shared.logging import configure_logging, get_logger
 from src.shared.observability import init_sentry
 
@@ -50,9 +49,6 @@ def build_dispatcher() -> tuple[Bot, Dispatcher]:
     dp.update.middleware(SessionMiddleware())
     dp.update.middleware(UserMiddleware())
 
-    # workflow-data: handler принимает `registry` как параметр, aiogram инжектит.
-    dp["registry"] = get_registry_client()
-
     dp.include_routers(*all_routers)
 
     return bot, dp
@@ -82,10 +78,6 @@ async def main() -> None:
         await dp.start_polling(bot)
     finally:
         scheduler.shutdown(wait=True)
-        # HttpExternalUserRegistryClient имеет .close(); Mock — нет.
-        closer = getattr(dp["registry"], "close", None)
-        if callable(closer):
-            await closer()
         await bot.session.close()
         logger.info("bot.shutdown")
 

@@ -8,13 +8,11 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
-from typing import Annotated, Any, Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import (
     Field,
     HttpUrl,
-    PositiveFloat,
     PositiveInt,
     PostgresDsn,
     RedisDsn,
@@ -22,13 +20,12 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = [
     "AdminSettings",
     "BackupSettings",
     "Environment",
-    "ExternalRegistrySettings",
     "ObservabilitySettings",
     "Settings",
     "get_settings",
@@ -128,66 +125,12 @@ class ObservabilitySettings(BaseSettings):
         return _empty_to_none(value)
 
 
-class ExternalRegistrySettings(BaseSettings):
-    """Параметры внешнего реестра пользователей (http-API либо mock).
-
-    Имена env-переменных привязаны через `validation_alias`, чтобы совпадать с
-    `infra/.env.example` — там сложилась плоская схема (`EXTERNAL_API_*`,
-    `MOCK_REGISTRY_*`), которую префикс bы не покрыл единообразно.
-    """
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
-
-    backend: Literal["mock", "http"] = Field(
-        default="mock", validation_alias="EXTERNAL_REGISTRY_BACKEND"
-    )
-    api_base_url: HttpUrl | None = Field(default=None, validation_alias="EXTERNAL_API_BASE_URL")
-    api_token: SecretStr | None = Field(default=None, validation_alias="EXTERNAL_API_TOKEN")
-    timeout_connect: PositiveFloat = Field(
-        default=2.0, validation_alias="EXTERNAL_API_TIMEOUT_CONNECT"
-    )
-    timeout_read: PositiveFloat = Field(default=5.0, validation_alias="EXTERNAL_API_TIMEOUT_READ")
-    mock_registry_file: Path | None = Field(default=None, validation_alias="MOCK_REGISTRY_FILE")
-    # NoDecode говорит pydantic-settings: не пытаться JSON-парсить значение;
-    # CSV-разбор делаем сами в _parse_csv ниже.
-    mock_registry_allowed: Annotated[list[str], NoDecode] = Field(
-        default_factory=list, validation_alias="MOCK_REGISTRY_ALLOWED"
-    )
-
-    @field_validator("api_base_url", "api_token", "mock_registry_file", mode="before")
-    @classmethod
-    def _empty_to_none(cls, value: Any) -> Any:
-        return _empty_to_none(value)
-
-    @field_validator("mock_registry_allowed", mode="before")
-    @classmethod
-    def _parse_csv(cls, value: Any) -> Any:
-        # Принимаем как CSV-строку из .env, так и уже-список (при программном вызове).
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
-
-    @model_validator(mode="after")
-    def _check_http_backend_has_credentials(self) -> Self:
-        if self.backend == "http" and (self.api_base_url is None or self.api_token is None):
-            raise ValueError(
-                "EXTERNAL_REGISTRY_BACKEND=http требует EXTERNAL_API_BASE_URL и EXTERNAL_API_TOKEN"
-            )
-        return self
-
-
 class Settings(BaseSettings):
     """Корневой конфиг приложения.
 
     Чтение `.env` делегируется pydantic-settings. Вложенные модели (`admin`,
-    `external_registry`) — самостоятельные `BaseSettings`, они тоже читают тот же
-    `.env`, поэтому плоская схема переменных (`ADMIN_*`, `EXTERNAL_*`) работает
-    без специальных делимитеров.
+    `backup`, `observability`) — самостоятельные `BaseSettings`, они тоже читают
+    тот же `.env`, поэтому плоская схема переменных работает без делимитеров.
     """
 
     model_config = SettingsConfigDict(
@@ -214,7 +157,6 @@ class Settings(BaseSettings):
 
     admin: AdminSettings = Field(default_factory=AdminSettings)  # type: ignore[arg-type]
     backup: BackupSettings = Field(default_factory=BackupSettings)  # type: ignore[arg-type]
-    external_registry: ExternalRegistrySettings = Field(default_factory=ExternalRegistrySettings)  # type: ignore[arg-type]
     observability: ObservabilitySettings = Field(default_factory=ObservabilitySettings)  # type: ignore[arg-type]
 
     @model_validator(mode="after")
@@ -242,10 +184,6 @@ class Settings(BaseSettings):
         bot_token = self.telegram_bot_token.get_secret_value()
         if bot_token == "dev-bot-token" or len(bot_token) < 30:
             errors.append("telegram_bot_token")
-
-        # Проверка external_registry.backend
-        if self.external_registry.backend == "mock":
-            errors.append("external_registry.backend (mock не допускается в prod)")
 
         # Проверка log_format
         if self.log_format == "console":

@@ -109,7 +109,7 @@ def _client(
     import src.admin.routes.users as u_routes
 
     if user_service is not None:
-        u_routes.UserService = lambda session, registry=None: user_service  # type: ignore[assignment]
+        u_routes.UserService = lambda session: user_service  # type: ignore[assignment]
     if prediction_service is not None:
         u_routes.PredictionService = lambda session: prediction_service  # type: ignore[assignment]
     if stats_service is not None:
