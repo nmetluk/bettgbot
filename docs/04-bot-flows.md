@@ -281,6 +281,51 @@ APScheduler-job каждые 5 минут:
 
 APScheduler-job ежедневно: помечает `is_archived = true` события, у которых `starts_at < now() - 7 дней` и `result_outcome_id IS NULL` (то есть админ забыл зафиксировать). Эти события не дают пользователю прогнозировать, но видны в архиве **без** отметки «сбылся/нет» (NULL).
 
+### Админская статистика (TASK-097)
+
+Бот выступает каналом доставки админских сводок. Получатели — Telegram-чаты из env `ADMIN_TELEGRAM_CHAT_IDS` (список `chat_id` через запятую; пусто → фича выключена, в лог `warning`). Сводки шлёт **бот** (только у него есть `Bot`), а не веб-админка — отсюда развязка через БД (см. ниже и [05-admin-spec.md](05-admin-spec.md)).
+
+**1. Ежедневный дайджест — cron 16:00 `Europe/Moscow`** (`CronTrigger(hour=16, minute=0, timezone="Europe/Moscow")`, `coalesce=True`, `misfire_grace_time` ~1ч на случай рестарта).
+
+Окно — **скользящие последние 24 часа** (`now() - 24h … now()`, внутри в UTC). Содержимое:
+
+```
+📊 Статистика за сутки ({window_start:%d.%m %H:%M}–{window_end:%d.%m %H:%M} МСК)
+
+👥 Пользователей всего: {total_users}
+🆕 Новых за сутки: {new_users_24h}
+🎯 Прогнозов за сутки: {predictions_24h}
+```
+
+Никакой персистентности дайджесту не нужно (фиксированный cron + `coalesce`).
+
+**2. Рассылка пост-итоговой статистики события — interval-job ~1 мин** (`dispatch_event_result_notifications`).
+
+Триггерится **косвенно**: админка через `set_result` проставляет `result_outcome_id`. Бот отдельным джобом находит события, у которых `result_outcome_id IS NOT NULL AND result_notified_at IS NULL` (новая колонка, см. [03-data-model.md](03-data-model.md)), для каждого через `FOR UPDATE SKIP LOCKED`:
+
+1. считает статистику: всего прогнозов, угадавших, распределение по исходам;
+2. формирует CSV угадавших;
+3. шлёт во все `ADMIN_TELEGRAM_CHAT_IDS` сообщение + CSV-документ;
+4. ставит `result_notified_at = now()` (идемпотентность — повторно не уйдёт).
+
+Сообщение:
+
+```
+🏁 Итоги события: «{event.title}»
+Верный исход: «{result_outcome.label}»
+
+🎯 Всего прогнозов: {total}
+✅ Угадали: {correct} ({percent}%)
+
+Распределение по исходам:
+• {outcome.label}: {n} {✅ если это верный}
+• …
+```
+
+CSV `correct_users_event_{id}.csv` (UTF-8 с BOM для Excel; разделитель `,`), колонки: `tg_user_id, first_name, last_name, tg_username, phone, outcome, predicted_at`. **Телефон — чувствительный PII**, файл уходит только в сконфигурированные админ-чаты (осознанное решение владельца, см. [`state/DECISIONS.md`](../state/DECISIONS.md)).
+
+Edge cases: 0 прогнозов → шлём сводку с нулями, CSV не прикладываем; событие, авто-архивированное без итога (`result_outcome_id IS NULL`) → не попадает под джоб; ошибка отправки в один чат → продолжаем по остальным, лог `warning`; `ADMIN_TELEGRAM_CHAT_IDS` пуст → джоб ставит `result_notified_at` и ничего не шлёт? **Нет** — при пустом списке джоб не трогает события (чтобы при последующей настройке чатов сводки доехали), только пишет `warning` раз за тик.
+
 ## Логирование
 
 Каждый update логируется (`structlog`) с полями: `update_id`, `tg_user_id`, `user_id`, `handler`, `latency_ms`, `outcome` (`ok|domain_error|server_error`). Это поможет дебажить и анализировать поведение.
