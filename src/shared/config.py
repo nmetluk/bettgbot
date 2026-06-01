@@ -87,6 +87,13 @@ class BackupSettings(BaseSettings):
     # Сколько дней хранить бэкапы в offside (local volume через find -mtime).
     retention_days: PositiveInt = 30
 
+    # TASK-099: heartbeat-мониторинг бэкапов внутри бота (через backup_run таблицу).
+    # Включает ежечасный джоб send_backup_health_heartbeat (только если true).
+    # Заменяет primary-guard — включаем флаг на одном инстансе бота.
+    heartbeat_enabled: bool = False
+    # Порог просрочки последнего успешного бэкапа (алерт если старше).
+    max_age_hours: PositiveInt = 2
+
     @field_validator("age_recipient", "rclone_remote", mode="before")
     @classmethod
     def _empty_to_none(cls, value: Any) -> Any:

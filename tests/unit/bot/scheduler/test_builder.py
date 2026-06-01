@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -77,3 +77,36 @@ def test_build_scheduler_registers_dispatch_event_result_notifications_job() -> 
     assert job.misfire_grace_time == 300
     assert job.coalesce is True
     assert job.max_instances == 1
+
+
+def _mk_settings_backup(enabled: bool) -> MagicMock:
+    s = MagicMock()
+    s.backup.heartbeat_enabled = enabled
+    s.backup.max_age_hours = 2
+    s.admin_telegram_chat_ids = [123]
+    return s
+
+
+def test_build_scheduler_backup_heartbeat_not_registered_when_disabled() -> None:
+    """BACKUP_HEARTBEAT_ENABLED=false → джоб НЕ зарегистрирован."""
+    with patch("src.shared.config.get_settings", return_value=_mk_settings_backup(False)):
+        scheduler = build_scheduler(bot=MagicMock(spec=Bot), session_maker=MagicMock())
+    jobs = {j.id: j for j in scheduler.get_jobs()}
+    assert "send_backup_health_heartbeat" not in jobs
+
+
+def test_build_scheduler_backup_heartbeat_registered_when_enabled() -> None:
+    """BACKUP_HEARTBEAT_ENABLED=true → зарегистрирован с id и CronTrigger(minute=7), coalesce/max=1."""
+    with patch("src.shared.config.get_settings", return_value=_mk_settings_backup(True)):
+        scheduler = build_scheduler(bot=MagicMock(spec=Bot), session_maker=MagicMock())
+    jobs = {j.id: j for j in scheduler.get_jobs()}
+
+    assert "send_backup_health_heartbeat" in jobs
+    job = jobs["send_backup_health_heartbeat"]
+    assert isinstance(job.trigger, CronTrigger)
+    # minute=7 (ежечасно в :07, без tz — как в билдере)
+    trigger_repr = repr(job.trigger)
+    assert "minute" in trigger_repr and "7" in trigger_repr
+    assert job.coalesce is True
+    assert job.max_instances == 1
+    assert job.misfire_grace_time == 600
