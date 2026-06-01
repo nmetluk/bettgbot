@@ -13,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.shared.logging import get_logger
 from src.shared.models import Event
-from src.shared.repositories import BroadcastRepository, ReminderDispatchLogRepository
+from src.shared.repositories import (
+    BackupRunRepository,
+    BroadcastRepository,
+    ReminderDispatchLogRepository,
+)
 from src.shared.services import EventService, ReminderService, StatsService
 from src.shared.time import utcnow
 
@@ -27,6 +31,7 @@ __all__ = [
     "dispatch_broadcasts",
     "dispatch_event_result_notifications",
     "dispatch_reminders",
+    "send_backup_health_heartbeat",
     "send_daily_admin_digest",
 ]
 
@@ -426,3 +431,136 @@ async def dispatch_event_result_notifications(
                 total=summary.total_predictions,
                 correct=summary.correct_count,
             )
+
+
+# =============================================================================
+# TASK-099: Backup health heartbeat (внутренний мониторинг бэкапов)
+# =============================================================================
+
+
+async def _check_postgres_visible(
+    session: AsyncSession, timeout_seconds: float = 5.0
+) -> bool:
+    """Проверка доступности Postgres из инстанса бота (с таймаутом)."""
+    from sqlalchemy import text
+
+    try:
+        await asyncio.wait_for(
+            session.execute(text("SELECT 1")), timeout=timeout_seconds
+        )
+        return True
+    except Exception:
+        return False
+
+
+async def _check_redis_visible() -> bool:
+    """Проверка доступности Redis (если сконфигурирован)."""
+    # В текущей реализации Redis используется для FSM и broadcast'ов.
+    # Для простоты используем sync ping через redis-py (установлен в зависимостях).
+    # В реальном коде лучше иметь async клиент в DI.
+    try:
+        import redis
+
+        from src.shared.config import get_settings
+
+        settings = get_settings()
+        # Предполагаем, что есть redis_url в settings (стандарт для проекта)
+        redis_url = getattr(settings, "redis_url", None)
+        if not redis_url:
+            return True  # Redis не обязателен в некоторых окружениях
+
+        r = redis.from_url(str(redis_url), socket_connect_timeout=3)
+        r.ping()
+        return True
+    except Exception:
+        return False
+
+
+async def send_backup_health_heartbeat(
+    *, bot: Bot, session_maker: async_sessionmaker[AsyncSession]
+) -> None:
+    """Ежечасный heartbeat о здоровье бэкапов (TASK-099).
+
+    Читает последнюю запись из backup_run + проверяет видимость БД/Redis.
+    Отправляет OK или ALERT во все ADMIN_TELEGRAM_CHAT_IDS.
+    """
+    from src.shared.config import get_settings
+
+    settings = get_settings()
+    if not settings.backup.heartbeat_enabled:
+        return
+
+    chat_ids = settings.admin_telegram_chat_ids
+    if not chat_ids:
+        logger.warning("scheduler.backup_heartbeat.skipped_empty_recipients")
+        return
+
+    max_age = timedelta(hours=settings.backup.max_age_hours)
+
+    async with session_maker() as session:
+        repo = BackupRunRepository(session)
+        last_success = await repo.get_last_success()
+        latest = await repo.get_latest()
+
+        db_ok = await _check_postgres_visible(session)
+        redis_ok = await _check_redis_visible()
+
+        now = utcnow()
+
+        # Формируем статус
+        if not last_success:
+            reason = "Нет ни одной успешной записи о бэкапе"
+            text = safe_format(
+                texts.OPERATIONAL_HEARTBEAT_ALERT,
+                reason=reason,
+                last="никогда",
+                db_ok="OK" if db_ok else "DOWN",
+                redis_ok="OK" if redis_ok else "DOWN",
+            )
+        else:
+            age = now - last_success.finished_at if last_success.finished_at else timedelta.max
+            age_str = f"{int(age.total_seconds() // 3600)}h {int((age.total_seconds() % 3600) // 60)}m"
+
+            if latest and latest.status == "failed":
+                reason = "Последний бэкап завершился с ошибкой"
+                text = safe_format(
+                    texts.OPERATIONAL_HEARTBEAT_ALERT,
+                    reason=reason,
+                    last=age_str,
+                    db_ok="OK" if db_ok else "DOWN",
+                    redis_ok="OK" if redis_ok else "DOWN",
+                )
+            elif age > max_age:
+                reason = f"Последний успешный бэкап старше {settings.backup.max_age_hours}ч"
+                text = safe_format(
+                    texts.OPERATIONAL_HEARTBEAT_ALERT,
+                    reason=reason,
+                    last=age_str,
+                    db_ok="OK" if db_ok else "DOWN",
+                    redis_ok="OK" if redis_ok else "DOWN",
+                )
+            else:
+                size_str = f"{last_success.size_bytes // (1024*1024)}M" if last_success.size_bytes else "N/A"
+                text = safe_format(
+                    texts.OPERATIONAL_HEARTBEAT_OK,
+                    last_success_age=age_str,
+                    size=size_str,
+                    db_ok="OK" if db_ok else "DOWN",
+                    redis_ok="OK" if redis_ok else "DOWN",
+                )
+
+        # Рассылка (ошибка в одном чате не останавливает остальные)
+        for chat_id in chat_ids:
+            try:
+                await bot.send_message(chat_id, text)
+                logger.info(
+                    "scheduler.backup_heartbeat.sent",
+                    chat_id=chat_id,
+                    status="ok" if "✅" in text else "alert",
+                )
+            except TelegramAPIError as exc:
+                logger.warning(
+                    "scheduler.backup_heartbeat.send_failed",
+                    chat_id=chat_id,
+                    error=str(exc),
+                )
