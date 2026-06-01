@@ -25,6 +25,8 @@ def upgrade() -> None:
         sa.Column("size_bytes", sa.BigInteger(), nullable=True),
         sa.Column("host", sa.String(length=255), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
+        sa.Column("filename", sa.Text(), nullable=True),
+        sa.Column("replicated_at", postgresql.TIMESTAMP(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             postgresql.TIMESTAMP(timezone=True),

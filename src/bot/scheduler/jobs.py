@@ -438,40 +438,39 @@ async def dispatch_event_result_notifications(
 # =============================================================================
 
 
-async def _check_postgres_visible(
-    session: AsyncSession, timeout_seconds: float = 5.0
-) -> bool:
+async def _check_postgres_visible(session: AsyncSession, timeout_seconds: float = 5.0) -> bool:
     """Проверка доступности Postgres из инстанса бота (с таймаутом)."""
     from sqlalchemy import text
 
     try:
-        await asyncio.wait_for(
-            session.execute(text("SELECT 1")), timeout=timeout_seconds
-        )
+        await asyncio.wait_for(session.execute(text("SELECT 1")), timeout=timeout_seconds)
         return True
     except Exception:
         return False
 
 
 async def _check_redis_visible() -> bool:
-    """Проверка доступности Redis (если сконфигурирован)."""
-    # В текущей реализации Redis используется для FSM и broadcast'ов.
-    # Для простоты используем sync ping через redis-py (установлен в зависимостях).
-    # В реальном коде лучше иметь async клиент в DI.
-    try:
+    """Проверка доступности Redis (если сконфигурирован). Неблокирующая, с таймаутом (per amendment).
+
+    redis_url declared as required in Settings (no getattr guess). Uses to_thread + wait_for to not block loop.
+    """
+    from src.shared.config import get_settings
+
+    settings = get_settings()
+    # redis_url is a top-level required field in Settings (RedisDsn), not guessed via hasattr.
+    redis_url = settings.redis_url
+    if not redis_url:
+        return True
+
+    def _sync_ping() -> bool:
         import redis
 
-        from src.shared.config import get_settings
-
-        settings = get_settings()
-        # Предполагаем, что есть redis_url в settings (стандарт для проекта)
-        redis_url = getattr(settings, "redis_url", None)
-        if not redis_url:
-            return True  # Redis не обязателен в некоторых окружениях
-
-        r = redis.from_url(str(redis_url), socket_connect_timeout=3)
+        r = redis.from_url(str(redis_url), socket_connect_timeout=3)  # type: ignore[no-untyped-call]
         r.ping()
         return True
+
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(_sync_ping), timeout=5.0)
     except Exception:
         return False
 
@@ -507,19 +506,18 @@ async def send_backup_health_heartbeat(
 
         now = utcnow()
 
-        # Формируем статус
+        # Формируем статус. Всегда отправляем отчёт (даже "no recent backups" — per amendment).
         if not last_success:
-            reason = "Нет ни одной успешной записи о бэкапе"
             text = safe_format(
-                texts.OPERATIONAL_HEARTBEAT_ALERT,
-                reason=reason,
-                last="никогда",
+                texts.OPERATIONAL_HEARTBEAT_NO_RECENT,
                 db_ok="OK" if db_ok else "DOWN",
                 redis_ok="OK" if redis_ok else "DOWN",
             )
         else:
             age = now - last_success.finished_at if last_success.finished_at else timedelta.max
-            age_str = f"{int(age.total_seconds() // 3600)}h {int((age.total_seconds() % 3600) // 60)}m"
+            age_str = (
+                f"{int(age.total_seconds() // 3600)}h {int((age.total_seconds() % 3600) // 60)}m"
+            )
 
             if latest and latest.status == "failed":
                 reason = "Последний бэкап завершился с ошибкой"
@@ -540,13 +538,19 @@ async def send_backup_health_heartbeat(
                     redis_ok="OK" if redis_ok else "DOWN",
                 )
             else:
-                size_str = f"{last_success.size_bytes // (1024*1024)}M" if last_success.size_bytes else "N/A"
+                size_str = (
+                    f"{last_success.size_bytes // (1024 * 1024)}M"
+                    if last_success.size_bytes
+                    else "N/A"
+                )
+                replication = "реплицирован" if last_success.replicated_at else "не реплицирован"
                 text = safe_format(
                     texts.OPERATIONAL_HEARTBEAT_OK,
                     last_success_age=age_str,
                     size=size_str,
                     db_ok="OK" if db_ok else "DOWN",
                     redis_ok="OK" if redis_ok else "DOWN",
+                    replication=replication,
                 )
 
         # Рассылка (ошибка в одном чате не останавливает остальные)
