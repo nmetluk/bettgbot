@@ -146,11 +146,7 @@ class PredictionRepository:
 
     async def count_for_event(self, event_id: int) -> int:
         """Количество прогнозов по конкретному событию."""
-        stmt = (
-            select(func.count())
-            .select_from(Prediction)
-            .where(Prediction.event_id == event_id)
-        )
+        stmt = select(func.count()).select_from(Prediction).where(Prediction.event_id == event_id)
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
 

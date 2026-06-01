@@ -372,7 +372,11 @@ async def dispatch_event_result_notifications(
             lines: list[str] = []
             for _oid, label, cnt, is_winner in summary.outcome_distribution:
                 emoji = "✅" if is_winner else "•"
-                pct = round((cnt / summary.total_predictions * 100), 1) if summary.total_predictions else 0
+                pct = (
+                    round((cnt / summary.total_predictions * 100), 1)
+                    if summary.total_predictions
+                    else 0
+                )
                 line = safe_format(
                     texts.ADMIN_EVENT_RESULT_OUTCOME_LINE,
                     emoji=emoji,

@@ -52,7 +52,9 @@ def generate_correct_users_csv(
                 "tg_username": r.tg_username or "",
                 "phone": r.phone,
                 "outcome": r.outcome_label,
-                "predicted_at": r.predicted_at.isoformat() if isinstance(r.predicted_at, datetime) else r.predicted_at,
+                "predicted_at": r.predicted_at.isoformat()
+                if isinstance(r.predicted_at, datetime)
+                else r.predicted_at,
             }
         )
 

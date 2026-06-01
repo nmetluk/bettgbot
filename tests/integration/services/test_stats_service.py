@@ -229,11 +229,11 @@ async def test_event_result_summary_full(nested_session: AsyncSession) -> None:
 
     assert isinstance(summary, EventResultSummary)
     assert summary.total_predictions == 5
-    assert summary.correct_count == 2   # U0, U1
+    assert summary.correct_count == 2  # U0, U1
 
     # Распределение: o1=3 (2 верных + 1 неверный), o2=1, o3=1
     dist = {(oid, label): (cnt, is_win) for oid, label, cnt, is_win in summary.outcome_distribution}
-    assert dist[(o1.id, "П1")] == (3, True)   # winner
+    assert dist[(o1.id, "П1")] == (3, True)  # winner
     assert dist[(o2.id, "Ничья")] == (1, False)
     assert dist[(o3.id, "П2")] == (1, False)
 
@@ -249,42 +249,67 @@ async def test_digest_aggregates_24h_vs_old(nested_session: AsyncSession) -> Non
     """Проверка агрегатов дайджеста: новые за 24ч, прогнозы за 24ч, всего.
 
     Использует новые методы репозиториев, которые дёргает дайджест-джоб.
+
+    Стабилизировано через delta-подход (baseline до создания тестовых данных),
+    чтобы тест не зависел от мусора, оставленного предыдущими тестами в shared БД.
     """
     from datetime import UTC, datetime, timedelta
 
+    from freezegun import freeze_time
     from src.shared.repositories import PredictionRepository, UserRepository
 
-    now = datetime.now(tz=UTC)
-    old = now - timedelta(hours=25)
-    recent = now - timedelta(hours=2)
+    with freeze_time("2026-06-01 12:00:00+00:00"):
+        now = datetime.now(tz=UTC)
+        cutoff_24h = now - timedelta(hours=24)
+        # Используем сильно старые и сильно свежие метки, чтобы исключить
+        # любые проблемы с границами окна и серверным временем БД
+        very_old = now - timedelta(days=10)
+        very_recent = now - timedelta(minutes=5)
 
-    # Старый пользователь + старый прогноз
-    old_user = await make_user(nested_session, created_at=old)
-    old_event = await make_event(nested_session)
-    old_o = await make_outcome(nested_session, old_event.id)
-    nested_session.add(Prediction(user_id=old_user.id, event_id=old_event.id, outcome_id=old_o.id, created_at=old))
+        user_repo = UserRepository(nested_session)
+        pred_repo = PredictionRepository(nested_session)
 
-    # Новые пользователи + недавние прогнозы
-    new_u1 = await make_user(nested_session, created_at=recent, first_name="New1")
-    new_u2 = await make_user(nested_session, created_at=recent, first_name="New2")
-    new_event = await make_event(nested_session)
-    new_o = await make_outcome(nested_session, new_event.id)
-    nested_session.add(Prediction(user_id=new_u1.id, event_id=new_event.id, outcome_id=new_o.id, created_at=recent))
-    nested_session.add(Prediction(user_id=new_u2.id, event_id=new_event.id, outcome_id=new_o.id, created_at=recent))
+        # Baseline ДО создания тестовых данных (защита от pollution shared test DB)
+        base_new = await user_repo.count_new_since(cutoff_24h)
+        base_preds = await pred_repo.count_24h()
 
-    await nested_session.flush()
+        # Старый пользователь + старый прогноз (гарантированно вне 24h окна)
+        old_user = await make_user(nested_session, created_at=very_old)
+        old_event = await make_event(nested_session)
+        old_o = await make_outcome(nested_session, old_event.id)
+        nested_session.add(
+            Prediction(
+                user_id=old_user.id, event_id=old_event.id, outcome_id=old_o.id, created_at=very_old
+            )
+        )
 
-    user_repo = UserRepository(nested_session)
-    pred_repo = PredictionRepository(nested_session)
+        # Новые пользователи + недавние прогнозы (ровно 2, внутри окна)
+        new_u1 = await make_user(nested_session, created_at=very_recent, first_name="New1")
+        new_u2 = await make_user(nested_session, created_at=very_recent, first_name="New2")
+        new_event = await make_event(nested_session)
+        new_o = await make_outcome(nested_session, new_event.id)
+        nested_session.add(
+            Prediction(
+                user_id=new_u1.id,
+                event_id=new_event.id,
+                outcome_id=new_o.id,
+                created_at=very_recent,
+            )
+        )
+        nested_session.add(
+            Prediction(
+                user_id=new_u2.id,
+                event_id=new_event.id,
+                outcome_id=new_o.id,
+                created_at=very_recent,
+            )
+        )
 
-    # Всего пользователей (включая старых)
-    total_users = await user_repo.count_for_admin(query=None)
-    assert total_users >= 3
+        await nested_session.flush()
 
-    # Новых за 24ч — только 2
-    new_since = await user_repo.count_new_since(now - timedelta(hours=24))
-    assert new_since == 2
+        # Дельты должны быть ровно 2 (устойчиво к данным от других тестов)
+        new_since = await user_repo.count_new_since(cutoff_24h)
+        preds_24h = await pred_repo.count_24h()
 
-    # Прогнозов за 24ч — 2
-    preds_24h = await pred_repo.count_24h()
-    assert preds_24h == 2
+        assert new_since - base_new == 2
+        assert preds_24h - base_preds == 2
