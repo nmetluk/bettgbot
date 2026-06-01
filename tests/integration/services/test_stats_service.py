@@ -364,10 +364,18 @@ async def test_daily_admin_digest_full(nested_session: AsyncSession) -> None:
     nested_session.add(p1)
     p2 = Prediction(user_id=u_new2.id, event_id=e_active.id, outcome_id=o_a2.id, created_at=recent)
     nested_session.add(p2)
-    p3 = Prediction(user_id=u_total.id, event_id=e_closed.id, outcome_id=o_win.id, created_at=recent, is_correct=True)
+    p3 = Prediction(
+        user_id=u_total.id,
+        event_id=e_closed.id,
+        outcome_id=o_win.id,
+        created_at=recent,
+        is_correct=True,
+    )
     nested_session.add(p3)
     # В prev окне: 1 прогноз
-    p_prev = Prediction(user_id=u_old.id, event_id=e_active.id, outcome_id=o_a1.id, created_at=prev_window)
+    p_prev = Prediction(
+        user_id=u_old.id, event_id=e_active.id, outcome_id=o_a1.id, created_at=prev_window
+    )
     nested_session.add(p_prev)
     # Для closed: 1 correct выше
 
@@ -422,7 +430,9 @@ async def test_event_result_summary_enriched(nested_session: AsyncSession) -> No
     nested_session.add(Prediction(user_id=u1.id, event_id=event.id, outcome_id=o2.id))
     nested_session.add(Prediction(user_id=u2.id, event_id=event.id, outcome_id=o2.id))
     nested_session.add(Prediction(user_id=u3.id, event_id=event.id, outcome_id=o2.id))
-    nested_session.add(Prediction(user_id=u4.id, event_id=event.id, outcome_id=o1.id, is_correct=True))
+    nested_session.add(
+        Prediction(user_id=u4.id, event_id=event.id, outcome_id=o1.id, is_correct=True)
+    )
     await nested_session.flush()
 
     summary = await service.event_result_summary(event.id)

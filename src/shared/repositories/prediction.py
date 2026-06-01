@@ -312,8 +312,10 @@ class PredictionRepository:
 
         Только незаблокированные. Прогнозы — за всё время.
         """
-        new_stmt = select(func.count()).select_from(User).where(
-            User.created_at >= since, User.is_blocked.is_(False)
+        new_stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(User.created_at >= since, User.is_blocked.is_(False))
         )
         new_result = await self._session.execute(new_stmt)
         new_count = int(new_result.scalar_one())

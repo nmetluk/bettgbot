@@ -97,10 +97,14 @@ class EventRepository:
         Для админ-дайджеста (TASK-098).
         """
         now = utcnow()
-        stmt = select(func.count()).select_from(Event).where(
-            Event.is_published.is_(True),
-            Event.is_archived.is_(False),
-            Event.predictions_close_at > now,
+        stmt = (
+            select(func.count())
+            .select_from(Event)
+            .where(
+                Event.is_published.is_(True),
+                Event.is_archived.is_(False),
+                Event.predictions_close_at > now,
+            )
         )
         result = await self._session.execute(stmt)
         return int(result.scalar_one())

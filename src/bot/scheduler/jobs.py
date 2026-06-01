@@ -313,13 +313,17 @@ async def send_daily_admin_digest(
 
         # Закрытые
         if digest.closed_total is not None and digest.closed_total > 0:
-            closed_line = f"{digest.closed_correct}/{digest.closed_total} ({digest.closed_accuracy_pct}%)"
+            closed_line = (
+                f"{digest.closed_correct}/{digest.closed_total} ({digest.closed_accuracy_pct}%)"
+            )
         else:
             closed_line = "нет закрытых событий"
 
         # Конверсия
         if digest.total_new_for_conv is not None and digest.total_new_for_conv > 0:
-            conv_line = f"{digest.converted_new}/{digest.total_new_for_conv} ({digest.conversion_pct}%)"
+            conv_line = (
+                f"{digest.converted_new}/{digest.total_new_for_conv} ({digest.conversion_pct}%)"
+            )
         else:
             conv_line = "нет новых"
 

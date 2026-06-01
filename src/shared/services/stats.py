@@ -267,9 +267,7 @@ class StatsService:
         # TASK-098: majority vs winner
         majority_correct: bool | None = None
         if outcome_distribution:
-            _, _, _, max_is_win = max(
-                outcome_distribution, key=lambda x: x[2]
-            )
+            _, _, _, max_is_win = max(outcome_distribution, key=lambda x: x[2])
             # если несколько с max, берём первый; проверяем его is_winner
             majority_correct = max_is_win
 
@@ -322,7 +320,9 @@ class StatsService:
         top_events = await self._predictions.top_events_in_window(since=cutoff_24h, limit=3)
 
         # Точность закрытых за 24ч
-        closed_stats = await self._predictions.prediction_accuracy_for_events_closed_since(cutoff_24h)
+        closed_stats = await self._predictions.prediction_accuracy_for_events_closed_since(
+            cutoff_24h
+        )
         if closed_stats is None:
             closed_correct = closed_total = closed_pct = None
         else:
