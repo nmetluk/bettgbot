@@ -38,7 +38,11 @@ estimate: M
 
 ## Модель `backup_run` (миграция 0008)
 
-Поля: `id` PK; `started_at` timestamptz NOT NULL; `finished_at` timestamptz NULL; `status` text NOT NULL (`running|success|failed`); `size_bytes` bigint NULL; `host` text NULL (какой сервер произвёл — на будущее для multi-server); `error` text NULL; `created_at` timestamptz default now(). Индекс по `finished_at DESC` (быстрый «последний успешный»). Реплика-статус/детали — backlog, не сейчас.
+Поля: `id` PK; `started_at` timestamptz NOT NULL; `finished_at` timestamptz NULL; `status` text NOT NULL (`running|success|failed`); `size_bytes` bigint NULL; `filename` text NULL (имя `*.sql.gz` — для сопоставления при репликации); `host` text NULL (какой сервер произвёл); `error` text NULL; `replicated_at` timestamptz NULL (когда дамп скопирован на bot-сервер — заполняет **TASK-100**, здесь колонка всегда `NULL`); `created_at` timestamptz default now(). Индекс по `finished_at DESC`.
+
+> Колонки `filename` и `replicated_at` добавляем сразу (одной миграцией 0008), чтобы TASK-100 не заводил вторую миграцию.
+
+В heartbeat-сводке (эта задача) показываем статус репликации последнего успешного бэкапа: `replicated_at` есть → «реплицирован», нет → «не реплицирован» (без алерта — алерт по репликации добавит TASK-100).
 
 ## Definition of Done
 
