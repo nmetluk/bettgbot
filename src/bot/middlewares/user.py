@@ -42,6 +42,6 @@ class UserMiddleware(BaseMiddleware):
         user = await UserRepository(session).get_by_tg_user_id(tg_user_id)
         data["user"] = user
         if user is not None:
-            # UserService без registry — `touch_last_seen` ему не нужен.
+            # UserService не требует registry (открытая регистрация).
             await UserService(session).touch_last_seen(user.id)
         return await handler(event, data)

@@ -32,9 +32,7 @@ __all__ = [
     "OutcomeNotForEventError",
     "OutcomeNotFoundError",
     "PredictionDeadlinePassedError",
-    "RegistryUnavailableError",
     "UserBlockedError",
-    "UserNotAllowed",
 ]
 
 InvalidContentReason = Literal["html_chars"]
@@ -50,24 +48,8 @@ class DomainError(Exception):
 # --- Регистрация / пользователь ---
 
 
-class UserNotAllowed(DomainError):
-    """Телефон не найден или заблокирован во внешнем реестре пользователей."""
-
-    def __init__(self, message: str = "user not allowed", *, reason: str | None = None) -> None:
-        super().__init__(message)
-        self.reason = reason
-
-
 class UserBlockedError(DomainError):
     """Наш `User.is_blocked = true` — действие пользователю запрещено."""
-
-
-class RegistryUnavailableError(DomainError):
-    """Внешний реестр недоступен / ошибка сети / исчерпан ретрай.
-
-    Сервис ловит `ExternalApiError` и оборачивает в этот тип, чтобы handler
-    работал только с доменными классами. Исходное в `__cause__`.
-    """
 
 
 # --- Прогнозы ---

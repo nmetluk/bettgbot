@@ -22,7 +22,6 @@ __all__ = [
     "NEED_START",
     "NO_EVENTS_AT_ALL",
     "NO_EVENTS_IN_CATEGORY",
-    "PHONE_NOT_FOUND",
     "PREDICTION_YOUR_CHOICE",
     "PREDICT_CONFIRM",
     "PREDICT_DEADLINE_PASSED",
@@ -31,7 +30,6 @@ __all__ = [
     "PREDICT_PICK_OUTCOME",
     "PREDICT_SAVED",
     "PREDICT_UPDATED",
-    "REGISTRY_UNAVAILABLE",
     "REMINDERS_ADDED",
     "REMINDERS_ADD_PROMPT",
     "REMINDERS_ASK_CUSTOM",
@@ -60,12 +58,6 @@ WELCOME_NEW = (
 WELCOME_RETURNING = "С возвращением! Выбирайте действие из меню."
 
 NEED_CONTACT = "Чтобы пользоваться ботом, поделитесь, пожалуйста, контактом — кнопка ниже."
-
-PHONE_NOT_FOUND = (
-    "Ваш номер не найден в реестре. Обратитесь к администратору, если считаете, что это ошибка."
-)
-
-REGISTRY_UNAVAILABLE = "Не удалось проверить номер прямо сейчас. Попробуйте позже."
 
 ACCESS_DENIED = "Ваш доступ ограничен. Обратитесь к администратору."
 

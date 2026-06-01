@@ -36,7 +36,7 @@ async def list_users(
     admin: AdminUser = Depends(current_admin),
     session: AsyncSession = Depends(_session_dep),
 ) -> HTMLResponse:
-    service = UserService(session)  # registry не нужен для read
+    service = UserService(session)
     rows = await service.list_admin_with_counts(
         query=query, offset=page * PAGE_SIZE, limit=PAGE_SIZE
     )

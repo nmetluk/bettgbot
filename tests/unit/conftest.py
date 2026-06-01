@@ -18,7 +18,6 @@ _STUB_ENV: dict[str, str] = {
     "REDIS_URL": "redis://localhost:6379/0",
     "ADMIN_SECRET_KEY": "stub-admin-secret-key",
     "ADMIN_CSRF_SECRET": "stub-csrf-secret-key",
-    "EXTERNAL_REGISTRY_BACKEND": "mock",
     "LOG_LEVEL": "INFO",
     "LOG_FORMAT": "json",
 }
