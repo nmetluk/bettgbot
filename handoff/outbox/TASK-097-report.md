@@ -22,7 +22,10 @@ commits:
 - CSV: `src/bot/_csv.py` (utf-8-sig BOM, заголовки по спеке, None→'', готов BufferedInputFile).
 - Jobs: `send_daily_admin_digest` (Cron 16:00 Europe/Moscow), `dispatch_event_result_notifications` (Interval 1min, claim via FOR UPDATE SKIP LOCKED, per-event commit после отправки, ошибки в одном чате не блокируют mark notified).
 - Тексты: 5 именованных констант в `texts.py`.
-- Unit-тесты: парсер config (пусто/CSV/мусор), генератор CSV (BOM, header, escape, 0 rows→None).
+- Тесты (по amendment + DoD):
+  - integration/services/test_stats_service.py: `event_result_summary` (много исходов, флаг is_winner, correct_users со всеми полями PII), 24h-агрегаты (новые юзеры/прогнозы за окно).
+  - unit: парсер ADMIN_TELEGRAM_CHAT_IDS (пусто/CSV/мусор), генератор CSV (BOM, 0→None, escape).
+  - (Job-level с моком Bot добавлены в доработке по amendment: early return на пустом списке, idempotency notified_at, 0 correct → без CSV.)
 - Регистрация в builder (с timezone= на Cron, coalesce/max=1).
 
 Всё через DI session, идемпотентно, warning на пустом списке получателей (события не трогаем для notifications).
@@ -46,7 +49,9 @@ commits:
 * infra/docker-compose.yml
 * tests/unit/test_config.py
 + tests/unit/bot/test_csv.py
-+ handoff/outbox/TASK-097-report.md
++ tests/integration/services/test_stats_service.py (расширение)
++ handoff/archive/TASK-097-admin-stats-bot-digest/amendment.md
++ handoff/outbox/TASK-097-report.md (обновлён по факту)
 ```
 
 ## Как воспроизвести / запустить

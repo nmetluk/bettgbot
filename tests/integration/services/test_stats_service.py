@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.models import Prediction
-from src.shared.services import LeaderboardRow, StatsService
+from src.shared.services import (
+    CorrectUserRow,
+    EventResultSummary,
+    LeaderboardRow,
+    StatsService,
+)
 from tests.integration.conftest import make_event, make_outcome, make_user
 
 pytestmark = pytest.mark.integration
@@ -159,3 +164,127 @@ async def test_leaderboard_period_filter(nested_session: AsyncSession) -> None:
     recent_rows = await service.leaderboard(min_resolved=5, limit=100, period_days=30)
     assert len(recent_rows) == 1
     assert recent_rows[0].resolved == 5
+
+
+# =============================================================================
+# TASK-097: event_result_summary + 24h aggregates (per amendment + DoD)
+# =============================================================================
+
+
+async def test_event_result_summary_full(nested_session: AsyncSession) -> None:
+    """Полная сводка по событию с несколькими исходами и смешанными прогнозами.
+
+    Проверяет:
+    - total_predictions / correct_count
+    - outcome_distribution (с флагом is_winner по result_outcome_id)
+    - correct_users (все поля для CSV, включая PII phone)
+    """
+    from src.shared.models import Prediction
+
+    service = StatsService(nested_session)
+
+    # Подготовка: событие + 3 исхода
+    event = await make_event(nested_session)
+    o1 = await make_outcome(nested_session, event.id, label="П1")
+    o2 = await make_outcome(nested_session, event.id, label="Ничья")
+    o3 = await make_outcome(nested_session, event.id, label="П2")
+
+    # Делаем o1 победителем + архивируем (удовлетворяет ck_event_result_archive_consistency)
+    from src.shared.time import utcnow
+
+    event.is_archived = True
+    event.archived_at = utcnow()
+    event.result_outcome_id = o1.id
+    await nested_session.flush()
+
+    # 5 пользователей, 7 прогнозов
+    users = []
+    for i in range(5):
+        u = await make_user(nested_session, first_name=f"U{i}", phone=f"+7999000000{i}")
+        users.append(u)
+
+    # Прогнозы (каждый пользователь — ровно один прогноз на событие):
+    # U0, U1, U2 → o1 (П1, победитель) — верные: U0, U1 (2)
+    # U3 → o2
+    # U4 → o3
+    preds = [
+        (users[0], o1, True),
+        (users[1], o1, True),
+        (users[2], o1, False),
+        (users[3], o2, False),
+        (users[4], o3, False),
+    ]
+    for u, o, correct in preds:
+        nested_session.add(
+            Prediction(
+                user_id=u.id,
+                event_id=event.id,
+                outcome_id=o.id,
+                is_correct=correct,
+            )
+        )
+    await nested_session.flush()
+
+    summary = await service.event_result_summary(event.id)
+
+    assert isinstance(summary, EventResultSummary)
+    assert summary.total_predictions == 5
+    assert summary.correct_count == 2   # U0, U1
+
+    # Распределение: o1=3 (2 верных + 1 неверный), o2=1, o3=1
+    dist = {(oid, label): (cnt, is_win) for oid, label, cnt, is_win in summary.outcome_distribution}
+    assert dist[(o1.id, "П1")] == (3, True)   # winner
+    assert dist[(o2.id, "Ничья")] == (1, False)
+    assert dist[(o3.id, "П2")] == (1, False)
+
+    # correct_users — 2 записи (с phone и остальными полями для CSV)
+    assert len(summary.correct_users) == 2
+    assert all(isinstance(r, CorrectUserRow) for r in summary.correct_users)
+    phones = {r.phone for r in summary.correct_users}
+    assert "+79990000000" in phones
+    assert "+79990000001" in phones
+
+
+async def test_digest_aggregates_24h_vs_old(nested_session: AsyncSession) -> None:
+    """Проверка агрегатов дайджеста: новые за 24ч, прогнозы за 24ч, всего.
+
+    Использует новые методы репозиториев, которые дёргает дайджест-джоб.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from src.shared.repositories import PredictionRepository, UserRepository
+
+    now = datetime.now(tz=UTC)
+    old = now - timedelta(hours=25)
+    recent = now - timedelta(hours=2)
+
+    # Старый пользователь + старый прогноз
+    old_user = await make_user(nested_session, created_at=old)
+    old_event = await make_event(nested_session)
+    old_o = await make_outcome(nested_session, old_event.id)
+    nested_session.add(Prediction(user_id=old_user.id, event_id=old_event.id, outcome_id=old_o.id, created_at=old))
+
+    # Новые пользователи + недавние прогнозы
+    new_u1 = await make_user(nested_session, created_at=recent, first_name="New1")
+    new_u2 = await make_user(nested_session, created_at=recent, first_name="New2")
+    new_event = await make_event(nested_session)
+    new_o = await make_outcome(nested_session, new_event.id)
+    nested_session.add(Prediction(user_id=new_u1.id, event_id=new_event.id, outcome_id=new_o.id, created_at=recent))
+    nested_session.add(Prediction(user_id=new_u2.id, event_id=new_event.id, outcome_id=new_o.id, created_at=recent))
+
+    await nested_session.flush()
+
+    user_repo = UserRepository(nested_session)
+    pred_repo = PredictionRepository(nested_session)
+
+    # Всего пользователей (включая старых)
+    total_users = await user_repo.count_for_admin(query=None)
+    assert total_users >= 3
+
+    # Новых за 24ч — только 2
+    new_since = await user_repo.count_new_since(now - timedelta(hours=24))
+    assert new_since == 2
+
+    # Прогнозов за 24ч — 2
+    preds_24h = await pred_repo.count_24h()
+    assert preds_24h == 2
