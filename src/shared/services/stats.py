@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..repositories import EventRepository, PredictionRepository
+from ..repositories import EventRepository, PredictionRepository, UserRepository
 from ..time import utcnow
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "AnalyticsTopEventRow",
     "CategoryAccuracyRow",
     "CorrectUserRow",
+    "DailyAdminDigest",
     "EventResultSummary",
     "LeaderboardRow",
     "StatsService",
@@ -88,13 +89,40 @@ class CorrectUserRow:
 
 @dataclass(frozen=True, slots=True)
 class EventResultSummary:
-    """Сводка по итогам события для админ-уведомления (TASK-097)."""
+    """Сводка по итогам события для админ-уведомления (TASK-097 + 098)."""
 
     total_predictions: int
     correct_count: int
     # (outcome_id, label, count, is_winner)
     outcome_distribution: list[tuple[int, str, int, bool]]
     correct_users: list[CorrectUserRow]
+    # TASK-098: самый популярный исход совпал с верным?
+    majority_correct: bool | None
+    # % участия = total_predictions / total_users (на момент)
+    participation_pct: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class DailyAdminDigest:
+    """Обогащённый дневной дайджест для рассылки админам (TASK-098)."""
+
+    total_users: int
+    new_24h: int
+    preds_24h: int
+    new_24h_delta: int  # положительная — рост, отрицательная — спад, 0 — без изменений
+    preds_24h_delta: int
+    dau_24h: int
+    active_events_now: int
+    # [(title, count), ...] до 3, может быть пусто
+    top_events_24h: list[tuple[str, int]]
+    # Для закрытых событий за 24ч: если есть — correct, total, pct; иначе None
+    closed_correct: int | None
+    closed_total: int | None
+    closed_accuracy_pct: float | None
+    # Конверсия новых: converted, total_new, pct ; None если new==0
+    converted_new: int | None
+    total_new_for_conv: int | None
+    conversion_pct: float | None
 
 
 class StatsService:
@@ -102,6 +130,7 @@ class StatsService:
         self._session = session
         self._predictions = PredictionRepository(session)
         self._events = EventRepository(session)
+        self._users = UserRepository(session)
 
     async def user_stats(self, user_id: int) -> tuple[int, int, float]:
         """Возвращает `(correct, total, percent)`. `total` — только зафиксированные."""
@@ -235,9 +264,93 @@ class StatsService:
         ]
         correct_count = len(correct_users)
 
+        # TASK-098: majority vs winner
+        majority_correct: bool | None = None
+        if outcome_distribution:
+            _, _, _, max_is_win = max(
+                outcome_distribution, key=lambda x: x[2]
+            )
+            # если несколько с max, берём первый; проверяем его is_winner
+            majority_correct = max_is_win
+
+        # Participation
+        total_users = await self._users.count_for_admin(query=None)
+        participation_pct: float | None = None
+        if total_users > 0 and total_predictions > 0:
+            participation_pct = round((total_predictions / total_users * 100), 1)
+
         return EventResultSummary(
             total_predictions=total_predictions,
             correct_count=correct_count,
             outcome_distribution=outcome_distribution,
             correct_users=correct_users,
+            majority_correct=majority_correct,
+            participation_pct=participation_pct,
+        )
+
+    async def daily_admin_digest(self) -> DailyAdminDigest:
+        """Обогащённая статистика для дневного дайджеста админам (TASK-098).
+
+        Все окна — последние 24ч (и предыдущие 24ч для дельт).
+        Логика подсчётов здесь (а не в джобе).
+        """
+        now = utcnow()
+        cutoff_24h = now - timedelta(hours=24)
+        cutoff_48h = now - timedelta(hours=48)
+
+        # Базовые из TASK-097
+        total_users = await self._users.count_for_admin(query=None)
+        new_24h = await self._users.count_new_since(cutoff_24h)
+        preds_24h = await self._predictions.count_predictions_since(cutoff_24h)
+
+        # Дельты к предыдущему окну
+        new_up_to_48h = await self._users.count_new_since(cutoff_48h)
+        new_prev_window = new_up_to_48h - new_24h
+        new_delta = new_24h - new_prev_window
+
+        preds_up_to_48h = await self._predictions.count_predictions_since(cutoff_48h)
+        preds_prev_window = preds_up_to_48h - preds_24h
+        preds_delta = preds_24h - preds_prev_window
+
+        # DAU
+        dau_24h = await self._users.count_active_since(cutoff_24h)
+
+        # Активные события сейчас
+        active_events = await self._events.count_currently_open()
+
+        # Топ-3 по активности за 24ч
+        top_events = await self._predictions.top_events_in_window(since=cutoff_24h, limit=3)
+
+        # Точность закрытых за 24ч
+        closed_stats = await self._predictions.prediction_accuracy_for_events_closed_since(cutoff_24h)
+        if closed_stats is None:
+            closed_correct = closed_total = closed_pct = None
+        else:
+            closed_correct, closed_total = closed_stats
+            closed_pct = round((closed_correct / closed_total * 100), 1) if closed_total else None
+
+        # Конверсия новых
+        new_total, converted = await self._predictions.count_new_and_converted_since(cutoff_24h)
+        if new_total == 0:
+            conv_converted = conv_total = conv_pct = None
+        else:
+            conv_converted = converted
+            conv_total = new_total
+            conv_pct = round((conv_converted / conv_total * 100), 1)
+
+        return DailyAdminDigest(
+            total_users=total_users,
+            new_24h=new_24h,
+            preds_24h=preds_24h,
+            new_24h_delta=new_delta,
+            preds_24h_delta=preds_delta,
+            dau_24h=dau_24h,
+            active_events_now=active_events,
+            top_events_24h=top_events,
+            closed_correct=closed_correct,
+            closed_total=closed_total,
+            closed_accuracy_pct=closed_pct,
+            converted_new=conv_converted,
+            total_new_for_conv=conv_total,
+            conversion_pct=conv_pct,
         )
