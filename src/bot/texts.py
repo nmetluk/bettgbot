@@ -9,7 +9,10 @@ __all__ = [
     "ADMIN_EVENT_RESULT_CORRECT",
     "ADMIN_EVENT_RESULT_CSV_NOTE",
     "ADMIN_EVENT_RESULT_HEADER",
+    "ADMIN_EVENT_RESULT_MAJORITY_CORRECT",
+    "ADMIN_EVENT_RESULT_MAJORITY_WRONG",
     "ADMIN_EVENT_RESULT_OUTCOME_LINE",
+    "ADMIN_EVENT_RESULT_PARTICIPATION",
     "ALREADY_REGISTERED",
     "CATEGORIES_PROMPT",
     "CATEGORY_PAGE_TITLE",
@@ -201,14 +204,20 @@ PREDICTION_YOUR_CHOICE = "\n\n✅ Ваш прогноз: «{label}»"
 # Админ-статистика через бота (TASK-097)
 # =============================================================================
 
-# Дневной дайджест (cron 16:00 Europe/Moscow). Placeholder'ы:
-# {date} (YYYY-MM-DD), {total}, {new_24h}, {preds_24h}
+# Дневной дайджест (cron 16:00 Europe/Moscow, обогащённый TASK-098).
+# Placeholder'ы: {date}, {total}, {new_24h}, {new_delta}, {preds_24h}, {preds_delta},
+# {dau}, {active}, {top}, {closed}, {converted}
 ADMIN_DAILY_DIGEST = (
     "📊 <b>Дневной дайджест бота</b> (МСК, 16:00)\n\n"
     "Дата: {date}\n"
     "Всего пользователей: <b>{total}</b>\n"
-    "Новых за 24ч: <b>{new_24h}</b>\n"
-    "Прогнозов за 24ч: <b>{preds_24h}</b>\n\n"
+    "Новых за 24ч: <b>{new_24h}</b> {new_delta}\n"
+    "Прогнозов за 24ч: <b>{preds_24h}</b> {preds_delta}\n"
+    "DAU 24ч: <b>{dau}</b>\n"
+    "Активных событий: <b>{active}</b>\n\n"
+    "Топ-3 по активности:\n{top}\n\n"
+    "Точность закрытых событий: {closed}\n"
+    "Конверсия новых: {converted}\n\n"
     "— — —"
 )
 
@@ -223,3 +232,8 @@ ADMIN_EVENT_RESULT_CORRECT = "\n✅ Угадали: <b>{correct}</b>"
 
 # Примечание к CSV (прикладывается отдельным документом)
 ADMIN_EVENT_RESULT_CSV_NOTE = "\n📎 CSV со списком угадавших — во вложении."
+
+# TASK-098: для пост-итоговой сводки
+ADMIN_EVENT_RESULT_MAJORITY_CORRECT = "\nБольшинство угадало ✅"
+ADMIN_EVENT_RESULT_MAJORITY_WRONG = "\nБольшинство ошиблось ❌"
+ADMIN_EVENT_RESULT_PARTICIPATION = "\nУчастие: <b>{pct}%</b> пользователей"

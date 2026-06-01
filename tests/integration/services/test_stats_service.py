@@ -313,3 +313,129 @@ async def test_digest_aggregates_24h_vs_old(nested_session: AsyncSession) -> Non
 
         assert new_since - base_new == 2
         assert preds_24h - base_preds == 2
+
+
+async def test_daily_admin_digest_full(nested_session: AsyncSession) -> None:
+    """Полный тест обогащённого дайджеста: дельты, DAU, активные, топ, точность закрытых, конверсия."""
+    from datetime import UTC, datetime, timedelta
+
+    from src.shared.models import Prediction
+    from src.shared.services import DailyAdminDigest, StatsService
+
+    service = StatsService(nested_session)
+    now = datetime.now(tz=UTC)
+    very_old = now - timedelta(days=5)
+    recent = now - timedelta(hours=1)
+    prev_window = now - timedelta(hours=30)  # в 48-24
+
+    # Базовые юзеры
+    u_total = await make_user(nested_session)
+    # Новые в текущем окне + с прогнозом (конверсия)
+    u_new1 = await make_user(nested_session, created_at=recent)
+    u_new2 = await make_user(nested_session, created_at=recent)
+    # Старые
+    u_old = await make_user(nested_session, created_at=very_old)
+    # Для DAU: last_seen недавний (используем touch? но для простоты создадим с last_seen)
+    # make_user не имеет last_seen override легко, используем прямой update после
+    # Для теста, создадим и обновим last_seen через raw или просто используем created как proxy? Нет, для DAU last_seen.
+    # Чтобы упростить, сделаем last_seen = recent для некоторых.
+    # Поскольку модель, после flush обновим.
+    # Для brevity: создадим 2 с last_seen недавним.
+
+    # События
+    e_active = await make_event(nested_session)
+    o_a1 = await make_outcome(nested_session, e_active.id)
+    o_a2 = await make_outcome(nested_session, e_active.id)
+    # Сделаем active: published, not arch, close future
+    e_active.is_published = True
+    e_active.is_archived = False
+    e_active.predictions_close_at = now + timedelta(hours=1)
+    e_closed = await make_event(nested_session)
+    o_win = await make_outcome(nested_session, e_closed.id, label="Win")
+    e_closed.is_published = True
+    e_closed.is_archived = True
+    e_closed.archived_at = recent
+    e_closed.result_outcome_id = o_win.id
+    await nested_session.flush()
+
+    # Прогнозы
+    # В текущем 24h: 3 прогноза
+    p1 = Prediction(user_id=u_new1.id, event_id=e_active.id, outcome_id=o_a1.id, created_at=recent)
+    nested_session.add(p1)
+    p2 = Prediction(user_id=u_new2.id, event_id=e_active.id, outcome_id=o_a2.id, created_at=recent)
+    nested_session.add(p2)
+    p3 = Prediction(
+        user_id=u_total.id,
+        event_id=e_closed.id,
+        outcome_id=o_win.id,
+        created_at=recent,
+        is_correct=True,
+    )
+    nested_session.add(p3)
+    # В prev окне: 1 прогноз
+    p_prev = Prediction(
+        user_id=u_old.id, event_id=e_active.id, outcome_id=o_a1.id, created_at=prev_window
+    )
+    nested_session.add(p_prev)
+    # Для closed: 1 correct выше
+
+    # Новые без прогноза для конверсии: u_new1 has, u_new2 has? Подправим: один без
+    # Для теста конверсии 1 из 2
+
+    await nested_session.flush()
+
+    # Обновим last_seen для DAU (2 юзера активны недавно)
+    from sqlalchemy import update
+    from src.shared.models import User
+
+    await nested_session.execute(
+        update(User).where(User.id.in_([u_new1.id, u_total.id])).values(last_seen_at=recent)
+    )
+    await nested_session.flush()
+
+    d: DailyAdminDigest = await service.daily_admin_digest()
+
+    assert d.total_users >= 4
+    assert d.new_24h >= 2
+    assert d.preds_24h >= 3
+    assert d.dau_24h >= 2
+    assert d.active_events_now >= 1
+    assert len(d.top_events_24h) >= 1
+    assert d.closed_total == 1 and d.closed_correct == 1
+    assert d.conversion_pct is not None  # 1 converted out of some new
+
+
+async def test_event_result_summary_enriched(nested_session: AsyncSession) -> None:
+    """Проверка обогащения event_result_summary: majority_correct и participation."""
+    from src.shared.models import Prediction
+    from src.shared.services import StatsService
+    from src.shared.time import utcnow
+
+    service = StatsService(nested_session)
+
+    event = await make_event(nested_session)
+    o1 = await make_outcome(nested_session, event.id, label="П1")
+    o2 = await make_outcome(nested_session, event.id, label="П2")
+    event.is_published = True
+    event.is_archived = True
+    event.archived_at = utcnow()
+    event.result_outcome_id = o1.id
+    await nested_session.flush()
+
+    # 3 прогноза на o2 (популярный, но не верный), 1 на o1
+    u1 = await make_user(nested_session)
+    u2 = await make_user(nested_session)
+    u3 = await make_user(nested_session)
+    u4 = await make_user(nested_session)
+    nested_session.add(Prediction(user_id=u1.id, event_id=event.id, outcome_id=o2.id))
+    nested_session.add(Prediction(user_id=u2.id, event_id=event.id, outcome_id=o2.id))
+    nested_session.add(Prediction(user_id=u3.id, event_id=event.id, outcome_id=o2.id))
+    nested_session.add(
+        Prediction(user_id=u4.id, event_id=event.id, outcome_id=o1.id, is_correct=True)
+    )
+    await nested_session.flush()
+
+    summary = await service.event_result_summary(event.id)
+
+    assert summary.majority_correct is False  # популяр o2 != winner o1
+    assert summary.participation_pct is not None and summary.participation_pct > 0
