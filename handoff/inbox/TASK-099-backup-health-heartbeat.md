@@ -6,74 +6,83 @@ parallel-safe: false
 blockedBy: []
 related:
   - handoff/outbox/operational-backup-heartbeat-proposal.md
+  - docs/03-data-model.md
   - docs/04-bot-flows.md
   - docs/07-deployment.md
 priority: high
 estimate: M
 ---
 
-# TASK-099: Backup health heartbeat внутри бота
+# TASK-099: Backup health heartbeat внутри бота (через таблицу `backup_run`)
 
 ## Контекст
 
 При диагностике прода (2026-06-01) исполнитель обнаружил, что бэкап-схема из `pinbetting.txt` фактически **не работает**: на Admin-сервере есть cron `/etc/cron.d/bettgbot-backup` (ежечасно `backup-db.sh --with-redis`), но скриптов (`backup-db.sh`, `check-bot-db-visibility.sh`, `notify-telegram.sh`) на серверах нет → крон каждый час падает «No such file», свежих бэкапов по этой схеме нет, алерты не доставляются. Полный разбор — [`handoff/outbox/operational-backup-heartbeat-proposal.md`](../outbox/operational-backup-heartbeat-proposal.md).
 
-Решение владельца: **внешнюю cron-схему выпиливаем**, мониторинг бэкапов и видимости БД переносим внутрь бота (паттерн TASK-097). Физический `pg_dump`/ротацию оставляет контейнер `db-backup` (TASK-029) — он не трогается. Бот выступает **наблюдателем и докладчиком**.
+Решение владельца: внешнюю cron-схему выпиливаем, мониторинг бэкапов и видимости БД переносим внутрь бота (паттерн TASK-097). Физический `pg_dump`/ротацию оставляет контейнер `db-backup` (TASK-029). **Источник правды о бэкапах — таблица `backup_run` в Postgres** (а не файлы в volume): это снимает проблему топологии — бот читает статус из БД с любого хоста, без монтирования backup-volume и co-location.
 
 > ⚠️ **Срочный ops-пункт (вне этой задачи, owner-direct):** убрать битый `/etc/cron.d/bettgbot-backup` с серверов и подтвердить, что контейнер `db-backup` реально пишет дампы. Это не код-задача — делает владелец на сервере.
 
 ## Цель
 
-Ежечасный bot-джоб `send_backup_health_heartbeat`: проверяет доступность Postgres и Redis из инстанса бота и свежесть последнего бэкапа (по файлам в смонтированном volume), шлёт структурированный статус в `ADMIN_TELEGRAM_CHAT_IDS`; при просрочке/ошибке — явный алерт.
+1. Таблица `backup_run` — каждый запуск бэкапа пишет туда строку (start → success/failed + размер).
+2. Ежечасный bot-джоб `send_backup_health_heartbeat`: читает последнюю строку `backup_run` + проверяет видимость Postgres/Redis из инстанса бота, шлёт статус в `ADMIN_TELEGRAM_CHAT_IDS`, алертит при просрочке/ошибке/отсутствии бэкапа.
 
-## Решения архитектора (ответы на вопросы proposal)
+## Архитектура (ответы на вопросы proposal + решение по backup_run)
 
-1. **Частота/флаг:** `CronTrigger(minute=7)` (ежечасно в :07, как в legacy). Включается флагом `BACKUP_HEARTBEAT_ENABLED` (env, **default `false`**). При `false` — джоб не регистрируется.
-2. **Источник свежести бэкапа:** файлы в смонтированном volume (1-й этап) — берём новейший `*.sql.gz`, его `mtime` и размер. Таблицу `backup_run` **не** вводим сейчас (записано в backlog на будущее).
-3. **Primary-guard:** отдельная машинерия `is_primary` не нужна. Джоб шлёт там, где `BACKUP_HEARTBEAT_ENABLED=true` — включаем флаг **только на том инстансе бота, где смонтирован backup-volume** (см. предпосылку ниже). Так нет дублей.
-4. **Объём 1-й итерации:** видимость Postgres (через app `engine`, лёгкий `SELECT 1`) + Redis (`ping`) + возраст/размер последнего бэкапа + общий статус. Алерт, если возраст > `BACKUP_MAX_AGE_HOURS` (env, default `2`) или бэкапов нет, или БД/Redis недоступны.
-5. **Старый `db-backup` контейнер:** оставляем как есть (продюсер дампов, второй уровень). Не трогаем.
-6. **Тексты:** новые константы `OPERATIONAL_HEARTBEAT_*` в `src/bot/texts.py`.
+- **Источник свежести:** таблица `backup_run` (НЕ файлы в volume). Продюсер дампов (контейнер `db-backup`) после `pg_dump` пишет строку через `psql`. Бот читает последнюю строку. Топология серверов больше не важна — volume монтировать не нужно.
+- **Частота/флаг:** `CronTrigger(minute=7)` (ежечасно). Флаг `BACKUP_HEARTBEAT_ENABLED` (env, default `false`); при `false` джоб не регистрируется. Флаг заменяет primary-guard — включаем на **одном** инстансе бота, чтобы не было дублей (любой подойдёт, т.к. читает БД).
+- **Порог алерта:** `BACKUP_MAX_AGE_HOURS` (env, default `2`). Алерт если: нет ни одной `success`-строки; последняя успешная старше порога; последняя строка `failed`; Postgres/Redis недоступны.
+- **db-backup контейнер:** остаётся продюсером дампов + ротация. Добавляется только запись в `backup_run`.
+- **Тексты:** константы `OPERATIONAL_HEARTBEAT_*` в `src/bot/texts.py`.
 
-## 🚩 Ключевая предпосылка по топологии (подтвердить при деплое)
+## Модель `backup_run` (миграция 0008)
 
-Бэкапы пишутся на Admin-сервере в volume `bb-db-backups`. Чтобы джоб видел свежесть по файлам, **инстанс бота с `BACKUP_HEARTBEAT_ENABLED=true` должен работать на том же хосте и иметь этот volume смонтированным read-only**. Если бот живёт только на отдельном Bot-сервере (без доступа к backup-volume) — проверка свежести по файлам невозможна; тогда (вне этой задачи) поднять bot-инстанс на Admin-хосте ИЛИ перейти на таблицу `backup_run`. Видимость Postgres/Redis каждый инстанс проверяет свою.
+Поля: `id` PK; `started_at` timestamptz NOT NULL; `finished_at` timestamptz NULL; `status` text NOT NULL (`running|success|failed`); `size_bytes` bigint NULL; `host` text NULL (какой сервер произвёл — на будущее для multi-server); `error` text NULL; `created_at` timestamptz default now(). Индекс по `finished_at DESC` (быстрый «последний успешный»). Реплика-статус/детали — backlog, не сейчас.
 
 ## Definition of Done
 
 > 🚨 Перед `chore(handoff): archive` — ОБЯЗАТЕЛЬНО `handoff/outbox/TASK-099-report.md`.
 
-- [ ] `Settings`: `backup_heartbeat_enabled: bool` (env `BACKUP_HEARTBEAT_ENABLED`, default `false`), `backup_max_age_hours: int` (env `BACKUP_MAX_AGE_HOURS`, default `2`), `backup_dir: Path` (env `BACKUP_DIR`, default — путь mount, напр. `/backups`).
-- [ ] Хелпер «свежесть бэкапа»: новейший `*.sql.gz` в `backup_dir` → возраст (по `mtime`, UTC) + размер; нет файлов → статус «нет бэкапов».
-- [ ] Хелпер проверок: `SELECT 1` через app `engine` (с таймаутом), Redis `ping` (если Redis сконфигурирован).
-- [ ] Джоб `send_backup_health_heartbeat(*, bot, session_maker)` в `jobs.py`: собирает статус, форматирует (тексты `OPERATIONAL_HEARTBEAT_*`), шлёт во все `ADMIN_TELEGRAM_CHAT_IDS`. Пустой список → `warning` + return. Ошибка отправки в один чат → `warning`, продолжаем.
+- [ ] Миграция **0008** `backup_run` (up/down). Модель `BackupRun` в `src/shared/models/`. Apply+rollback чисто.
+- [ ] `BackupRunRepository`: `get_last_success()` / `get_latest()` (read). Запись делает не Python, а скрипт контейнера — но добавить тонкий хелпер/SQL-док для воспроизводимости.
+- [ ] **Контейнер `db-backup`** (`infra/Dockerfile.db-backup` / inline-скрипт в prod-compose): обернуть `pg_dump` — перед началом `INSERT ... status='running'`, после успеха `UPDATE ... status='success', finished_at, size_bytes=<размер gz>`, при ошибке `status='failed', error`. Запись через `psql` к тому же `db`. Не ломать существующую ротацию.
+- [ ] `Settings`: `backup_heartbeat_enabled: bool` (`BACKUP_HEARTBEAT_ENABLED`, default `false`), `backup_max_age_hours: int` (`BACKUP_MAX_AGE_HOURS`, default `2`).
+- [ ] Хелпер проверок видимости: `SELECT 1` через app `engine` (с таймаутом) + Redis `ping` (если Redis сконфигурирован).
+- [ ] Джоб `send_backup_health_heartbeat(*, bot, session_maker)` в `jobs.py`: читает `backup_run`, собирает статус (возраст последнего success, размер, статус последней строки) + видимость БД/Redis, форматирует (тексты `OPERATIONAL_HEARTBEAT_*`), шлёт во все `ADMIN_TELEGRAM_CHAT_IDS`. Пустой список → `warning` + return. Ошибка отправки в один чат → `warning`, продолжаем.
 - [ ] Регистрация в `builder.py` **только если** `backup_heartbeat_enabled`: `CronTrigger(minute=7)`, `id="send_backup_health_heartbeat"`, `coalesce=True`, `max_instances=1`, `misfire_grace_time` ~600.
-- [ ] Compose: смонтировать backup-volume в сервис `bot` **read-only** (`bb-db-backups:/backups:ro` в prod-compose) + добавить env `BACKUP_HEARTBEAT_ENABLED`, `BACKUP_MAX_AGE_HOURS`, `BACKUP_DIR` в `.env.*example` и сервис `bot`. Дефолт выключено.
-- [ ] Тесты с замоканным `Bot` и фейковой ФС/таймстампами: свежий бэкап → «ОК»; просроченный (> max_age) → алерт; нет файлов → алерт; БД/Redis недоступны → алерт; пустой `ADMIN_TELEGRAM_CHAT_IDS` → не шлёт; `backup_heartbeat_enabled=false` → джоб НЕ зарегистрирован (`test_builder`).
+- [ ] Compose: env `BACKUP_HEARTBEAT_ENABLED`, `BACKUP_MAX_AGE_HOURS` в сервис `bot` + `.env.*example` (default выключено). **Volume backup в бот монтировать НЕ нужно** (читаем из БД).
+- [ ] Тесты с замоканным `Bot` и фикстурами `backup_run`: свежий `success` → «ОК»; последний success старше порога → алерт; последняя строка `failed` → алерт; строк нет → алерт; БД/Redis недоступны → алерт; пустой `ADMIN_TELEGRAM_CHAT_IDS` → не шлёт; `backup_heartbeat_enabled=false` → джоб НЕ зарегистрирован (`test_builder`). integration на `BackupRunRepository.get_last_success`.
 - [ ] `ruff` / `mypy src/shared` / `pytest` зелёные.
-- [ ] PR `TASK-099: backup health heartbeat`; отчёт в outbox; move-семантика inbox→archive; ветка отребейзена на свежий `main` перед PR (иначе auto-merge не встанет).
+- [ ] PR `TASK-099: backup health heartbeat`; отчёт в outbox; move inbox→archive; **ветка отребейзена на свежий `main` перед PR** (иначе auto-merge не встанет — урок TASK-097).
 
 ## Артефакты
 
 ```
-* src/shared/config.py                       # 3 новых поля
-+ src/bot/_backup_health.py (или в jobs)     # хелперы freshness + ping
++ src/migrations/versions/0008_backup_run.py
++ src/shared/models/backup_run.py            # модель BackupRun
+* src/shared/models/__init__.py              # экспорт
++ src/shared/repositories/backup_run.py      # get_last_success / get_latest
+* src/shared/config.py                       # 2 новых поля
++ src/bot/_backup_health.py (или в jobs)     # ping Postgres/Redis + сборка статуса
 * src/bot/scheduler/jobs.py                  # send_backup_health_heartbeat
 * src/bot/scheduler/builder.py               # условная регистрация
 * src/bot/texts.py                           # OPERATIONAL_HEARTBEAT_*
-* infra/docker-compose.prod*.yml, .env.*example
-+ tests/unit/bot/scheduler/test_backup_heartbeat.py
+* infra/Dockerfile.db-backup / docker-compose.prod*.yml  # запись backup_run в скрипте
+* infra/.env.*example
++ tests/...
 ```
 
 ## Ссылки
 
 - Proposal: [`handoff/outbox/operational-backup-heartbeat-proposal.md`](../outbox/operational-backup-heartbeat-proposal.md)
 - Паттерн джобов/отправки: TASK-097 (`send_daily_admin_digest`, `dispatch_event_result_notifications`)
-- Бэкап-контейнер: `infra/docker-compose.prod*.yml` (`db-backup`, TASK-029)
+- Бэкап-контейнер: `infra/docker-compose.prod*.yml`, `infra/Dockerfile.db-backup` (`db-backup`, TASK-029)
 - Решение: [`state/DECISIONS.md`](../../state/DECISIONS.md) (2026-06-01)
 
-## Подсказки / не делать в этой задаче
+## Не делать в этой задаче (backlog)
 
-- Таблица `backup_run`, проверка репликации на второй сервер, pending-alerts-файл как fallback — **отдельная итерация** (backlog), не сейчас.
-- Создание дампов и ротацию НЕ переносить в бот — это остаётся в `db-backup`.
+- Репликация дампов на второй сервер и её статус в `backup_run` (поле под это добавим позже).
+- pending-alerts-файл как fallback при egress-проблемах.
+- Перенос самого `pg_dump`/ротации в бот — остаётся в `db-backup`.
 - `docs/`/`state/` не трогать — обновит cowork.
