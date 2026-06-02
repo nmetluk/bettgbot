@@ -14,6 +14,7 @@ from .jobs import (
     dispatch_broadcasts,
     dispatch_event_result_notifications,
     dispatch_reminders,
+    send_backup_health_heartbeat,
     send_daily_admin_digest,
 )
 
@@ -113,4 +114,22 @@ def build_scheduler(
         coalesce=True,
         max_instances=1,
     )
+
+    # TASK-099: backup health heartbeat (conditional, only if enabled in env;
+    # the flag replaces primary-guard — enable on one bot instance).
+    # Cron every hour at :07 to avoid collision with other :00/:30 jobs.
+    from src.shared.config import get_settings
+
+    settings = get_settings()
+    if settings.backup.heartbeat_enabled:
+        scheduler.add_job(
+            send_backup_health_heartbeat,
+            trigger=CronTrigger(minute=7),
+            kwargs={"bot": bot, "session_maker": session_maker},
+            id="send_backup_health_heartbeat",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=600,
+        )
     return scheduler

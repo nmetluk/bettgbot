@@ -1,5 +1,7 @@
 """Все тексты UI бота. Конвенция — UPPER_SNAKE_CASE константы, без хардкода в handler'ах."""
 
+# ruff: noqa: RUF022  # __all__ intentionally grouped by feature (TASK-097, 099, etc.), not alpha-sorted
+
 from __future__ import annotations
 
 __all__ = [
@@ -28,6 +30,11 @@ __all__ = [
     "NEED_START",
     "NO_EVENTS_AT_ALL",
     "NO_EVENTS_IN_CATEGORY",
+    "OPERATIONAL_HEARTBEAT_ALERT",
+    # TASK-099 backup health heartbeat
+    "OPERATIONAL_HEARTBEAT_OK",
+    "OPERATIONAL_HEARTBEAT_ALERT",
+    "OPERATIONAL_HEARTBEAT_NO_RECENT",
     "PREDICTION_YOUR_CHOICE",
     "PREDICT_CONFIRM",
     "PREDICT_DEADLINE_PASSED",
@@ -53,6 +60,10 @@ __all__ = [
     "WELCOME_NEW",
     "WELCOME_NEW_REGISTERED",
     "WELCOME_RETURNING",
+    # TASK-099 backup health heartbeat
+    "OPERATIONAL_HEARTBEAT_OK",
+    "OPERATIONAL_HEARTBEAT_ALERT",
+    "OPERATIONAL_HEARTBEAT_NO_RECENT",
 ]
 
 
@@ -223,3 +234,39 @@ ADMIN_EVENT_RESULT_CORRECT = "\n✅ Угадали: <b>{correct}</b>"
 
 # Примечание к CSV (прикладывается отдельным документом)
 ADMIN_EVENT_RESULT_CSV_NOTE = "\n📎 CSV со списком угадавших — во вложении."
+
+# =============================================================================
+# TASK-099: Backup health heartbeat (внутренний мониторинг бэкапов через backup_run)
+# =============================================================================
+
+# Успешный heartbeat.
+# {last_success_age} — возраст последнего success (напр. "1h 23m")
+# {size} — размер последнего дампа (напр. "42M")
+# {db_ok}, {redis_ok} — "OK" / "DOWN"
+# {replication} — "реплицирован" / "не реплицирован" (по replicated_at из amendment)
+OPERATIONAL_HEARTBEAT_OK = (
+    "✅ Backup heartbeat OK\n"
+    "Last success: {last_success_age} ago\n"
+    "Size: {size}\n"
+    "DB: {db_ok} | Redis: {redis_ok}\n"
+    "Replication: {replication}"
+)
+
+# Алерт.
+# {reason} — причина (напр. "No successful backup in 2h", "Last backup failed", "Postgres unreachable")
+OPERATIONAL_HEARTBEAT_ALERT = (
+    "🚨 Backup heartbeat ALERT\n"
+    "{reason}\n"
+    "Last: {last}\n"
+    "DB: {db_ok} | Redis: {redis_ok}\n"
+    "Check db-backup container and logs."
+)
+
+# Нет ни одной успешной записи (всегда шлём отчёт, даже если "no recent").
+# {db_ok}, {redis_ok} — "OK" / "DOWN"
+OPERATIONAL_HEARTBEAT_NO_RECENT = (
+    "⚠️ Backup heartbeat — нет свежих бэкапов\n"
+    "Last success: никогда\n"
+    "DB: {db_ok} | Redis: {redis_ok}\n"
+    "Check db-backup container and logs."
+)
