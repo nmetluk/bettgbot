@@ -78,6 +78,7 @@ async def test_get_last_success_returns_none_if_no_success(session: AsyncSession
     """Только running + failed → get_last_success = None."""
     # очистка от предыдущих тестов в модуле (rollback может не хватить для shared state)
     from sqlalchemy import delete
+
     await session.execute(delete(BackupRun))
     await session.flush()
     await _insert_run(session, status="running", finished_delta=None)
