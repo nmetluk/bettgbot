@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
@@ -31,6 +32,7 @@ __all__ = [
     "dispatch_broadcasts",
     "dispatch_event_result_notifications",
     "dispatch_reminders",
+    "replicate_latest_backup",
     "send_backup_health_heartbeat",
     "send_daily_admin_digest",
 ]
@@ -495,6 +497,7 @@ async def send_backup_health_heartbeat(
         return
 
     max_age = timedelta(hours=settings.backup.max_age_hours)
+    rep_lag = timedelta(hours=settings.backup.replication_max_lag_hours)
 
     async with session_maker() as session:
         repo = BackupRunRepository(session)
@@ -519,6 +522,15 @@ async def send_backup_health_heartbeat(
                 f"{int(age.total_seconds() // 3600)}h {int((age.total_seconds() % 3600) // 60)}m"
             )
 
+            rep_age = (
+                now - last_success.replicated_at if last_success.replicated_at else timedelta.max
+            )
+            rep_lag_str = (
+                f"{int(rep_age.total_seconds() // 3600)}h"
+                if rep_age != timedelta.max
+                else "никогда"
+            )
+
             if latest and latest.status == "failed":
                 reason = "Последний бэкап завершился с ошибкой"
                 text = safe_format(
@@ -530,6 +542,15 @@ async def send_backup_health_heartbeat(
                 )
             elif age > max_age:
                 reason = f"Последний успешный бэкап старше {settings.backup.max_age_hours}ч"
+                text = safe_format(
+                    texts.OPERATIONAL_HEARTBEAT_ALERT,
+                    reason=reason,
+                    last=age_str,
+                    db_ok="OK" if db_ok else "DOWN",
+                    redis_ok="OK" if redis_ok else "DOWN",
+                )
+            elif last_success.replicated_at is None or rep_age > rep_lag:
+                reason = f"Репликация не выполнена (lag {rep_lag_str} > {settings.backup.replication_max_lag_hours}ч)"
                 text = safe_format(
                     texts.OPERATIONAL_HEARTBEAT_ALERT,
                     reason=reason,
@@ -568,3 +589,105 @@ async def send_backup_health_heartbeat(
                     chat_id=chat_id,
                     error=str(exc),
                 )
+
+
+# =============================================================================
+# TASK-100: Backup replication (pull latest unreplicated dump from Admin to Bot via SSH/rsync)
+# =============================================================================
+
+
+async def _run_rsync_pull(
+    *,
+    user: str,
+    host: str,
+    key_path: Path,
+    remote_path: str,
+    local_path: Path,
+    timeout_s: float = 300.0,
+) -> None:
+    """Выполнить rsync pull дампа по SSH. Идемпотентно, с таймаутом. Ключ не логируется."""
+    cmd = [
+        "rsync",
+        "-az",
+        "-e",
+        f"ssh -i {key_path} -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null",
+        f"{user}@{host}:{remote_path}",
+        str(local_path),
+    ]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
+        if proc.returncode != 0:
+            # Не логируем ключ; stderr может содержать детали, но обрезаем чувствительное
+            err = stderr.decode(errors="ignore") if stderr else ""
+            raise RuntimeError(f"rsync failed (code {proc.returncode}): {err[:500]}")
+    except TimeoutError:
+        raise RuntimeError(f"rsync timed out after {timeout_s}s") from None
+
+
+async def replicate_latest_backup(*, session_maker: async_sessionmaker[AsyncSession]) -> None:
+    """Периодический pull репликации последнего непрореплицированного дампа (TASK-100).
+
+    Берёт последний success с replicated_at IS NULL, rsync-pull по SSH, при успехе mark_replicated.
+    Ошибки логируются warning (heartbeat покажет статус).
+    """
+    from src.shared.config import get_settings
+
+    settings = get_settings()
+    if not settings.backup.replication_enabled:
+        return
+
+    # Определяем host: explicit или fallback (ADMIN_DOMAIN может быть в env, но для простоты используем source_host)
+    host = settings.backup.source_host
+    if not host:
+        # Fallback: попробовать ADMIN_DOMAIN из env (как в compose)
+        import os
+
+        host = os.environ.get("ADMIN_DOMAIN")
+    if not host:
+        logger.warning("scheduler.backup_replication.skipped_no_source_host")
+        return
+
+    user = settings.backup.source_ssh_user
+    key_path = settings.backup.ssh_key_path
+    source_dir = settings.backup.source_dir.rstrip("/")
+    local_dir = settings.backup.local_dir
+
+    local_dir.mkdir(parents=True, exist_ok=True)
+
+    async with session_maker() as session:
+        repo = BackupRunRepository(session)
+        last_unrep = await repo.get_last_unreplicated_success()
+        if not last_unrep or not last_unrep.filename:
+            return  # ничего реплицировать, или heartbeat покажет
+
+        filename = last_unrep.filename
+        remote = f"{source_dir}/{filename}"
+        local_target = local_dir / filename
+
+        try:
+            await _run_rsync_pull(
+                user=user,
+                host=host,
+                key_path=key_path,
+                remote_path=remote,
+                local_path=local_target,
+            )
+            await repo.mark_replicated(last_unrep.id, utcnow())
+            await session.commit()
+            logger.info(
+                "scheduler.backup_replication.success",
+                filename=filename,
+                host=host,
+            )
+        except Exception as exc:
+            logger.warning(
+                "scheduler.backup_replication.failed",
+                filename=filename,
+                host=host,
+                error=str(exc),
+            )

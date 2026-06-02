@@ -87,6 +87,18 @@ def _mk_settings_backup(enabled: bool) -> MagicMock:
     return s
 
 
+def _mk_settings_replication(enabled: bool) -> MagicMock:
+    s = MagicMock()
+    s.backup.replication_enabled = enabled
+    s.backup.source_host = "10.0.0.1"
+    s.backup.source_ssh_user = "root"
+    s.backup.ssh_key_path = "/key"
+    s.backup.source_dir = "/backups"
+    s.backup.local_dir = "/backups"
+    s.backup.replication_max_lag_hours = 3
+    return s
+
+
 def test_build_scheduler_backup_heartbeat_not_registered_when_disabled() -> None:
     """BACKUP_HEARTBEAT_ENABLED=false → джоб НЕ зарегистрирован."""
     with patch("src.shared.config.get_settings", return_value=_mk_settings_backup(False)):
@@ -107,6 +119,29 @@ def test_build_scheduler_backup_heartbeat_registered_when_enabled() -> None:
     # minute=7 (ежечасно в :07, без tz — как в билдере)
     trigger_repr = repr(job.trigger)
     assert "minute" in trigger_repr and "7" in trigger_repr
+    assert job.coalesce is True
+    assert job.max_instances == 1
+    assert job.misfire_grace_time == 600
+
+
+def test_build_scheduler_backup_replication_not_registered_when_disabled() -> None:
+    """BACKUP_REPLICATION_ENABLED=false → джоб репликации НЕ зарегистрирован."""
+    with patch("src.shared.config.get_settings", return_value=_mk_settings_replication(False)):
+        scheduler = build_scheduler(bot=MagicMock(spec=Bot), session_maker=MagicMock())
+    jobs = {j.id: j for j in scheduler.get_jobs()}
+    assert "replicate_latest_backup" not in jobs
+
+
+def test_build_scheduler_backup_replication_registered_when_enabled() -> None:
+    """BACKUP_REPLICATION_ENABLED=true → зарегистрирован с id и IntervalTrigger(minutes=15)."""
+    with patch("src.shared.config.get_settings", return_value=_mk_settings_replication(True)):
+        scheduler = build_scheduler(bot=MagicMock(spec=Bot), session_maker=MagicMock())
+    jobs = {j.id: j for j in scheduler.get_jobs()}
+
+    assert "replicate_latest_backup" in jobs
+    job = jobs["replicate_latest_backup"]
+    assert isinstance(job.trigger, IntervalTrigger)
+    assert job.trigger.interval.total_seconds() == 15 * 60
     assert job.coalesce is True
     assert job.max_instances == 1
     assert job.misfire_grace_time == 600

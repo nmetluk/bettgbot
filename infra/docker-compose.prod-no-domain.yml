@@ -18,11 +18,23 @@ services:
       ADMIN_TELEGRAM_CHAT_IDS: ${ADMIN_TELEGRAM_CHAT_IDS:-}
       BACKUP_HEARTBEAT_ENABLED: ${BACKUP_HEARTBEAT_ENABLED:-false}
       BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-2}
+      # TASK-100: Backup replication (pull from Admin; for no-domain use IP in BACKUP_SOURCE_HOST)
+      BACKUP_REPLICATION_ENABLED: ${BACKUP_REPLICATION_ENABLED:-false}
+      BACKUP_SOURCE_HOST: ${BACKUP_SOURCE_HOST:-}
+      BACKUP_SOURCE_SSH_USER: ${BACKUP_SOURCE_SSH_USER:-root}
+      BACKUP_SSH_KEY_PATH: ${BACKUP_SSH_KEY_PATH:-/etc/ssh/keys/id_rsa}
+      BACKUP_SOURCE_DIR: ${BACKUP_SOURCE_DIR:-/backups}
+      BACKUP_LOCAL_DIR: ${BACKUP_LOCAL_DIR:-/backups}
+      BACKUP_REPLICATION_MAX_LAG_HOURS: ${BACKUP_REPLICATION_MAX_LAG_HOURS:-3}
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      # TASK-100: read-only SSH key + local dir for replicated dumps
+      - ${BACKUP_SSH_KEY_PATH:-/dev/null}:/etc/ssh/keys/id_rsa:ro
+      - bb-bot-backups:/backups
 
   web:
     restart: always
@@ -72,3 +84,4 @@ services:
 
 volumes:
   bb-db-backups:
+  bb-bot-backups:  # TASK-100: replicated backups on Bot server
