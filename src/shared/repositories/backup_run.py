@@ -20,7 +20,11 @@ class BackupRunRepository:
 
     async def get_latest(self) -> BackupRun | None:
         """Последняя запись о бэкапе (любого статуса)."""
-        stmt = select(BackupRun).order_by(BackupRun.finished_at.desc().nulls_last(), BackupRun.id.desc()).limit(1)
+        stmt = (
+            select(BackupRun)
+            .order_by(BackupRun.finished_at.desc().nulls_last(), BackupRun.id.desc())
+            .limit(1)
+        )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

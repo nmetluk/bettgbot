@@ -13,9 +13,7 @@ from .base import Base
 
 class BackupRun(Base):
     __tablename__ = "backup_run"
-    __table_args__ = (
-        Index("ix_backup_run_finished_at", text("finished_at DESC")),
-    )
+    __table_args__ = (Index("ix_backup_run_finished_at", text("finished_at DESC")),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     started_at: Mapped[datetime] = mapped_column(nullable=False)
@@ -25,7 +23,9 @@ class BackupRun(Base):
     host: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     filename: Mapped[str | None] = mapped_column(Text, nullable=True)
-    replicated_at: Mapped[datetime | None] = mapped_column(postgresql.TIMESTAMP(timezone=True), nullable=True)
+    replicated_at: Mapped[datetime | None] = mapped_column(
+        postgresql.TIMESTAMP(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
     def __repr__(self) -> str:
