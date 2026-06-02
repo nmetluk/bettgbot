@@ -14,6 +14,10 @@ COPY <<'SCRIPT' /usr/local/bin/backup-db.sh
 #!/bin/sh
 set -e
 
+# TASK-101: hourly backups + retention from env (instead of daily hardcode + 14 days)
+BACKUP_INTERVAL_SECONDS=${BACKUP_INTERVAL_SECONDS:-3600}
+BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
+
 # Write running row, return its id (for UPDATE later). Host captured for multi-server.
 start_backup_run() {
     host_name="$(hostname)"
@@ -56,76 +60,68 @@ finish_backup_run() {
 
 # Local-only backup (BACKUP_ENABLED != true). Used by no-domain and default prod.
 run_local_backup_loop() {
-    echo "Offsite backup disabled (BACKUP_ENABLED=false). Running local-only backup loop.";
+    echo "Offsite backup disabled (BACKUP_ENABLED=false). Running local-only backup loop (hourly, TASK-101).";
     while true; do
-      current_time=$(date -u +%H%M);
-      target_time="0230";
-      if [ "$current_time" -ge "$target_time" ]; then
-        echo "→ Starting local backup at $(date -u +%FT%H-%M-%SZ)";
-        timestamp=$(date -u +%FT%H-%M-%SZ);
-        dump_file="/backups/bettgbot-$timestamp.sql.gz";
+      echo "→ Starting local backup at $(date -u +%FT%H-%M-%SZ)";
+      timestamp=$(date -u +%FT%H-%M-%SZ);
+      dump_file="/backups/bettgbot-$timestamp.sql.gz";
 
-        backup_id=$(start_backup_run)
+      backup_id=$(start_backup_run)
 
-        if pg_dump -h db -U "$POSTGRES_USER" "$POSTGRES_DB" --no-owner --clean --if-exists | gzip > "$dump_file"; then
-          size=$(stat -c %s "$dump_file" 2>/dev/null || echo 0);
-          echo "✓ Local backup successful (size: $size bytes)";
-          finish_backup_run "$backup_id" "success" "$size" "" "$(basename "$dump_file")";
-          find /backups -name "bettgbot-*.sql.gz" -mtime +14 -delete;
-        else
-          echo "[backup-error] pg_dump failed";
-          finish_backup_run "$backup_id" "failed" "0" "pg_dump failed" "";
-        fi;
-        sleep 86400;
+      if pg_dump -h db -U "$POSTGRES_USER" "$POSTGRES_DB" --no-owner --clean --if-exists | gzip > "$dump_file"; then
+        size=$(stat -c %s "$dump_file" 2>/dev/null || echo 0);
+        echo "✓ Local backup successful (size: $size bytes)";
+        finish_backup_run "$backup_id" "success" "$size" "" "$(basename "$dump_file")";
+        find /backups -name "bettgbot-*.sql.gz" -mtime +${BACKUP_RETENTION_DAYS} -delete;
       else
-        sleep 300;
+        echo "[backup-error] pg_dump failed";
+        finish_backup_run "$backup_id" "failed" "0" "pg_dump failed" "";
+        sleep 300;  # short retry on error, per DoD
+        continue;
       fi;
+      sleep "$BACKUP_INTERVAL_SECONDS";
     done;
 }
 
 # Offsite (encrypted + rclone) path. Mirrors local + ships final artifact.
 # Requires BACKUP_AGE_RECIPIENT + BACKUP_RCLONE_REMOTE (validated in Settings when enabled).
 run_offsite_backup_loop() {
-    echo "Offsite backup enabled. Starting encrypted+rclone loop.";
+    echo "Offsite backup enabled. Starting encrypted+rclone loop (hourly, TASK-101).";
     while true; do
-      current_time=$(date -u +%H%M);
-      target_time="0230";
-      if [ "$current_time" -ge "$target_time" ]; then
-        echo "→ Starting offsite backup at $(date -u +%FT%H-%M-%SZ)";
-        timestamp=$(date -u +%FT%H-%M-%SZ);
-        dump_file="/backups/bettgbot-$timestamp.sql.gz";
-        encrypted_file="$dump_file.age";
+      echo "→ Starting offsite backup at $(date -u +%FT%H-%M-%SZ)";
+      timestamp=$(date -u +%FT%H-%M-%SZ);
+      dump_file="/backups/bettgbot-$timestamp.sql.gz";
+      encrypted_file="$dump_file.age";
 
-        backup_id=$(start_backup_run)
+      backup_id=$(start_backup_run)
 
-        if pg_dump -h db -U "$POSTGRES_USER" "$POSTGRES_DB" --no-owner --clean --if-exists | gzip > "$dump_file"; then
-          size=$(stat -c %s "$dump_file" 2>/dev/null || echo 0);
-          echo "✓ Dump+gz ok (size: $size bytes), encrypting...";
-          if [ -n "$BACKUP_AGE_RECIPIENT" ]; then
-            age -r "$BACKUP_AGE_RECIPIENT" -o "$encrypted_file" "$dump_file";
-            final_artifact="$encrypted_file";
-            final_size=$(stat -c %s "$encrypted_file" 2>/dev/null || echo 0);
-          else
-            final_artifact="$dump_file";
-            final_size="$size";
-          fi;
-          if [ -n "$BACKUP_RCLONE_REMOTE" ]; then
-            echo "→ Shipping $final_artifact to $BACKUP_RCLONE_REMOTE ...";
-            rclone copy "$final_artifact" "$BACKUP_RCLONE_REMOTE" || echo "[backup] rclone copy failed (non-fatal for row)";
-          fi;
-          echo "✓ Offsite backup successful";
-          finish_backup_run "$backup_id" "success" "$final_size" "" "$(basename "$final_artifact")";
-          # local retention (remote managed by rclone or policy)
-          find /backups -name "bettgbot-*.sql.gz" -mtime +14 -delete;
-          find /backups -name "bettgbot-*.sql.gz.age" -mtime +14 -delete;
+      if pg_dump -h db -U "$POSTGRES_USER" "$POSTGRES_DB" --no-owner --clean --if-exists | gzip > "$dump_file"; then
+        size=$(stat -c %s "$dump_file" 2>/dev/null || echo 0);
+        echo "✓ Dump+gz ok (size: $size bytes), encrypting...";
+        if [ -n "$BACKUP_AGE_RECIPIENT" ]; then
+          age -r "$BACKUP_AGE_RECIPIENT" -o "$encrypted_file" "$dump_file";
+          final_artifact="$encrypted_file";
+          final_size=$(stat -c %s "$encrypted_file" 2>/dev/null || echo 0);
         else
-          echo "[backup-error] pg_dump failed";
-          finish_backup_run "$backup_id" "failed" "0" "pg_dump failed" "";
+          final_artifact="$dump_file";
+          final_size="$size";
         fi;
-        sleep 86400;
+        if [ -n "$BACKUP_RCLONE_REMOTE" ]; then
+          echo "→ Shipping $final_artifact to $BACKUP_RCLONE_REMOTE ...";
+          rclone copy "$final_artifact" "$BACKUP_RCLONE_REMOTE" || echo "[backup] rclone copy failed (non-fatal for row)";
+        fi;
+        echo "✓ Offsite backup successful";
+        finish_backup_run "$backup_id" "success" "$final_size" "" "$(basename "$final_artifact")";
+        # local retention (remote managed by rclone or policy)
+        find /backups -name "bettgbot-*.sql.gz" -mtime +${BACKUP_RETENTION_DAYS} -delete;
+        find /backups -name "bettgbot-*.sql.gz.age" -mtime +${BACKUP_RETENTION_DAYS} -delete;
       else
-        sleep 300;
+        echo "[backup-error] pg_dump failed";
+        finish_backup_run "$backup_id" "failed" "0" "pg_dump failed" "";
+        sleep 300;  # short retry on error, per DoD
+        continue;
       fi;
+      sleep "$BACKUP_INTERVAL_SECONDS";
     done;
 }
 
