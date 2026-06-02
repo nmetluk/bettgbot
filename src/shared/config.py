@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
@@ -94,6 +95,18 @@ class BackupSettings(BaseSettings):
     # Порог просрочки последнего успешного бэкапа (алерт если старше).
     max_age_hours: PositiveInt = 2
 
+    # TASK-100: репликация дампа с Admin-сервера на Bot-сервер (pull по SSH/rsync).
+    # Включает джоб replicate_latest_backup. Ключи между серверами — деплой-предпосылка.
+    replication_enabled: bool = False
+    # Хост Admin-сервера (источник дампов). Если None — можно fallback на ADMIN_DOMAIN в джобе.
+    source_host: str | None = None
+    source_ssh_user: str = "root"
+    ssh_key_path: Path = Path("/etc/ssh/keys/id_rsa")
+    source_dir: str = "/backups"
+    local_dir: Path = Path("/backups")
+    # Порог, после которого "не реплицирован" считается просрочкой (для алерта в heartbeat).
+    replication_max_lag_hours: PositiveInt = 3
+
     @field_validator("age_recipient", "rclone_remote", mode="before")
     @classmethod
     def _empty_to_none(cls, value: Any) -> Any:
@@ -106,6 +119,19 @@ class BackupSettings(BaseSettings):
                 raise ValueError("BACKUP_ENABLED=true требует BACKUP_AGE_RECIPIENT")
             if not self.rclone_remote:
                 raise ValueError("BACKUP_ENABLED=true требует BACKUP_RCLONE_REMOTE")
+        return self
+
+    @model_validator(mode="after")
+    def _check_replication_has_required_fields(self) -> Self:
+        if self.replication_enabled:
+            if not self.source_ssh_user:
+                raise ValueError("BACKUP_REPLICATION_ENABLED=true требует BACKUP_SOURCE_SSH_USER")
+            if not self.ssh_key_path:
+                raise ValueError("BACKUP_REPLICATION_ENABLED=true требует BACKUP_SSH_KEY_PATH")
+            if not self.source_dir:
+                raise ValueError("BACKUP_REPLICATION_ENABLED=true требует BACKUP_SOURCE_DIR")
+            if not self.local_dir:
+                raise ValueError("BACKUP_REPLICATION_ENABLED=true требует BACKUP_LOCAL_DIR")
         return self
 
 
