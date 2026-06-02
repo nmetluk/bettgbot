@@ -76,6 +76,10 @@ async def test_get_last_success_picks_only_success_latest(session: AsyncSession)
 
 async def test_get_last_success_returns_none_if_no_success(session: AsyncSession) -> None:
     """Только running + failed → get_last_success = None."""
+    # очистка от предыдущих тестов в модуле (rollback может не хватить для shared state)
+    from sqlalchemy import delete
+    await session.execute(delete(BackupRun))
+    await session.flush()
     await _insert_run(session, status="running", finished_delta=None)
     await _insert_run(session, status="failed", finished_delta=timedelta(minutes=-1), error="x")
 
@@ -119,3 +123,53 @@ async def test_get_latest_and_last_success_with_replication(session: AsyncSessio
     assert last is not None
     assert last.replicated_at is not None
     assert last.filename == "rep.sql.gz"
+
+
+async def test_get_last_unreplicated_success_filters_and_picks_latest(
+    session: AsyncSession,
+) -> None:
+    """get_last_unreplicated_success возвращает только success без replicated_at, самый свежий."""
+    # replicated success (должен игнорироваться)
+    await _insert_run(
+        session,
+        status="success",
+        finished_delta=timedelta(minutes=-1),
+        filename="rep.sql.gz",
+        replicated_at=datetime.now(tz=UTC),
+    )
+    # old unreplicated (игнор для теста, нужен только latest)
+    await _insert_run(
+        session, status="success", finished_delta=timedelta(hours=-1), filename="old.sql.gz"
+    )
+    # latest unreplicated
+    latest_un = await _insert_run(
+        session, status="success", finished_delta=timedelta(minutes=-5), filename="latest.sql.gz"
+    )
+    # failed (игнор)
+    await _insert_run(session, status="failed", finished_delta=timedelta(minutes=-2), error="x")
+
+    repo = BackupRunRepository(session)
+    got = await repo.get_last_unreplicated_success()
+    assert got is not None
+    assert got.id == latest_un.id
+    assert got.replicated_at is None
+
+
+async def test_mark_replicated_updates_row(session: AsyncSession) -> None:
+    """mark_replicated заполняет replicated_at для указанной записи."""
+    run = await _insert_run(
+        session, status="success", finished_delta=timedelta(minutes=-10), filename="to-rep.sql.gz"
+    )
+    ts = datetime.now(tz=UTC)
+
+    repo = BackupRunRepository(session)
+    await repo.mark_replicated(run.id, ts)
+    await session.commit()
+
+    # re-fetch
+    got = await repo.get_latest()
+    assert got is not None
+    assert got.id == run.id
+    assert got.replicated_at is not None
+    # approx equality
+    assert abs((got.replicated_at - ts).total_seconds()) < 5
