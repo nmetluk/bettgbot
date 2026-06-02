@@ -68,11 +68,15 @@ handoff/outbox/TASK-NNN-report.md   +   handoff/archive/TASK-NNN.md
 
 После закрытия любой задачи (фичевой, фикса, cleanup, archive) **обязательно** выполнить:
 
-1. `git push origin <feature-branch>` — выложить ветку до открытия/обновления PR.
+0. **`git fetch origin && git rebase origin/main`** — ветка ОБЯЗАНА быть на свежем `main`. Branch protection требует «branch up to date»; устаревшая ветка в auto-merge не встанет (типовая причина «готово, но висит на ветке» — TASK-097/099/100/101).
+1. `git push origin <feature-branch>` — выложить ветку.
 2. `gh pr create ...` или обновить существующий PR.
-3. `gh pr merge --auto --squash` — включить auto-merge. PR вольётся автоматически, когда все required-чеки (lint, typecheck, unit-test, integration, handoff-consistency) станут зелёными.
-4. После merge — на локальной `main`: `git checkout main && git pull origin main` (синхронизация с удалёнкой).
-5. Только после этого считать задачу закрытой и переходить к следующей.
+3. `gh pr merge --auto --squash` — **включить auto-merge ЯВНО.** Для `feature/**`-веток это НЕ происходит само (workflow `auto-handoff-pr.yml` срабатывает только на `chore/handoff-**`/`docs/handoff-**`). Без этого шага PR просто висит зелёным и не вливается.
+4. **Проверить, что PR реально встал в очередь:** `gh pr view <PR> --json autoMergeRequest,mergeStateStatus` (или Actions/UI) — auto-merge enabled и CI идёт/зелёный. «Запушил» ≠ «влилось».
+5. После merge — `git checkout main && git pull origin main`.
+6. Только после этого считать задачу закрытой.
+
+> 🚨 **DoD-прогон ОБЯЗАН включать `uv run ruff format --check src tests`, а не только `ruff check`** — это разные гейты; формат-чек уже валил CI (TASK-099 — 2 файла, TASK-100 — 1) при зелёном `ruff check`. Локально перед push: `uv run ruff check src tests && uv run ruff format --check src tests && uv run mypy src/shared && uv run pytest`.
 
 ### Handoff-публикация архитектором (cowork-агент)
 
