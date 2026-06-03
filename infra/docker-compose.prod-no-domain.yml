@@ -6,9 +6,17 @@
 services:
   db:
     restart: always
+    # TASK-103 (ports): publish for worker (or single-host bootstrap that may later split).
+    # For no-domain (DANGER, ssh-tunnel only): still expose with same firewall requirement if worker separate.
+    # See TASK-105 audit and docs/07-deployment.md.
+    ports:
+      - "5432:5432"
 
   redis:
     restart: always
+    # TASK-103 (ports)
+    ports:
+      - "6379:6379"
 
   bot:
     restart: always
