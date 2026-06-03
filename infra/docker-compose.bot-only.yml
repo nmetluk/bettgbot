@@ -1,0 +1,29 @@
+# Dedicated compose for bot-only on worker server (no web/admin on this host).
+# Used as: docker compose --env-file .env -f infra/docker-compose.bot-only.yml up -d
+# (or with Makefile prod.bot.* targets).
+# Follows v0.2.0 prod patterns: image, ${BACKUP_*} vars, no hard-coded paths like old /root/.ssh/...
+# Volume mount for /backups + ssh key (perms managed on host per deployment docs / TASK-105 audit).
+# See TASK-104, TASK-108 (bind on admin side), TASK-109 (auto confirm after).
+
+services:
+  bot:
+    image: ghcr.io/nmetluk/bettgbot-bot:${IMAGE_TAG:-latest}
+    restart: always
+    environment:
+      LOG_FORMAT: json
+      # Backup replication (enable only on Bot worker; see .env.bot.example)
+      # BACKUP_REPLICATION_ENABLED etc come from env_file
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      # TASK-100 / TASK-104: read-only SSH key (pre-provisioned on host, chown 999:999 for bb uid inside)
+      - ${BACKUP_SSH_KEY_PATH:-/dev/null}:/etc/ssh/keys/id_rsa:ro
+      # Backup volume (bb-bot-backups); /backups is mount point inside (BACKUP_LOCAL_DIR=/backups)
+      # Host ownership of volume _data must be 999:999 (see deploy docs)
+      - bb-bot-backups:/backups
+
+volumes:
+  bb-bot-backups:
