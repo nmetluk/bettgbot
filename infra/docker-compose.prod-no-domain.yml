@@ -6,17 +6,14 @@
 services:
   db:
     restart: always
-    # TASK-103 (ports): publish for worker (or single-host bootstrap that may later split).
-    # For no-domain (DANGER, ssh-tunnel only): still expose with same firewall requirement if worker separate.
-    # See TASK-105 audit and docs/07-deployment.md.
-    ports:
-      - "5432:5432"
+    # NOTE: DB/Redis ports are NOT exposed by default (no-domain is ssh-tunnel-only, closed; single-host too).
+    # For split-host (Admin + dedicated worker bot) use overlay:
+    #   docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod-no-domain.yml -f infra/docker-compose.expose-db.yml ...
+    # AND run firewall script on Admin host (see scripts/apply-bot-firewall.sh and WORKER_IP env). NEVER use overlay without firewall.
 
   redis:
     restart: always
-    # TASK-103 (ports)
-    ports:
-      - "6379:6379"
+    # Ports for redis managed via expose-db overlay + firewall only (see db above).
 
   bot:
     restart: always
