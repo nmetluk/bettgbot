@@ -90,6 +90,25 @@ class EventRepository:
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
 
+    async def count_currently_open(self) -> int:
+        """Количество активных (открытых для прогнозов) событий сейчас.
+
+        is_published=true AND is_archived=false AND predictions_close_at > now()
+        Для админ-дайджеста (TASK-098).
+        """
+        now = utcnow()
+        stmt = (
+            select(func.count())
+            .select_from(Event)
+            .where(
+                Event.is_published.is_(True),
+                Event.is_archived.is_(False),
+                Event.predictions_close_at > now,
+            )
+        )
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
+
     def _admin_filters(self, category_id: int | None, status: AdminEventStatus) -> list:  # type: ignore[type-arg]
         clauses: list = []  # type: ignore[type-arg]
         if category_id is not None:

@@ -1,7 +1,6 @@
-"""Unit-тесты `send_daily_admin_digest` (TASK-097) с замоканным Bot.
+"""Unit-тесты `send_daily_admin_digest` (TASK-097 + TASK-098) с замоканным Bot.
 
-Покрывает early-return на пустом списке получателей и нормальный путь
-(отправка во все chat_id, корректные цифры 24h-окна в тексте).
+Покрывает early-return, нормальный путь и обогащение (дельты, DAU и т.д.).
 """
 
 from __future__ import annotations
@@ -60,26 +59,36 @@ async def test_send_daily_admin_digest_skips_on_empty_recipients_no_crash(
 async def test_send_daily_admin_digest_sends_to_all_chats_with_correct_24h_numbers(
     session_mock: MagicMock,
 ) -> None:
-    """Заполненный список → send_message на каждый chat_id; цифры 24h-окна верны."""
+    """Заполненный список → send_message на каждый chat_id; обогащённые данные (в т.ч. дельты) верны."""
     bot = MagicMock(spec=Bot)
     bot.send_message = AsyncMock()
 
     settings = _mk_settings([111, 222])
 
-    user_repo = MagicMock()
-    user_repo.count_for_admin = AsyncMock(return_value=1234)
-    user_repo.count_new_since = AsyncMock(return_value=42)
-
-    pred_repo = MagicMock()
-    pred_repo.count_24h = AsyncMock(return_value=87)
-
-    expected_cutoff = datetime(2026, 5, 31, 12, 0, tzinfo=UTC)
+    digest = MagicMock()
+    digest.total_users = 1234
+    digest.new_24h = 42
+    digest.new_24h_delta = 5
+    digest.preds_24h = 87
+    digest.preds_24h_delta = -3
+    digest.dau_24h = 100
+    digest.active_events_now = 5
+    digest.top_events_24h = [("Event A", 10), ("Event B", 7)]
+    digest.closed_correct = 2
+    digest.closed_total = 5
+    digest.closed_accuracy_pct = 40.0
+    digest.converted_new = 10
+    digest.total_new_for_conv = 20
+    digest.conversion_pct = 50.0
 
     with (
         patch("src.shared.config.get_settings", return_value=settings),
-        patch("src.shared.repositories.UserRepository", return_value=user_repo),
-        patch("src.shared.repositories.PredictionRepository", return_value=pred_repo),
+        patch("src.bot.scheduler.jobs.StatsService") as stats_cls,
     ):
+        stats_instance = MagicMock()
+        stats_instance.daily_admin_digest = AsyncMock(return_value=digest)
+        stats_cls.return_value = stats_instance
+
         await send_daily_admin_digest(bot=bot, session_maker=_make_session_maker(session_mock))
 
     # Отправка ровно в 2 чата
@@ -88,13 +97,16 @@ async def test_send_daily_admin_digest_sends_to_all_chats_with_correct_24h_numbe
     assert calls[0][0][0] == 111
     assert calls[1][0][0] == 222
 
-    # Текст содержит дату и все цифры (из замороженного now и моков)
+    # Текст содержит обогащённые данные и форматирование дельт/нулей
     text0 = calls[0][0][1]
     assert "2026-06-01" in text0
-    assert "1234" in text0  # total
-    assert "42" in text0  # new_24h
-    assert "87" in text0  # preds_24h
-
-    # Репозитории вызваны с корректными аргументами (24h окно)
-    user_repo.count_new_since.assert_awaited_once_with(expected_cutoff)
-    pred_repo.count_24h.assert_awaited_once_with()
+    assert "1234" in text0
+    assert "42" in text0
+    assert "▲ +5" in text0
+    assert "87" in text0
+    assert "▼ -3" in text0
+    assert "100" in text0  # dau
+    assert "5" in text0  # active
+    assert "Event A: 10" in text0
+    assert "2/5 (40.0%)" in text0
+    assert "10/20 (50.0%)" in text0

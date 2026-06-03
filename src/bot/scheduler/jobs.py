@@ -290,24 +290,56 @@ async def send_daily_admin_digest(
         return
 
     async with session_maker() as session:
-        from src.shared.repositories import PredictionRepository, UserRepository
-
-        user_repo = UserRepository(session)
-        pred_repo = PredictionRepository(session)
-
-        total = await user_repo.count_for_admin(query=None)
-        cutoff = utcnow() - timedelta(hours=24)
-        new_24h = await user_repo.count_new_since(cutoff)
-        preds_24h = await pred_repo.count_24h()
+        digest = await StatsService(session).daily_admin_digest()
 
         date_str = utcnow().strftime("%Y-%m-%d")
+
+        # Форматирование дельт (логика формата здесь, данные из сервиса)
+        def _delta_str(delta: int) -> str:
+            if delta > 0:
+                return f"▲ +{delta}"
+            if delta < 0:
+                return f"▼ {delta}"
+            return "→ 0"
+
+        new_delta_str = _delta_str(digest.new_24h_delta)
+        preds_delta_str = _delta_str(digest.preds_24h_delta)
+
+        # Топ-3
+        if digest.top_events_24h:
+            top_lines = "\n".join(f"• {title}: {cnt}" for title, cnt in digest.top_events_24h)
+        else:
+            top_lines = "нет активности"
+
+        # Закрытые
+        if digest.closed_total is not None and digest.closed_total > 0:
+            closed_line = (
+                f"{digest.closed_correct}/{digest.closed_total} ({digest.closed_accuracy_pct}%)"
+            )
+        else:
+            closed_line = "нет закрытых событий"
+
+        # Конверсия
+        if digest.total_new_for_conv is not None and digest.total_new_for_conv > 0:
+            conv_line = (
+                f"{digest.converted_new}/{digest.total_new_for_conv} ({digest.conversion_pct}%)"
+            )
+        else:
+            conv_line = "нет новых"
 
         text = safe_format(
             texts.ADMIN_DAILY_DIGEST,
             date=date_str,
-            total=total,
-            new_24h=new_24h,
-            preds_24h=preds_24h,
+            total=digest.total_users,
+            new_24h=digest.new_24h,
+            new_delta=new_delta_str,
+            preds_24h=digest.preds_24h,
+            preds_delta=preds_delta_str,
+            dau=digest.dau_24h,
+            active=digest.active_events_now,
+            top=top_lines,
+            closed=closed_line,
+            converted=conv_line,
         )
 
         for chat_id in chat_ids:
@@ -316,8 +348,8 @@ async def send_daily_admin_digest(
                 logger.info(
                     "scheduler.admin_digest.sent",
                     chat_id=chat_id,
-                    total=total,
-                    new_24h=new_24h,
+                    total=digest.total_users,
+                    new_24h=digest.new_24h,
                 )
             except TelegramAPIError as exc:
                 logger.warning(
@@ -406,7 +438,24 @@ async def dispatch_event_result_notifications(
                 if csv_file:
                     csv_note = texts.ADMIN_EVENT_RESULT_CSV_NOTE
 
-            text = f"{header}\n\nВсего прогнозов: <b>{summary.total_predictions}</b>\n{dist_block}{correct_block}{csv_note}"
+            # TASK-098 enrichment
+            if summary.majority_correct is not None:
+                maj_block = (
+                    texts.ADMIN_EVENT_RESULT_MAJORITY_CORRECT
+                    if summary.majority_correct
+                    else texts.ADMIN_EVENT_RESULT_MAJORITY_WRONG
+                )
+            else:
+                maj_block = ""
+
+            part_block = ""
+            if summary.participation_pct is not None:
+                part_block = safe_format(
+                    texts.ADMIN_EVENT_RESULT_PARTICIPATION,
+                    pct=summary.participation_pct,
+                )
+
+            text = f"{header}\n\nВсего прогнозов: <b>{summary.total_predictions}</b>\n{dist_block}{correct_block}{maj_block}{part_block}{csv_note}"
 
             # Отправляем во все чаты (даже если один упадёт — помечаем notified)
             for chat_id in chat_ids:

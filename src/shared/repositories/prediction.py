@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, case, cast, func, not_, select, update
@@ -153,7 +153,11 @@ class PredictionRepository:
     async def count_24h(self) -> int:
         """Количество прогнозов за последние 24 часа."""
         cutoff = utcnow() - timedelta(hours=24)
-        stmt = select(func.count()).select_from(Prediction).where(Prediction.created_at >= cutoff)
+        return await self.count_predictions_since(cutoff)
+
+    async def count_predictions_since(self, since: datetime) -> int:
+        """Количество прогнозов с указанного момента (для дельт в админ-дайджесте TASK-098)."""
+        stmt = select(func.count()).select_from(Prediction).where(Prediction.created_at >= since)
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
 
@@ -303,6 +307,28 @@ class PredictionRepository:
 
         return total, with_pred
 
+    async def count_new_and_converted_since(self, since: datetime) -> tuple[int, int]:
+        """(new_users_since, new_users_with_>=1_prediction) для конверсии новых в админ-дайджесте (TASK-098).
+
+        Только незаблокированные. Прогнозы — за всё время.
+        """
+        new_stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(User.created_at >= since, User.is_blocked.is_(False))
+        )
+        new_result = await self._session.execute(new_stmt)
+        new_count = int(new_result.scalar_one())
+
+        converted_stmt = (
+            select(func.count(User.id).distinct())
+            .join(Prediction, Prediction.user_id == User.id)
+            .where(User.created_at >= since, User.is_blocked.is_(False))
+        )
+        converted_result = await self._session.execute(converted_stmt)
+        converted_count = int(converted_result.scalar_one())
+        return new_count, converted_count
+
     async def top_events(self, *, limit: int = 10) -> Sequence[tuple[int, str, str, int]]:
         """Топ событий по количеству прогнозов.
 
@@ -333,6 +359,27 @@ class PredictionRepository:
             for row in result
         ]
 
+    async def top_events_in_window(
+        self, *, since: datetime, limit: int = 3
+    ) -> list[tuple[str, int]]:
+        """Топ событий по числу прогнозов в окне времени (для админ-дайджеста TASK-098).
+
+        Возвращает [(title, count), ...] по убыванию. Без category, т.к. в дайджесте только title + N.
+        """
+        stmt = (
+            select(
+                Event.title.label("event_title"),
+                func.count(Prediction.id).label("prediction_count"),
+            )
+            .join(Prediction, Prediction.event_id == Event.id)
+            .where(Prediction.created_at >= since)
+            .group_by(Event.id, Event.title)
+            .order_by(func.count(Prediction.id).desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [(str(row.event_title), int(row.prediction_count)) for row in result]
+
     async def outcome_distribution_for_event(self, event_id: int) -> list[tuple[int, str, int]]:
         """Распределение прогнозов по исходам события: [(outcome_id, label, count), ...] sorted by count desc."""
         stmt = (
@@ -348,6 +395,32 @@ class PredictionRepository:
         )
         result = await self._session.execute(stmt)
         return [(int(row.outcome_id), str(row.label), int(row.cnt)) for row in result]
+
+    async def prediction_accuracy_for_events_closed_since(
+        self, since: datetime
+    ) -> tuple[int, int] | None:
+        """(correct, total) прогнозов по событиям, закрытым (archived_at >= since) за окно.
+
+        Используется для точности закрытых событий в админ-дайджесте (TASK-098).
+        Возвращает None если нет таких событий (чтобы отличить от 0/0).
+        """
+        from src.shared.models import Event
+
+        stmt = (
+            select(
+                func.sum(case((Prediction.is_correct.is_(True), 1), else_=0)).label("correct"),
+                func.count(Prediction.id).label("total"),
+            )
+            .join(Event, Event.id == Prediction.event_id)
+            .where(Event.archived_at >= since)
+        )
+        result = await self._session.execute(stmt)
+        row = result.one()
+        correct = int(row.correct or 0)
+        total = int(row.total or 0)
+        if total == 0:
+            return None
+        return correct, total
 
     async def correct_users_for_event(self, event_id: int) -> list[dict[str, Any]]:
         """Список угадавших пользователей (для CSV и текстовой сводки).
