@@ -144,6 +144,7 @@ class StatsService:
         min_resolved: int = 5,
         limit: int = 100,
         period_days: int | None = None,
+        reference_now: datetime | None = None,
     ) -> list[LeaderboardRow]:
         """Рейтинг пользователей по точности прогнозов.
 
@@ -157,7 +158,10 @@ class StatsService:
             затем количеству верных, затем количеству разрешённых.
         """
         rows = await self._predictions.leaderboard(
-            min_resolved=min_resolved, limit=limit, period_days=period_days
+            min_resolved=min_resolved,
+            limit=limit,
+            period_days=period_days,
+            reference_now=reference_now,
         )
         result: list[LeaderboardRow] = []
         for rank, (user_id, correct, resolved, display_name, accuracy) in enumerate(rows, start=1):
@@ -173,12 +177,16 @@ class StatsService:
             )
         return result
 
-    async def daily_prediction_counts(self, *, days: int = 30) -> list[AnalyticsDayRow]:
+    async def daily_prediction_counts(
+        self, *, days: int = 30, reference_now: datetime | None = None
+    ) -> list[AnalyticsDayRow]:
         """Динамика прогнозов по дням за последние N дней.
 
         Дни без прогнозов заполняются нулями для ровного ряда графика.
         """
-        raw_rows = await self._predictions.daily_prediction_counts(days=days)
+        raw_rows = await self._predictions.daily_prediction_counts(
+            days=days, reference_now=reference_now
+        )
 
         # Строим полный диапазон дат и заполняем пропуски нулями.
         result: list[AnalyticsDayRow] = []
@@ -286,13 +294,17 @@ class StatsService:
             participation_pct=participation_pct,
         )
 
-    async def daily_admin_digest(self) -> DailyAdminDigest:
+    async def daily_admin_digest(
+        self, *, reference_now: datetime | None = None
+    ) -> DailyAdminDigest:
         """Обогащённая статистика для дневного дайджеста админам (TASK-098).
 
         Все окна — последние 24ч (и предыдущие 24ч для дельт).
         Логика подсчётов здесь (а не в джобе).
         """
-        now = utcnow()
+        if reference_now is None:
+            reference_now = utcnow()
+        now = reference_now
         cutoff_24h = now - timedelta(hours=24)
         cutoff_48h = now - timedelta(hours=48)
 
