@@ -12,8 +12,14 @@
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.override.yml
 PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml
 # NOTE (TASK-107): bot is under profiles: ["bot"] in prod*.yml. Default PROD_COMPOSE up (Admin)
+# For split-host (Admin + worker): append the expose overlay + run firewall script on Admin:
+#   PROD_COMPOSE="docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml -f infra/docker-compose.expose-db.yml --env-file .env" \
+#   WORKER_IP=... sudo scripts/apply-bot-firewall.sh
+#   make prod.up
+# NEVER use expose-db.yml on single-host or no-domain (see compose file header + TASK-103 amendment).
 # starts only infra+web; use --profile bot to include bot (worker / single-host). See TASK-107.
 PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod-no-domain.yml
+# No-domain is ssh-tunnel only (TASK-047). Do NOT add expose-db overlay here (would defeat the purpose).
 BOT_COMPOSE := docker compose --env-file .env -f infra/docker-compose.bot-only.yml
 # NOTE (TASK-104): dedicated bot-only for worker server (no db/web/nginx on worker).
 # Standalone or combined; uses ${BACKUP_*} from prod patterns (no hard-coded paths).

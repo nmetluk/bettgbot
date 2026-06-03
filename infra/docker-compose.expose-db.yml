@@ -1,0 +1,49 @@
+# ⚠️ DANGER / OPT-IN OVERLAY ONLY — exposes Postgres (5432) and Redis (6379) on 0.0.0.0
+#
+# PURPOSE:
+#   Allow dedicated worker bot (on separate host) to reach DB/Redis on Admin host
+#   for replication (TASK-100), remote psql, etc. in split-host topology.
+#
+# WHEN TO USE:
+#   - ONLY on Admin host in SPLIT deployment (Admin runs db/web/nginx/db-backup + certbot;
+#     separate worker VPS runs only bot via docker-compose.bot-only.yml).
+#   - ALWAYS together with firewall script on Admin:
+#       WORKER_IP=1.2.3.4 sudo scripts/apply-bot-firewall.sh
+#     (whitelists ONLY the worker IP in DOCKER-USER chain; drops everything else).
+#
+# NEVER USE:
+#   - On single-host deploys (Admin = worker) — use plain prod.yml (ports not needed, localhost).
+#   - On no-domain / ssh-tunnel-only deploys — use prod-no-domain.yml (closed by design, TASK-047).
+#   - Without running the firewall script first — this would make Postgres/Redis public on internet (CRITICAL).
+#
+# USAGE (Admin split):
+#   docker compose \
+#     -f infra/docker-compose.yml \
+#     -f infra/docker-compose.prod.yml \
+#     -f infra/docker-compose.expose-db.yml \
+#     --env-file .env \
+#     up -d
+#
+#   # On same host run the firewall (once or via deploy script):
+#   WORKER_IP=195.133.26.200 sudo scripts/apply-bot-firewall.sh
+#
+# VERIFICATION (no ports in default; ports only when overlay added):
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml config | grep -E '^\s+ports:|^  (db|redis):' -A1
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml -f infra/docker-compose.expose-db.yml config | grep -E '5432|6379'
+#
+# See:
+#   - scripts/apply-bot-firewall.sh (the actual enforcement)
+#   - docs/07-deployment.md (split topology section — to be updated from TASK-103 amendment report)
+#   - handoff/outbox/TASK-103-amendment-report.md
+#   - Previous: TASK-103 (ports-permanent, rejected for security), TASK-047 (no-domain ssh-tunnel only), TASK-100/101 (replication)
+#
+# This file contains ONLY the port exposure. No other overrides.
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
