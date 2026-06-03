@@ -12,6 +12,8 @@ services:
 
   bot:
     restart: always
+    profiles:
+      - bot
     environment:
       LOG_FORMAT: json
       # TASK-097/099: admin digests + backup heartbeat (enable heartbeat on exactly one bot instance)
