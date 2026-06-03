@@ -14,6 +14,7 @@ from .jobs import (
     dispatch_broadcasts,
     dispatch_event_result_notifications,
     dispatch_reminders,
+    replicate_latest_backup,
     send_backup_health_heartbeat,
     send_daily_admin_digest,
 )
@@ -115,9 +116,7 @@ def build_scheduler(
         max_instances=1,
     )
 
-    # TASK-099: backup health heartbeat (conditional, only if enabled in env;
-    # the flag replaces primary-guard — enable on one bot instance).
-    # Cron every hour at :07 to avoid collision with other :00/:30 jobs.
+    # TASK-099/100: backup heartbeat + replication (conditional on flags).
     from src.shared.config import get_settings
 
     settings = get_settings()
@@ -127,6 +126,20 @@ def build_scheduler(
             trigger=CronTrigger(minute=7),
             kwargs={"bot": bot, "session_maker": session_maker},
             id="send_backup_health_heartbeat",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=600,
+        )
+
+    # TASK-100: backup replication pull (conditional on Bot server; pull from Admin).
+    # Interval 15min to catch new dumps promptly without hammering SSH.
+    if settings.backup.replication_enabled:
+        scheduler.add_job(
+            replicate_latest_backup,
+            trigger=IntervalTrigger(minutes=15),
+            kwargs={"session_maker": session_maker},
+            id="replicate_latest_backup",
             replace_existing=True,
             coalesce=True,
             max_instances=1,

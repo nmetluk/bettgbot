@@ -14,12 +14,13 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
-from src.bot.scheduler.jobs import send_backup_health_heartbeat
+from src.bot.scheduler.jobs import replicate_latest_backup, send_backup_health_heartbeat
 from src.shared.models import BackupRun
 
 
@@ -47,6 +48,9 @@ def _mk_settings(chat_ids: list[int], enabled: bool = True, max_age: int = 2) ->
     s.admin_telegram_chat_ids = chat_ids
     s.backup.heartbeat_enabled = enabled
     s.backup.max_age_hours = max_age
+    # TASK-100 replication fields (provide ints so timedelta(hours=...) works in lag checks)
+    s.backup.replication_enabled = False
+    s.backup.replication_max_lag_hours = 3
     return s
 
 
@@ -55,6 +59,7 @@ def _mk_backup_run(
     finished_at: datetime | None = None,
     size_bytes: int | None = 12345678,
     replicated_at: datetime | None = None,
+    filename: str | None = None,
 ) -> MagicMock:
     br = MagicMock(spec=BackupRun)
     br.id = 1
@@ -62,6 +67,7 @@ def _mk_backup_run(
     br.finished_at = finished_at
     br.size_bytes = size_bytes
     br.replicated_at = replicated_at
+    br.filename = filename
     br.error = None if status == "success" else "some error"
     return br
 
@@ -118,7 +124,7 @@ async def test_backup_heartbeat_sends_no_recent_when_no_success(
 async def test_backup_heartbeat_ok_when_recent_success(
     mock_utcnow: MagicMock, session_mock: MagicMock
 ) -> None:
-    """Свежий success (<2h) → OK, с replication=не реплицирован (если replicated_at=None)."""
+    """Свежий success (<2h) и реплицирован недавно → OK."""
     fixed_now = datetime(2026, 6, 2, 12, 0, 0)
     mock_utcnow.return_value = fixed_now
 
@@ -126,7 +132,7 @@ async def test_backup_heartbeat_ok_when_recent_success(
         status="success",
         finished_at=fixed_now - timedelta(minutes=30),
         size_bytes=42 * 1024 * 1024,
-        replicated_at=None,
+        replicated_at=fixed_now - timedelta(minutes=1),  # replicated recently, within lag
     )
 
     repo_mock = MagicMock()
@@ -148,7 +154,7 @@ async def test_backup_heartbeat_ok_when_recent_success(
     text = bot.send_message.call_args[0][1]
     assert "Backup heartbeat OK" in text
     assert "42M" in text
-    assert "не реплицирован" in text
+    assert "реплицирован" in text
     assert "DB: OK | Redis: OK" in text
 
 
@@ -240,3 +246,75 @@ async def test_backup_heartbeat_reports_down_when_checks_fail(
 
     text = bot.send_message.call_args[0][1]
     assert "DB: DOWN | Redis: DOWN" in text
+
+
+# --- TASK-100 replicate job unit tests (mocked subprocess) ---
+
+
+def _mk_settings_repl(enabled: bool = True) -> MagicMock:
+    s = MagicMock()
+    s.backup.replication_enabled = enabled
+    s.backup.source_host = "10.0.0.1"
+    s.backup.source_ssh_user = "root"
+    s.backup.ssh_key_path = Path("/key")
+    s.backup.source_dir = "/backups"
+    s.backup.local_dir = Path("/tmp/bb-test-backups")
+    s.backup.replication_max_lag_hours = 3
+    return s
+
+
+@patch("src.bot.scheduler.jobs.utcnow")
+async def test_replicate_skips_when_disabled(
+    mock_utcnow: MagicMock, session_mock: MagicMock
+) -> None:
+    with patch("src.shared.config.get_settings", return_value=_mk_settings_repl(False)):
+        await replicate_latest_backup(session_maker=_make_session_maker(session_mock))
+    # no error, just return
+
+
+@patch("src.bot.scheduler.jobs._run_rsync_pull", new_callable=AsyncMock)
+@patch("src.bot.scheduler.jobs.utcnow")
+async def test_replicate_success_marks_replicated(
+    mock_utcnow: MagicMock, mock_rsync: AsyncMock, session_mock: MagicMock
+) -> None:
+    fixed_now = datetime(2026, 6, 2, 12, 0, 0)
+    mock_utcnow.return_value = fixed_now
+
+    unrep = _mk_backup_run(
+        status="success", finished_at=fixed_now - timedelta(hours=1), filename="dump.sql.gz"
+    )
+    repo_mock = MagicMock()
+    repo_mock.get_last_unreplicated_success = AsyncMock(return_value=unrep)
+    repo_mock.mark_replicated = AsyncMock()
+
+    with (
+        patch("src.shared.config.get_settings", return_value=_mk_settings_repl(True)),
+        patch("src.bot.scheduler.jobs.BackupRunRepository", return_value=repo_mock),
+    ):
+        await replicate_latest_backup(session_maker=_make_session_maker(session_mock))
+
+    mock_rsync.assert_awaited_once()
+    repo_mock.mark_replicated.assert_awaited_once()
+    # commit happens in job
+
+
+@patch("src.bot.scheduler.jobs._run_rsync_pull", new_callable=AsyncMock)
+@patch("src.bot.scheduler.jobs.utcnow")
+async def test_replicate_failure_does_not_mark(
+    mock_utcnow: MagicMock, mock_rsync: AsyncMock, session_mock: MagicMock
+) -> None:
+    mock_rsync.side_effect = RuntimeError("ssh fail")
+    unrep = _mk_backup_run(
+        status="success", finished_at=datetime(2026, 6, 2, 11, 0), filename="f.sql.gz"
+    )
+    repo_mock = MagicMock()
+    repo_mock.get_last_unreplicated_success = AsyncMock(return_value=unrep)
+    repo_mock.mark_replicated = AsyncMock()
+
+    with (
+        patch("src.shared.config.get_settings", return_value=_mk_settings_repl(True)),
+        patch("src.bot.scheduler.jobs.BackupRunRepository", return_value=repo_mock),
+    ):
+        await replicate_latest_backup(session_maker=_make_session_maker(session_mock))
+
+    repo_mock.mark_replicated.assert_not_awaited()

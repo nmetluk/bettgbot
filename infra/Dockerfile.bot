@@ -20,6 +20,8 @@ ARG APP_VERSION
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    rsync \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r bb && useradd -r -g bb -d /app -s /sbin/nologin bb
 

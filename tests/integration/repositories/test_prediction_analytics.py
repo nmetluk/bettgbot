@@ -15,8 +15,14 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(name="now")
 def fixture_now() -> datetime:
-    """Фиксированная точка во времени для детерминизма."""
-    return datetime(2026, 5, 29, 12, 0, tzinfo=UTC)
+    """Опорное «сейчас» = реальное UTC-время.
+
+    Окно `daily_prediction_counts` считается репозиторием/сервисом от `utcnow()`,
+    поэтому данные теста должны быть привязаны к реальному now. Фиксированная
+    дата делала тест тайм-бомбой (ломался при дрейфе календаря — упал 2026-06-03,
+    когда прогноз «-25 дней» выпал из скользящего 30-дневного окна).
+    """
+    return datetime.now(tz=UTC)
 
 
 async def test_daily_prediction_counts_30_day_window(session: AsyncSession, now: datetime) -> None:
