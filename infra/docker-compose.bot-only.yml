@@ -11,6 +11,9 @@ services:
     restart: always
     environment:
       LOG_FORMAT: json
+      # TASK-108: ensure BACKUP_LOCAL_DIR is container mount point /backups (not host path).
+      # Default here for clarity; overridden by .env (BACKUP_LOCAL_DIR=/backups)
+      BACKUP_LOCAL_DIR: /backups
       # Backup replication (enable only on Bot worker; see .env.bot.example)
       # BACKUP_REPLICATION_ENABLED etc come from env_file
     logging:
