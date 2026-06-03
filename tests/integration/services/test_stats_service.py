@@ -124,46 +124,55 @@ async def test_leaderboard_period_filter(nested_session: AsyncSession) -> None:
     """Параметр period_days фильтрует по created_at."""
     from datetime import UTC, datetime, timedelta
 
-    service = StatsService(nested_session)
-    u = await make_user(nested_session, first_name="Period")
+    from freezegun import freeze_time
 
-    # Старые прогнозы (100 дней назад)
-    old_date = datetime.now(tz=UTC) - timedelta(days=100)
-    for _i in range(5):
-        event = await make_event(nested_session)
-        outcome = await make_outcome(nested_session, event.id)
-        pred = Prediction(
-            user_id=u.id,
-            event_id=event.id,
-            outcome_id=outcome.id,
-            is_correct=True,
-            created_at=old_date,
+    with freeze_time("2026-06-03 12:00:00+00:00"):
+        now = datetime.now(tz=UTC)
+
+        service = StatsService(nested_session)
+        u = await make_user(nested_session, first_name="Period")
+
+        # Старые прогнозы (100 дней назад)
+        old_date = now - timedelta(days=100)
+        for _i in range(5):
+            event = await make_event(nested_session)
+            outcome = await make_outcome(nested_session, event.id)
+            pred = Prediction(
+                user_id=u.id,
+                event_id=event.id,
+                outcome_id=outcome.id,
+                is_correct=True,
+                created_at=old_date,
+            )
+            nested_session.add(pred)
+
+        # Новые прогнозы (сегодня)
+        for _i in range(5):
+            event = await make_event(nested_session)
+            outcome = await make_outcome(nested_session, event.id)
+            pred = Prediction(
+                user_id=u.id,
+                event_id=event.id,
+                outcome_id=outcome.id,
+                is_correct=False,
+            )
+            nested_session.add(pred)
+
+        await nested_session.flush()
+
+        # All-time — все 10
+        all_rows = await service.leaderboard(
+            min_resolved=5, limit=100, period_days=None, reference_now=now
         )
-        nested_session.add(pred)
+        assert len(all_rows) == 1
+        assert all_rows[0].resolved == 10
 
-    # Новые прогнозы (сегодня)
-    for _i in range(5):
-        event = await make_event(nested_session)
-        outcome = await make_outcome(nested_session, event.id)
-        pred = Prediction(
-            user_id=u.id,
-            event_id=event.id,
-            outcome_id=outcome.id,
-            is_correct=False,
+        # 30 дней — только 5 новых
+        recent_rows = await service.leaderboard(
+            min_resolved=5, limit=100, period_days=30, reference_now=now
         )
-        nested_session.add(pred)
-
-    await nested_session.flush()
-
-    # All-time — все 10
-    all_rows = await service.leaderboard(min_resolved=5, limit=100, period_days=None)
-    assert len(all_rows) == 1
-    assert all_rows[0].resolved == 10
-
-    # 30 дней — только 5 новых
-    recent_rows = await service.leaderboard(min_resolved=5, limit=100, period_days=30)
-    assert len(recent_rows) == 1
-    assert recent_rows[0].resolved == 5
+        assert len(recent_rows) == 1
+        assert recent_rows[0].resolved == 5
 
 
 # =============================================================================
@@ -271,7 +280,7 @@ async def test_digest_aggregates_24h_vs_old(nested_session: AsyncSession) -> Non
 
         # Baseline ДО создания тестовых данных (защита от pollution shared test DB)
         base_new = await user_repo.count_new_since(cutoff_24h)
-        base_preds = await pred_repo.count_24h()
+        base_preds = await pred_repo.count_24h(reference_now=now)
 
         # Старый пользователь + старый прогноз (гарантированно вне 24h окна)
         old_user = await make_user(nested_session, created_at=very_old)
@@ -309,7 +318,7 @@ async def test_digest_aggregates_24h_vs_old(nested_session: AsyncSession) -> Non
 
         # Дельты должны быть ровно 2 (устойчиво к данным от других тестов)
         new_since = await user_repo.count_new_since(cutoff_24h)
-        preds_24h = await pred_repo.count_24h()
+        preds_24h = await pred_repo.count_24h(reference_now=now)
 
         assert new_since - base_new == 2
         assert preds_24h - base_preds == 2

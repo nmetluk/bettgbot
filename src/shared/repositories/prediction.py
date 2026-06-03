@@ -150,9 +150,11 @@ class PredictionRepository:
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
 
-    async def count_24h(self) -> int:
+    async def count_24h(self, *, reference_now: datetime | None = None) -> int:
         """Количество прогнозов за последние 24 часа."""
-        cutoff = utcnow() - timedelta(hours=24)
+        if reference_now is None:
+            reference_now = utcnow()
+        cutoff = reference_now - timedelta(hours=24)
         return await self.count_predictions_since(cutoff)
 
     async def count_predictions_since(self, since: datetime) -> int:
@@ -167,6 +169,7 @@ class PredictionRepository:
         min_resolved: int = 5,
         limit: int = 100,
         period_days: int | None = None,
+        reference_now: datetime | None = None,
     ) -> Sequence[tuple[int, int, int, str, float]]:
         """Рейтинг пользователей по точности прогнозов.
 
@@ -179,6 +182,7 @@ class PredictionRepository:
             min_resolved: Минимальное количество разрешённых прогнозов для попадания в рейтинг.
             limit: Максимальное количество строк в результате.
             period_days: Фильтр по количеству дней (``None`` = all-time).
+            reference_now: Опорный момент времени (для тестов; ``None`` = ``utcnow()``).
         """
         correct = func.count().filter(Prediction.is_correct.is_(True))
         resolved = func.count().filter(Prediction.is_correct.isnot(None))
@@ -200,7 +204,9 @@ class PredictionRepository:
         )
 
         if period_days is not None:
-            cutoff = utcnow() - timedelta(days=period_days)
+            if reference_now is None:
+                reference_now = utcnow()
+            cutoff = reference_now - timedelta(days=period_days)
             stmt = stmt.where(Prediction.created_at >= cutoff)
 
         stmt = (
@@ -224,14 +230,18 @@ class PredictionRepository:
             )
         return rows
 
-    async def daily_prediction_counts(self, *, days: int = 30) -> Sequence[tuple[str, int]]:
+    async def daily_prediction_counts(
+        self, *, days: int = 30, reference_now: datetime | None = None
+    ) -> Sequence[tuple[str, int]]:
         """Подсчёт прогнозов по дням за последние N дней.
 
         Возвращает список кортежей ``(date_str, count)`` где ``date_str`` —
         формат ``YYYY-MM-DD``. Дни без прогнозов не включаются в результат
         (заполняются нулями на уровне сервиса).
         """
-        cutoff = utcnow() - timedelta(days=days)
+        if reference_now is None:
+            reference_now = utcnow()
+        cutoff = reference_now - timedelta(days=days)
         stmt = (
             select(
                 func.date(Prediction.created_at).label("day"),
