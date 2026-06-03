@@ -165,7 +165,9 @@ async def test_mark_replicated_updates_row(session: AsyncSession) -> None:
 
     repo = BackupRunRepository(session)
     await repo.mark_replicated(run.id, ts)
-    await session.commit()
+    # NB: flush, не commit — фикстура `session` изолирует тесты через rollback;
+    # commit ломал изоляцию и протекал backup_run-строкой в другие integration-тесты.
+    await session.flush()
 
     # re-fetch
     got = await repo.get_latest()
