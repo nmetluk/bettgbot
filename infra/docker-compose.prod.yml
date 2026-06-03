@@ -107,7 +107,11 @@ services:
       # Rclone config via env (RCLONE_CONFIG_* takes precedence over file).
       # Owner: set RCLONE_CONFIG_B2_TYPE=b2, RCLONE_CONFIG_B2_ACCOUNT, RCLONE_CONFIG_B2_KEY.
     volumes:
-      - bb-db-backups:/backups
+      # TASK-108: bind-mount dumps to stable host path for ssh rsync from worker (replication source).
+      # Replaces named-volume for the replication path (bb-db-backups kept in volumes list for compat if needed).
+      # Host path /opt/backups/bettgbot/db must exist (created in deploy), owned for ssh user (root usually).
+      # Dumps written here are readable by rsync from worker without symlinks.
+      - /opt/backups/bettgbot/db:/backups
       # Optional: mount rclone config from secret (mode 0400) for prod.
       # - ${RCLONE_CONFIG_PATH:-/dev/null}:/config/rclone.conf:ro
     depends_on:
