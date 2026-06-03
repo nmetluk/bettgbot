@@ -88,7 +88,9 @@ services:
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-3600}
     volumes:
-      - bb-db-backups:/backups
+      # TASK-108: bind-mount for replication source (if used as Admin in no-domain bootstrap).
+      # Same as prod.yml; /opt/backups/bettgbot/db on host for ssh from worker if split.
+      - /opt/backups/bettgbot/db:/backups
     depends_on:
       db: { condition: service_healthy }
     # Uses script from Dockerfile (INSERT running + UPDATE success/failed with filename per TASK-099 amendment)
