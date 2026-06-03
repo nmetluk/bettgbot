@@ -15,14 +15,14 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(name="now")
 def fixture_now() -> datetime:
-    """Опорное «сейчас» = реальное UTC-время.
+    """Фиксированное опорное «сейчас» для детерминированных окон.
 
-    Окно `daily_prediction_counts` считается репозиторием/сервисом от `utcnow()`,
-    поэтому данные теста должны быть привязаны к реальному now. Фиксированная
-    дата делала тест тайм-бомбой (ломался при дрейфе календаря — упал 2026-06-03,
-    когда прогноз «-25 дней» выпал из скользящего 30-дневного окна).
+    Используем инъекцию reference_now в repo/service (добавлено в TASK-102),
+    поэтому тест полностью герметичен — не зависит от реального utcnow().
+    Выбрана дата после проблемного 2026-06-03, чтобы -25d и т.п. стабильно
+    попадали в 30-дневное окно.
     """
-    return datetime.now(tz=UTC)
+    return datetime(2026, 6, 3, 12, 0, tzinfo=UTC)
 
 
 async def test_daily_prediction_counts_30_day_window(session: AsyncSession, now: datetime) -> None:
@@ -77,7 +77,7 @@ async def test_daily_prediction_counts_30_day_window(session: AsyncSession, now:
 
     await session.flush()
 
-    rows = await repo.daily_prediction_counts(days=30)
+    rows = await repo.daily_prediction_counts(days=30, reference_now=now)
 
     # Репозиторий возвращает только дни с данными
     assert len(rows) == 3
@@ -95,7 +95,7 @@ async def test_daily_prediction_counts_30_day_window(session: AsyncSession, now:
     from src.shared.services import StatsService
 
     service = StatsService(session)
-    daily = await service.daily_prediction_counts(days=30)
+    daily = await service.daily_prediction_counts(days=30, reference_now=now)
     assert len(daily) == 30  # Сервис заполняет нулями
     zero_days = [d for d in daily if d.count == 0]
     assert len(zero_days) == 27  # 30 - 3 дня с прогнозами

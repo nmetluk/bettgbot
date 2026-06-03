@@ -290,9 +290,10 @@ async def send_daily_admin_digest(
         return
 
     async with session_maker() as session:
-        digest = await StatsService(session).daily_admin_digest()
+        now = utcnow()
+        digest = await StatsService(session).daily_admin_digest(reference_now=now)
 
-        date_str = utcnow().strftime("%Y-%m-%d")
+        date_str = now.strftime("%Y-%m-%d")
 
         # Форматирование дельт (логика формата здесь, данные из сервиса)
         def _delta_str(delta: int) -> str:

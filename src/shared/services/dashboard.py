@@ -51,7 +51,9 @@ class DashboardService:
         self._predictions = PredictionRepository(session)
         self._audit = AuditLogRepository(session)
 
-    async def get_counters(self) -> dict[str, int | dict[str, int]]:
+    async def get_counters(
+        self, *, reference_now: datetime | None = None
+    ) -> dict[str, int | dict[str, int]]:
         """Счётчики объектов в БД для главной страницы админки.
 
         Все счётчики возвращают total без фильтров — админу нужна полная
@@ -75,9 +77,9 @@ class DashboardService:
             AsyncSession в SQLAlchemy запрещены.
         """
         users_total = await self._users.count_for_admin()
-        users_active_30d = await self._users.count_active_30d()
+        users_active_30d = await self._users.count_active_30d(reference_now=reference_now)
         predictions_total = await self._predictions.count()
-        predictions_24h = await self._predictions.count_24h()
+        predictions_24h = await self._predictions.count_24h(reference_now=reference_now)
         events_total = await self._events.count_for_admin()  # status="all"
         events_published = await self._events.count_for_admin(
             status="published_open"

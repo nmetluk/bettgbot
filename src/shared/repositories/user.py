@@ -130,13 +130,15 @@ class UserRepository:
         result = await self._session.execute(stmt)
         return int(result.scalar_one())
 
-    async def count_active_30d(self) -> int:
+    async def count_active_30d(self, *, reference_now: datetime | None = None) -> int:
         """Количество пользователей с активностью за последние 30 дней.
 
         Активность определяется по полю `last_seen_at` — пользователь
         считался активным, если `last_seen_at >= now() - interval '30 days'`.
         """
-        cutoff = utcnow() - timedelta(days=30)
+        if reference_now is None:
+            reference_now = utcnow()
+        cutoff = reference_now - timedelta(days=30)
         return await self.count_active_since(cutoff)
 
     async def count_new_since(self, since: datetime) -> int:

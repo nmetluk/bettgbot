@@ -81,6 +81,8 @@ async def test_send_daily_admin_digest_sends_to_all_chats_with_correct_24h_numbe
     digest.total_new_for_conv = 20
     digest.conversion_pct = 50.0
 
+    expected_now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+
     with (
         patch("src.shared.config.get_settings", return_value=settings),
         patch("src.bot.scheduler.jobs.StatsService") as stats_cls,
@@ -110,3 +112,6 @@ async def test_send_daily_admin_digest_sends_to_all_chats_with_correct_24h_numbe
     assert "Event A: 10" in text0
     assert "2/5 (40.0%)" in text0
     assert "10/20 (50.0%)" in text0
+
+    # Сервис вызван с корректным reference_now (для детерминизма окон, TASK-102)
+    stats_instance.daily_admin_digest.assert_awaited_once_with(reference_now=expected_now)
