@@ -1,7 +1,7 @@
 # db-backup service image with pg_dump, rclone and age for encrypted offsite backups.
 # Based on postgres:16-alpine.
 # TASK-099: also writes status to backup_run table via psql.
-FROM postgres:16-alpine
+FROM postgres:18-alpine
 
 # Install rclone and age.
 RUN apk add --no-cache rclone age
