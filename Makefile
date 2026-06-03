@@ -8,11 +8,15 @@
 # потому что compose v2 не делает auto-merge override-файла рядом с base, если
 # base указан явным `-f path/to/...`. Без override `make up` поднимет и bot+web
 # из base, потеряв `profiles: [full]`, который живёт только в override.
+# BOT_COMPOSE (TASK-104) — dedicated для воркера (только bot, remote DB/REDIS).
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.override.yml
 PROD_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod.yml
 # NOTE (TASK-107): bot is under profiles: ["bot"] in prod*.yml. Default PROD_COMPOSE up (Admin)
 # starts only infra+web; use --profile bot to include bot (worker / single-host). See TASK-107.
 PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.prod-no-domain.yml
+BOT_COMPOSE := docker compose --env-file .env -f infra/docker-compose.bot-only.yml
+# NOTE (TASK-104): dedicated bot-only for worker server (no db/web/nginx on worker).
+# Standalone or combined; uses ${BACKUP_*} from prod patterns (no hard-coded paths).
 
 .PHONY: help up down restart logs ps db.psql redis.cli nuke \
         migrate rollback rollback.all migration.new migration.current migration.history \
@@ -20,7 +24,8 @@ PROD_NO_DOMAIN_COMPOSE := docker compose --env-file .env -f infra/docker-compose
         prod.build prod.up prod.down prod.logs prod.ps prod.shell.bot prod.shell.web \
         prod.certbot.init prod.backup.now prod.backup.ls prod.backup.restore prod.backup.verify prod.backup.restore.offsite prod.smoke \
         prod.deploy prod.rollback \
-        prod.nodomain.build prod.nodomain.up prod.nodomain.down prod.nodomain.logs prod.nodomain.ps
+        prod.nodomain.build prod.nodomain.up prod.nodomain.down prod.nodomain.logs prod.nodomain.ps \
+        prod.bot.build prod.bot.up prod.bot.down prod.bot.logs prod.bot.ps prod.bot.shell
 
 help: ## Показать доступные команды
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_.-]+:.*?## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -255,3 +260,27 @@ prod.nodomain.logs: ## Tail логов no-domain prod
 
 prod.nodomain.ps: ## Статус no-domain prod сервисов
 	$(PROD_NO_DOMAIN_COMPOSE) --profile bot ps
+
+# ==== Prod bot-only (dedicated worker server, no web/admin) ====
+# Используйте на втором сервере (воркер). Бот только, с remote DB/REDIS в .env.
+# Требует TASK-104 (compose + mounts using ${} vars). См. docs/07-deployment.md
+
+prod.bot.build: ## Собрать образ bot для воркера (dedicated)
+	@bash scripts/generate_build_info.sh || echo "WARNING: generate_build_info.sh failed (non-fatal for build)"
+	$(BOT_COMPOSE) build
+
+prod.bot.up: ## Поднять только bot на воркере (dedicated worker)
+	$(BOT_COMPOSE) up -d
+	$(BOT_COMPOSE) ps
+
+prod.bot.down: ## Остановить bot на воркере
+	$(BOT_COMPOSE) down
+
+prod.bot.logs: ## Tail логов bot на воркере
+	$(BOT_COMPOSE) logs -f --tail=100
+
+prod.bot.ps: ## Статус bot на воркере
+	$(BOT_COMPOSE) ps
+
+prod.bot.shell: ## Открыть shell в bot-контейнере на воркере
+	$(BOT_COMPOSE) exec bot sh
