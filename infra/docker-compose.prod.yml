@@ -1,9 +1,18 @@
 services:
   db:
     restart: always
+    # TASK-103 (ports): publish so dedicated worker bot (second server 195.133.26.200) can reach DB.
+    # Exposes 0.0.0.0:5432 — MUST be firewalled (DOCKER-USER chain whitelist only worker IP).
+    # See handoff archive TASK-105-report.md (audit) and docs/07-deployment.md "Cross-server DB/Redis access from worker".
+    # Temporary /tmp override used in audits; this makes it permanent in repo.
+    ports:
+      - "5432:5432"
 
   redis:
     restart: always
+    # TASK-103 (ports): same as db — for worker connectivity to Redis.
+    ports:
+      - "6379:6379"
 
   bot:
     image: ghcr.io/nmetluk/bettgbot-bot:${IMAGE_TAG:-latest}
