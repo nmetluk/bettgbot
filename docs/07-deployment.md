@@ -172,6 +172,48 @@ make prod.up
 docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml ps
 ```
 
+## Топология: одно-серверная vs двухсерверная (Admin + Worker)
+
+По умолчанию всё (бот, веб-админка, БД, Redis, бэкапы) живёт на **одном хосте** — это рекомендуемый вариант. Postgres/Redis при этом **не публикуются наружу** (доступ только внутри docker-сети), что безопасно.
+
+Иногда бот выносят на **отдельный сервер** (worker) — например, если у Admin-хоста заблокирован egress в Telegram. Тогда:
+
+- **Admin-хост** запускает `db`, `redis`, `web`, `nginx`, `db-backup` (+certbot). Сервис `bot` гейтится профилем и здесь **не поднимается** (TASK-107).
+- **Worker-хост** запускает только бота через `infra/docker-compose.bot-only.yml` (`make prod.bot.*`), указывая `DATABASE_URL`/`REDIS_URL` на публичный адрес Admin.
+
+### ⚠️ Открытие портов Postgres/Redis — только для split, только с firewall
+
+Воркеру нужен сетевой доступ к `5432`/`6379` Admin-хоста. Порты **намеренно не открыты** в `prod.yml`/`prod-no-domain.yml` (иначе БД любого деплоя смотрела бы в интернет). Для split-режима их публикует **opt-in overlay** `infra/docker-compose.expose-db.yml`, который применяется **только вместе с firewall-скриптом**.
+
+На **Admin-хосте**:
+
+```bash
+# 1. ОБЯЗАТЕЛЬНО первым — firewall: разрешить 5432/6379 ТОЛЬКО с IP воркера, остальное — drop.
+WORKER_IP=<IP_воркера> sudo scripts/apply-bot-firewall.sh
+
+# 2. Поднять инфраструктуру с overlay (порты появляются только здесь):
+docker compose \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.prod.yml \
+  -f infra/docker-compose.expose-db.yml \
+  --env-file .env up -d
+```
+
+> 🚨 **overlay без firewall = публичный Postgres в интернете.** Никогда не подключайте `expose-db.yml` на одно-серверном или no-domain (ssh-tunnel) деплое — там БД должна оставаться закрытой (TASK-047). Перезапускайте firewall-скрипт после рестарта docker-демона (правила `DOCKER-USER` управляются docker'ом).
+
+Проверка, что дефолт закрыт, а overlay открывает:
+
+```bash
+# дефолт — для db/redis портов НЕТ:
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml config | grep -E '5432|6379' || echo "closed — OK"
+# с overlay — порты есть:
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml -f infra/docker-compose.expose-db.yml config | grep -E '5432|6379'
+```
+
+### Репликация бэкапа на worker (TASK-100/108)
+
+В split-режиме `db-backup` на Admin пишет дампы в bind-mount хостового пути (`/opt/backups/bettgbot/db`, см. `prod.yml`), а бот на воркере по cron тянет свежий дамп через `rsync`+SSH (`BACKUP_REPLICATION_ENABLED=true`, ключ — `BACKUP_SSH_KEY_PATH`, источник — `BACKUP_SOURCE_*`, локальная цель — `BACKUP_LOCAL_DIR=/backups`). Heartbeat и уведомления идут **только с воркера** (у которого есть egress).
+
 ## Шаг 6. Настройка offsite backup (TASK-039)
 
 Offsite encrypted backup — критически важен для prod. Следуйте инструкциям:
