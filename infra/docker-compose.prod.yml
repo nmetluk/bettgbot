@@ -8,6 +8,8 @@ services:
   bot:
     image: ghcr.io/nmetluk/bettgbot-bot:${IMAGE_TAG:-latest}
     restart: always
+    profiles:
+      - bot
     environment:
       LOG_FORMAT: json
       # TASK-099: Backup health heartbeat (consumer side)
