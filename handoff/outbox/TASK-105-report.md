@@ -19,10 +19,10 @@ commits:
 - Критфикс id capture работает: после ребилда db-backup новая строка backup_run (id 14) дошла до status=success с finished_at, filename, size_bytes (UPDATE 1 в логах).
 - Порты 5432/6379 опубликованы на Admin (через /tmp override + up), firewall DOCKER-USER OK. TCP из bot-контейнера на worker теперь OK (после повторного apply).
 - Права на ключ/volume на Bot: внутри контейнера owned bb:bb, key R_OK=True, /backups W_OK=True (chown 999:999 на хосте сработал).
-- Egress в Telegram: из Bot container curl дал 200, но реальная sendMessage вернула 404 Not Found. Из Admin хост timed out, send не прошёл (provider block, как ожидалось).
+- Egress в Telegram: из Bot container curl дал 200, но реальная sendMessage вернула 404 Not Found. Из Admin хост timed out / network unreachable (provider block, как ожидалось; см. точный вывод ниже).
 - Heartbeat job запускался (20:07), но падал на ConnectionRefused к DB (до повторного apply портов). Следующий запуск 21:07 должен сработать.
 - Репликация: пока нет файлов на /opt/backups/bettgbot/db/ (total 0), джоб только регистрировался в окне (не успел выполниться или early return из-за старых running строк). С новым success должен подхватить.
-- Доставка уведомлений: прямой egress с серверов нестабилен (timeout/404). Spool + send-pending-alerts.sh с контрольной — рабочий путь (как в предыдущем аудите).
+- Доставка уведомлений: прямой egress с серверов нестабилен (404/timeout/unreachable). Spool + send-pending-alerts.sh с контрольной — рабочий путь (как в предыдущем аудите).
 
 Это диагностика — код/инфра не менял. Выводы для архитектора.
 
@@ -47,7 +47,7 @@ commits:
 
 ## Предложение для PROJECT_STATUS.md
 
-- 2026-06-03 — TASK-105: прод-диагностика бэкапов/репликации/уведомлений на серверах (Admin+Bot). Критфикс id capture работает (backup_run success), порты+perms применены, egress через spool подтверждён. Прямой Telegram с серверов нестабилен (404/timeout). (диагностика, отчёт в handoff)
+- 2026-06-03 — TASK-105: прод-диагностика бэкапов/репликации/уведомлений на серверах (Admin+Bot). Критфикс id capture работает (backup_run success), порты+perms применены, egress через spool подтверждён. Прямой Telegram с серверов нестабилен (404/timeout/unreachable). (диагностика, отчёт в handoff)
 
 ## Сырые выводы по секциям (как в задаче)
 
@@ -134,12 +134,61 @@ real send (TOKEN masked in output):
 {"ok":false,"error_code":404,"description":"Not Found"}
 ```
 
-**ADMIN (comparison):**
-host->telegram: (timed out in one run)
-real send: curl (28) Connection timed out after 15002 milliseconds
-(пустой ответ)
+**ADMIN (comparison, exact from run):**
+```
+=== C. Egress ADMIN (for comparison) ===
+host->telegram:
+curl: (28) Connection timed out after 10002 milliseconds
+host->telegram: 000
+container bot->telegram:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/urllib/request.py", line 1344, in do_open
+    h.request(req.get_method(), req.selector, req.data, headers,
+  File "/usr/local/lib/python3.12/http/client.py", line 1358, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+  File "/usr/local/lib/python3.12/http/client.py", line 1404, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+  File "/usr/local/lib/python3.12/http/client.py", line 1353, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+  File "/usr/local/lib/python3.12/http/client.py", line 1113, in _send_output
+    self.send(msg)
+  File "/usr/local/lib/python3.12/http/client.py", line 1057, in send
+    self.connect()
+  File "/usr/local/lib/python3.12/http/client.py", line 1492, in connect
+    super().connect()
+  File "/usr/local/lib/python3.12/socket.py", line 865, in create_connection
+    raise exceptions[0]
+  File "/usr/local/lib/python3.12/socket.py", line 850, in create_connection
+    sock.connect(sa)
+OSError: [Errno 101] Network is unreachable
 
-Вывод: прямой egress с серверов нестабилен (timeout или 404). Контейнер curl иногда 200, но sendMessage падает.
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+  File "/usr/local/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 515, in open
+    response = self._open(req, data)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 1392, in https_open
+    return self.do_open(http.client.HTTPSConnection, req,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+urllib.error.URLError: <urlopen error [Errno 101] Network is unreachable>
+real send from Admin bot (masked):
+curl: (28) Connection timed out after 15002 milliseconds
+```
+
+Вывод: прямой egress с серверов нестабилен (timeout или 404 / network unreachable). Контейнер curl иногда 200, но sendMessage падает. Spool — рабочий путь.
 
 ### D. Живой heartbeat/доставка [BOT]
 
@@ -202,6 +251,6 @@ ACCEPT ... 195.133.26.200 ... tcp dpt:5432
 ## Метрики (опционально)
 
 - Время на выполнение: ~1.5ч (включая rebuild'ы и повторные apply)
-- Выводы по двум вопросам: (1) backup_run доходит до success? Да (id 14 после фикса). (2) прямой egress бота в Telegram работает? Нет стабильно (404/timeout; spool — да).
+- Выводы по двум вопросам: (1) backup_run доходит до success? Да (id 14 после фикса). (2) прямой egress бота в Telegram работает? Нет стабильно (404/timeout/unreachable; spool — да).
 
 (Отчёт подготовлен для архитектора.)
