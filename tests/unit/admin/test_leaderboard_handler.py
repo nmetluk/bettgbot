@@ -94,9 +94,7 @@ def test_leaderboard_renders_rows(fake_admin_middleware_session: None) -> None:
     response = client.get("/leaderboard")
 
     assert response.status_code == 200
-    service.leaderboard.assert_awaited_once_with(
-        min_resolved=5, limit=100, period_days=None
-    )
+    service.leaderboard.assert_awaited_once_with(min_resolved=5, limit=100, period_days=None)
 
     content = response.text
     assert "Alice Wonder" in content
@@ -129,9 +127,7 @@ def test_leaderboard_period_filter(fake_admin_middleware_session: None) -> None:
     response = client.get("/leaderboard?period=30d")
 
     assert response.status_code == 200
-    service.leaderboard.assert_awaited_once_with(
-        min_resolved=5, limit=100, period_days=30
-    )
+    service.leaderboard.assert_awaited_once_with(min_resolved=5, limit=100, period_days=30)
 
 
 def test_leaderboard_period_all(fake_admin_middleware_session: None) -> None:
@@ -143,9 +139,7 @@ def test_leaderboard_period_all(fake_admin_middleware_session: None) -> None:
     response = client.get("/leaderboard?period=all")
 
     assert response.status_code == 200
-    service.leaderboard.assert_awaited_once_with(
-        min_resolved=5, limit=100, period_days=None
-    )
+    service.leaderboard.assert_awaited_once_with(min_resolved=5, limit=100, period_days=None)
 
 
 def test_leaderboard_invalid_period_rejected(fake_admin_middleware_session: None) -> None:

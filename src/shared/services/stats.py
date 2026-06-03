@@ -294,7 +294,9 @@ class StatsService:
             participation_pct=participation_pct,
         )
 
-    async def daily_admin_digest(self, *, reference_now: datetime | None = None) -> DailyAdminDigest:
+    async def daily_admin_digest(
+        self, *, reference_now: datetime | None = None
+    ) -> DailyAdminDigest:
         """Обогащённая статистика для дневного дайджеста админам (TASK-098).
 
         Все окна — последние 24ч (и предыдущие 24ч для дельт).
