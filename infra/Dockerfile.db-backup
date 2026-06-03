@@ -21,11 +21,15 @@ BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-7}
 # Write running row, return its id (for UPDATE later). Host captured for multi-server.
 start_backup_run() {
     host_name="$(hostname)"
-    psql -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -c "
+    # -tAq + head -1: вернуть ТОЛЬКО числовой id. Раньше `-t | tr -d [:space:]`
+    # склеивал id со статус-тегом `INSERT 0 1` → мусор вроде "13INSERT01",
+    # и финальный UPDATE падал с "trailing junk after numeric literal"
+    # (backup_run навсегда оставался в статусе 'running'). Фикс деплой-аудита 2026-06-03.
+    psql -h db -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAq -c "
         INSERT INTO backup_run (started_at, status, host)
         VALUES (now(), 'running', '$host_name')
         RETURNING id;
-    " | tr -d '[:space:]'
+    " | head -1
 }
 
 # Finish the run row by id (UPDATE, not new INSERT). Filename only on success.
