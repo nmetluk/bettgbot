@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-06-03
+
+Деплой-харднинг бэкап-стека по итогам прод-аудита v0.2.0 (двухсерверная топология).
+
+### Fixed
+
+- **`backup_run` навсегда «running»** (TASK-099 hotfix) — `start_backup_run` склеивал id со статус-тегом `INSERT 0 1` → UPDATE до `success/failed` падал. Чинит учёт бэкапов, статус heartbeat и репликацию.
+- **Пути репликации** (TASK-108) — `BACKUP_LOCAL_DIR` теперь точка монтирования контейнера (`/backups`); дампы на Admin пишутся в host bind-mount, доступный ssh-источнику (раньше репликация копировала «в пустоту»).
+- **Date-зависимые тесты** (TASK-102) — устранены «тайм-бомбы» через инъекцию `reference_now` (детерминизм без привязки к реальному календарю).
+
+### Changed
+
+- **Бот — только на воркере** (TASK-107) — сервис `bot` в Admin-композиции вынесен за профиль; на выделенном воркере поднимается через `docker-compose.bot-only.yml`.
+
+### Added
+
+- **Воркерный деплой** (TASK-104) — `infra/docker-compose.bot-only.yml` + `make prod.bot.*` для отдельного bot-хоста.
+- **Обогащение админ-статистики** (TASK-098) — дельты к прошлым суткам, DAU, топ-3 событий, точность закрытых, конверсия; в пост-итоговой сводке — популярный vs верный исход и % участия.
+- **Раздел деплоя**: двухсерверная топология (Admin + Worker) в `docs/07-deployment.md`.
+
+### Security
+
+- **Порты Postgres/Redis закрыты по умолчанию** (TASK-103) — экспозиция вынесена в opt-in overlay `infra/docker-compose.expose-db.yml`, применяемый ТОЛЬКО в split-топологии и ТОЛЬКО вместе с `scripts/apply-bot-firewall.sh` (DOCKER-USER whitelist по IP воркера). Одно-серверные/no-domain деплои остаются закрытыми.
+
 ## [0.2.0] - 2026-06-03
 
 ### Added

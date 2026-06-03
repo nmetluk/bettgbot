@@ -1,6 +1,6 @@
 [project]
 name = "bettgbot"
-version = "0.2.0"
+version = "0.2.1"
 description = "Telegram-бот приёма прогнозов на события с минимальной веб-админкой"
 requires-python = ">=3.12,<3.13"
 readme = "README.md"
