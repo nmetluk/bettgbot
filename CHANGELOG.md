@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-03
+
+### Added
+
+- **Админская статистика через бота** (TASK-097) — ежедневный дайджест в 16:00 `Europe/Moscow` за последние 24ч (всего пользователей / новых / прогнозов) и после фиксации итога события — сводка (всего/угадали/распределение по исходам) + CSV угадавших, во все `ADMIN_TELEGRAM_CHAT_IDS`. Развязка web↔bot через колонку `events.result_notified_at`.
+- **Мониторинг бэкапов (heartbeat)** (TASK-099) — таблица `backup_run` (миграция 0008), ежечасный bot-джоб проверяет видимость Postgres/Redis и свежесть последнего бэкапа, шлёт OK/ALERT в админ-чат (флаг `BACKUP_HEARTBEAT_ENABLED`).
+- **Репликация бэкапа на bot-сервер** (TASK-100) — pull свежего дампа с Admin-сервера по `rsync`+SSH, отметка `backup_run.replicated_at` (флаг `BACKUP_REPLICATION_ENABLED`).
+
+### Changed
+
+- **Открытая регистрация** (TASK-096, ADR-0006) — проверка по внешнему реестру отменена: регистрируется любой, кто поделился контактом; единственный отказной путь — `is_blocked`.
+- **Ежечасный бэкап БД** (TASK-101) — контейнер `db-backup` переведён с суточного на ежечасный дамп; интервал и retention через env (`BACKUP_INTERVAL_SECONDS`, `BACKUP_RETENTION_DAYS`).
+- **Процесс CI/merge** — в DoD добавлены rebase на свежий `main`, явный auto-merge для feature-веток и `ruff format --check`.
+
+### Removed
+
+- **Внешний реестр пользователей** (`src/shared/external/`, HTTP/mock-клиенты, исключения, env `EXTERNAL_*`/`MOCK_REGISTRY_*`) — удалён полностью вместе с проверкой при регистрации.
+
 ## [0.1.0] - 2026-05-31
 
 ### Added
