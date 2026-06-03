@@ -7,6 +7,7 @@ pr: https://github.com/nmetluk/bettgbot/pull/232
 branch: feature/TASK-102-audit-date-dependent-tests
 commits:
   - 628cfde test: audit and fix date-dependent tests by injecting reference_now (TASK-102)
+  - 5bd7589 chore: ruff format after rebase (TASK-102)
 ---
 # Отчёт по TASK-102: Аудит и устранение date-зависимых («тайм-бомба») тестов
 
