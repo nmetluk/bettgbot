@@ -47,6 +47,12 @@ dev = [
 # а src.* пакеты подключаются через PYTHONPATH (см. [tool.pytest.ini_options]).
 package = false
 
+# Override for transitive aiohttp (aiogram declares <3.14; we need 3.14.0+ for CVE fixes).
+# See TASK-110.
+override-dependencies = [
+    "aiohttp>=3.14.0,<4",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
