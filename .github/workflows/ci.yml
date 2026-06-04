@@ -130,12 +130,11 @@ jobs:
         run: uv sync --frozen
       - name: pip-audit scan
         run: |
-          uv pip freeze > requirements.txt
-          uv run pip-audit --strict --desc --requirement requirements.txt || true
+          # Audit the resolved env directly (uv override-dependencies for aiohttp CVE bump
+          # makes --requirement fail plain-pip resolution inside pip-audit; env scan works).
+          uv run pip-audit --strict --desc || true
       - name: pip-audit check (fail on VULNERABILITIES)
-        run: |
-          uv pip freeze > requirements.txt
-          uv run pip-audit --strict --requirement requirements.txt
+        run: uv run pip-audit --strict
 
   security-secrets:
     name: Security (Secrets - gitleaks)
